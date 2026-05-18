@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShopFlow POS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div>
+          <p class="eyebrow" data-i18n="brandTag">Bilingual smart checkout</p>
+          <h1 class="brand">ShopFlow POS</h1>
+          <p class="sidebar-copy" data-i18n="brandCopy">
+            Fast cashier flow with barcode scan, payment handling, and receipt templates.
+          </p>
+        </div>
+
+        <nav class="nav-grid" aria-label="Primary">
+          <button class="nav-chip is-active" data-section="dashboard" data-i18n="dashboard">
+            Dashboard
+          </button>
+          <button class="nav-chip" data-section="pos" data-i18n="pos">
+            POS Counter
+          </button>
+          <button class="nav-chip" data-section="inventory" data-i18n="inventory">
+            Inventory
+          </button>
+          <button class="nav-chip" data-section="receipts" data-i18n="receipts">
+            Receipts
+          </button>
+          <button class="nav-chip" data-section="settings" data-i18n="settings">
+            Settings
+          </button>
+        </nav>
+
+        <div class="sidebar-card">
+          <p class="sidebar-card-title" data-i18n="quickTools">Quick tools</p>
+          <div class="quick-stack">
+            <button class="ghost-btn" id="focus-scan" data-i18n="focusScan">
+              Focus barcode
+            </button>
+            <button class="ghost-btn" id="start-demo-sale" data-i18n="demoSale">
+              Demo sale
+            </button>
+            <button class="ghost-btn" id="open-print-preview" data-i18n="printReceipt">
+              Print receipt
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" data-i18n="headerLabel">Store selling web app</p>
+            <h2 id="store-name">Sunrise Market</h2>
+          </div>
+
+          <div class="topbar-actions">
+            <div class="lang-switch" role="group" aria-label="Language switch">
+              <button class="lang-btn is-active" data-lang="en">EN</button>
+              <button class="lang-btn" data-lang="vi">VI</button>
+            </div>
+            <div class="clock-card">
+              <span data-i18n="today">Today</span>
+              <strong id="clock-text"></strong>
+            </div>
+          </div>
+        </header>
+
+        <section class="section is-visible" id="section-dashboard">
+          <div class="hero">
+            <div>
+              <p class="eyebrow" data-i18n="heroTag">Cashier friendly and convenient</p>
+              <h3 data-i18n="heroTitle">Sell faster, scan instantly, print beautifully.</h3>
+              <p data-i18n="heroCopy">
+                A modern shop management screen for bilingual teams with product search, barcode
+                scanning, payment tracking, and ready-to-print bill templates.
+              </p>
+            </div>
+            <div class="hero-actions">
+              <button class="primary-btn" data-section-jump="pos" data-i18n="startSelling">
+                Start selling
+              </button>
+              <button class="secondary-btn" data-section-jump="receipts" data-i18n="seeTemplates">
+                See templates
+              </button>
+            </div>
+          </div>
+
+          <div class="stats-grid" id="stats-grid"></div>
+
+          <div class="content-grid">
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow" data-i18n="recentSales">Recent sales</p>
+                  <h4 data-i18n="salesHistory">Sales history</h4>
+                </div>
+              </div>
+              <div id="sales-history" class="history-list"></div>
+            </article>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow" data-i18n="fastActions">Fast actions</p>
+                  <h4 data-i18n="whatIncluded">What is included</h4>
+                </div>
+              </div>
+              <div class="feature-list" id="feature-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="section-pos">
+          <div class="content-grid pos-layout">
+            <article class="card product-browser">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow" data-i18n="catalog">Catalog</p>
+                  <h4 data-i18n="productsAndScanner">Products and scanner</h4>
+                </div>
+                <span class="status-pill" id="scanner-status" data-i18n="scannerReady">
+                  Scanner ready
+                </span>
+              </div>
+
+              <div class="toolbar">
+                <label class="field grow">
+                  <span data-i18n="searchProduct">Search products</span>
+                  <input id="product-search" type="search" placeholder="Search by name or barcode" />
+                </label>
+                <label class="field">
+                  <span data-i18n="barcodeInput">Barcode</span>
+                  <input id="barcode-input" type="text" inputmode="numeric" placeholder="893..." />
+                </label>
+                <button class="secondary-btn" id="scan-submit" data-i18n="addByCode">
+                  Add by code
+                </button>
+              </div>
+
+              <div class="scanner-panel">
+                <div class="scanner-actions">
+                  <button class="ghost-btn" id="start-camera-scan" data-i18n="cameraScan">
+                    Camera scan
+                  </button>
+                  <button class="ghost-btn" id="stop-camera-scan" data-i18n="stopCamera">
+                    Stop camera
+                  </button>
+                  <p class="muted" data-i18n="scannerHint">
+                    Supports barcode scanner keyboard input and compatible camera scanning.
+                  </p>
+                </div>
+                <video id="scanner-video" playsinline muted></video>
+              </div>
+
+              <div class="product-grid" id="product-grid"></div>
+            </article>
+
+            <article class="card cart-panel">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow" data-i18n="currentOrder">Current order</p>
+                  <h4 data-i18n="cartAndPayment">Cart and payment</h4>
+                </div>
+                <button class="ghost-btn" id="clear-cart" data-i18n="clearCart">
+                  Clear
+                </button>
+              </div>
+
+              <div class="cart-list" id="cart-list"></div>
+
+              <div class="cart-meta">
+                <label class="field">
+                  <span data-i18n="customerName">Customer name</span>
+                  <input id="customer-name" type="text" placeholder="Walk-in customer" />
+                </label>
+                <label class="field">
+                  <span data-i18n="paymentMethod">Payment method</span>
+                  <select id="payment-method"></select>
+                </label>
+                <label class="field cart-field-wide">
+                  <span data-i18n="amountTendered">Amount tendered</span>
+                  <input id="amount-tendered" type="number" min="0" step="1000" />
+                </label>
+              </div>
+
+              <div class="quick-cash-row" id="quick-cash-row"></div>
+
+              <div class="summary">
+                <div class="summary-row">
+                  <span data-i18n="items">Items</span>
+                  <strong id="summary-items">0</strong>
+                </div>
+                <div class="summary-row">
+                  <span data-i18n="subtotal">Subtotal</span>
+                  <strong id="summary-subtotal">0</strong>
+                </div>
+                <div class="summary-row">
+                  <span data-i18n="tax">Tax</span>
+                  <strong id="summary-tax">0</strong>
+                </div>
+                <div class="summary-row total">
+                  <span data-i18n="total">Total</span>
+                  <strong id="summary-total">0</strong>
+                </div>
+                <div class="summary-row">
+                  <span data-i18n="change">Change</span>
+                  <strong id="summary-change">0</strong>
+                </div>
+              </div>
+
+              <div class="checkout-actions">
+                <button class="secondary-btn" id="preview-bill" data-i18n="previewReceipt">
+                  Preview receipt
+                </button>
+                <button class="primary-btn" id="complete-sale" data-i18n="completeSale">
+                  Complete sale
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="section-inventory">
+          <div class="inventory-stack">
+            <div class="content-grid">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <p class="eyebrow" data-i18n="inventory">Inventory</p>
+                    <h4 data-i18n="manageProducts">Manage products</h4>
+                  </div>
+                </div>
+
+                <form id="product-form" class="form-grid">
+                  <label class="field">
+                    <span data-i18n="productName">Product name</span>
+                    <input name="name" type="text" required />
+                  </label>
+                  <label class="field">
+                    <span data-i18n="productNameVi">Vietnamese name</span>
+                    <input name="nameVi" type="text" required />
+                  </label>
+                  <label class="field">
+                    <span data-i18n="category">Category</span>
+                    <input name="category" type="text" required />
+                  </label>
+                  <label class="field wide">
+                    <span data-i18n="generatedBarcode">Generated barcode</span>
+                    <div class="field-combo">
+                      <input id="inventory-barcode" name="barcode" type="text" readonly />
+                      <button
+                        class="secondary-btn combo-btn"
+                        id="generate-barcode-btn"
+                        type="button"
+                        data-i18n="generateBarcode"
+                      >
+                        Generate
+                      </button>
+                    </div>
+                    <small class="field-note" id="barcode-preview-note" data-i18n="barcodeFromPriceHint">
+                      Barcode is generated automatically from the price.
+                    </small>
+                  </label>
+                  <label class="field">
+                    <span data-i18n="price">Price</span>
+                    <input name="price" type="number" min="0" max="9999999" step="1000" required />
+                  </label>
+                  <label class="field">
+                    <span data-i18n="stock">Stock</span>
+                    <input name="stock" type="number" min="0" step="1" required />
+                  </label>
+                  <button class="primary-btn" type="submit" data-i18n="saveProduct">
+                    Save product
+                  </button>
+                </form>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <p class="eyebrow" data-i18n="liveCatalog">Live catalog</p>
+                    <h4 data-i18n="inventoryList">Inventory list</h4>
+                  </div>
+                </div>
+                <div class="inventory-list" id="inventory-list"></div>
+              </article>
+            </div>
+
+            <div class="content-grid">
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <p class="eyebrow" data-i18n="barcodeTemplates">Barcode templates</p>
+                    <h4 data-i18n="chooseBarcodeTemplate">Choose a label style</h4>
+                  </div>
+                </div>
+                <div class="template-grid" id="barcode-template-grid"></div>
+              </article>
+
+              <article class="card">
+                <div class="card-head">
+                  <div>
+                    <p class="eyebrow" data-i18n="barcodePreview">Barcode preview</p>
+                    <h4 data-i18n="printBarcodeLabel">Print barcode label</h4>
+                  </div>
+                  <button class="primary-btn" id="print-barcode-btn" data-i18n="printBarcodeBtn">
+                    Print barcode
+                  </button>
+                </div>
+                <div class="label-toolbar">
+                  <label class="field">
+                    <span data-i18n="labelProduct">Product for label</span>
+                    <select id="barcode-label-product-select"></select>
+                  </label>
+                </div>
+                <div class="label-preview-shell">
+                  <div class="barcode-label-preview" id="barcode-label-preview"></div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="section-receipts">
+          <div class="content-grid">
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow" data-i18n="billTemplates">Bill templates</p>
+                  <h4 data-i18n="chooseTemplate">Choose a receipt style</h4>
+                </div>
+              </div>
+              <div class="template-grid" id="template-grid"></div>
+            </article>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow" data-i18n="preview">Preview</p>
+                  <h4 data-i18n="printReadyReceipt">Print-ready receipt</h4>
+                </div>
+                <button class="primary-btn" id="print-receipt-btn" data-i18n="printReceipt">
+                  Print receipt
+                </button>
+              </div>
+              <div class="receipt-preview-wrap">
+                <div class="receipt-preview" id="receipt-preview"></div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="section-settings">
+          <div class="content-grid">
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow" data-i18n="settings">Settings</p>
+                  <h4 data-i18n="storeSetup">Store setup</h4>
+                </div>
+              </div>
+
+              <form id="settings-form" class="form-grid">
+                <label class="field">
+                  <span data-i18n="storeName">Store name</span>
+                  <input name="storeName" type="text" required />
+                </label>
+                <label class="field">
+                  <span data-i18n="taxId">Tax ID</span>
+                  <input name="taxId" type="text" />
+                </label>
+                <label class="field full">
+                  <span data-i18n="storeAddress">Address</span>
+                  <input name="storeAddress" type="text" required />
+                </label>
+                <label class="field">
+                  <span data-i18n="storePhone">Phone</span>
+                  <input name="storePhone" type="text" required />
+                </label>
+                <label class="field">
+                  <span data-i18n="storeEmail">Email</span>
+                  <input name="storeEmail" type="email" />
+                </label>
+                <label class="field">
+                  <span data-i18n="storeWebsite">Website</span>
+                  <input name="storeWebsite" type="text" />
+                </label>
+                <label class="field">
+                  <span data-i18n="taxRate">Tax rate (%)</span>
+                  <input name="taxRate" type="number" min="0" max="100" step="0.5" required />
+                </label>
+                <label class="field full">
+                  <span data-i18n="receiptFooter">Receipt footer</span>
+                  <textarea name="receiptFooter" rows="4"></textarea>
+                </label>
+                <button class="primary-btn" type="submit" data-i18n="saveSettings">
+                  Save settings
+                </button>
+              </form>
+            </article>
+
+            <article class="card">
+              <div class="card-head">
+                <div>
+                  <p class="eyebrow" data-i18n="shopProfile">Shop profile</p>
+                  <h4 data-i18n="shopProfilePreview">Shop profile preview</h4>
+                </div>
+              </div>
+              <div class="settings-preview" id="settings-preview"></div>
+              <div class="card-divider"></div>
+              <div>
+                <p class="eyebrow" data-i18n="helpfulFlow">Helpful flow</p>
+                <h4 data-i18n="howToUse">How to use</h4>
+              </div>
+              <div class="feature-list" id="usage-list"></div>
+            </article>
+          </div>
+
+          <article class="card template-manager-card">
+            <div class="card-head">
+              <div>
+                <p class="eyebrow" data-i18n="barcodeTemplateManager">Barcode template manager</p>
+                <h4 data-i18n="manageBarcodeTemplates">Adjust, add, or remove label templates</h4>
+              </div>
+            </div>
+
+            <form id="barcode-template-form" class="form-grid">
+              <label class="field wide">
+                <span data-i18n="templateChooseEdit">Template to edit</span>
+                <select id="barcode-template-editor-select" name="templateEditor"></select>
+              </label>
+              <label class="field">
+                <span data-i18n="templateNameEn">Template name (EN)</span>
+                <input name="name" type="text" required />
+              </label>
+              <label class="field">
+                <span data-i18n="templateNameVi">Template name (VI)</span>
+                <input name="nameVi" type="text" required />
+              </label>
+              <label class="field full">
+                <span data-i18n="templateDescriptionEn">Description (EN)</span>
+                <input name="description" type="text" required />
+              </label>
+              <label class="field full">
+                <span data-i18n="templateDescriptionVi">Description (VI)</span>
+                <input name="descriptionVi" type="text" required />
+              </label>
+              <label class="field">
+                <span data-i18n="templateStyle">Label style</span>
+                <select name="className">
+                  <option value="sticker" data-i18n="templateStyleSticker">Sticker</option>
+                  <option value="shelf" data-i18n="templateStyleShelf">Shelf</option>
+                  <option value="premium" data-i18n="templateStylePremium">Premium</option>
+                </select>
+              </label>
+              <div class="field wide">
+                <span data-i18n="templateVisibleFields">Visible fields</span>
+                <div class="toggle-grid">
+                  <label class="toggle-option">
+                    <input name="showStore" type="checkbox" />
+                    <span data-i18n="templateShowStore">Show store name</span>
+                  </label>
+                  <label class="toggle-option">
+                    <input name="showCategory" type="checkbox" />
+                    <span data-i18n="templateShowCategory">Show category</span>
+                  </label>
+                  <label class="toggle-option">
+                    <input name="showStock" type="checkbox" />
+                    <span data-i18n="templateShowStock">Show stock</span>
+                  </label>
+                  <label class="toggle-option">
+                    <input name="showFooter" type="checkbox" />
+                    <span data-i18n="templateShowFooter">Show footer contact</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="template-manager-actions full">
+                <button class="ghost-btn" id="barcode-template-new-btn" type="button" data-i18n="templateCreateNew">
+                  New template
+                </button>
+                <button class="secondary-btn" id="barcode-template-remove-btn" type="button" data-i18n="templateRemove">
+                  Remove template
+                </button>
+                <button class="primary-btn" type="submit" data-i18n="templateSave">
+                  Save template
+                </button>
+              </div>
+            </form>
+          </article>
+        </section>
+      </main>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <template id="receipt-print-template">
+      <div class="print-stage">
+        <div class="receipt-preview" id="printable-receipt"></div>
+      </div>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
