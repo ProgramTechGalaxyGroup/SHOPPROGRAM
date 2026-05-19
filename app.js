@@ -1,2542 +1,4365 @@
-const STORAGE_KEYS = {
-  products: "shopflow-products",
-  sales: "shopflow-sales",
-  settings: "shopflow-settings",
-  language: "shopflow-language",
-  template: "shopflow-template",
-  receiptTemplates: "shopflow-receipt-templates",
-  barcodeLabelTemplate: "shopflow-barcode-label-template",
-  barcodeTemplates: "shopflow-barcode-templates",
-};
+(function () {
+  var root = document.getElementById("root");
 
-const seedProducts = [
-  {
-    id: crypto.randomUUID(),
-    name: "Signature Milk Tea",
-    nameVi: "Trà sữa đặc biệt",
-    category: "Beverage",
-    barcode: "8938505970012",
-    price: 45000,
-    stock: 36,
-  },
-  {
-    id: crypto.randomUUID(),
-    name: "Cold Brew Coffee",
-    nameVi: "Cà phê ủ lạnh",
-    category: "Beverage",
-    barcode: "8938505970013",
-    price: 52000,
-    stock: 22,
-  },
-  {
-    id: crypto.randomUUID(),
-    name: "Butter Croissant",
-    nameVi: "Bánh sừng bò bơ",
-    category: "Bakery",
-    barcode: "8938505970014",
-    price: 28000,
-    stock: 18,
-  },
-  {
-    id: crypto.randomUUID(),
-    name: "Organic Granola",
-    nameVi: "Ngũ cốc hữu cơ",
-    category: "Grocery",
-    barcode: "8938505970015",
-    price: 89000,
-    stock: 14,
-  },
-  {
-    id: crypto.randomUUID(),
-    name: "Mango Yogurt",
-    nameVi: "Sữa chua xoài",
-    category: "Dessert",
-    barcode: "8938505970016",
-    price: 39000,
-    stock: 24,
-  },
-  {
-    id: crypto.randomUUID(),
-    name: "Sparkling Water",
-    nameVi: "Nước khoáng có ga",
-    category: "Beverage",
-    barcode: "8938505970017",
-    price: 18000,
-    stock: 48,
-  },
-];
-
-const defaultSettings = {
-  storeName: "Sunrise Market",
-  storeAddress: "88 Tran Hung Dao, District 1, Ho Chi Minh City",
-  storePhone: "+84 28 1234 5678",
-  storeEmail: "hello@sunrisemarket.vn",
-  storeWebsite: "sunrisemarket.vn",
-  taxId: "0312345678",
-  taxRate: 8,
-  receiptFooter: "Thank you for shopping with us. Hẹn gặp lại quý khách!",
-};
-
-const translations = {
-  en: {
-    brandTag: "Bilingual smart checkout",
-    brandCopy:
-      "Fast cashier flow with barcode scan, payment handling, and receipt templates.",
-    dashboard: "Dashboard",
-    pos: "POS Counter",
-    inventory: "Inventory",
-    receipts: "Receipts",
-    settings: "Settings",
-    quickTools: "Quick tools",
-    focusScan: "Focus barcode",
-    demoSale: "Demo sale",
-    printReceipt: "Print receipt",
-    headerLabel: "Store selling web app",
-    today: "Today",
-    heroTag: "Cashier friendly and convenient",
-    heroTitle: "Sell faster, scan instantly, print beautifully.",
-    heroCopy:
-      "A modern shop management screen for bilingual teams with product search, barcode scanning, payment tracking, and ready-to-print bill templates.",
-    startSelling: "Start selling",
-    seeTemplates: "See templates",
-    recentSales: "Recent sales",
-    salesHistory: "Sales history",
-    fastActions: "Fast actions",
-    whatIncluded: "What is included",
-    catalog: "Catalog",
-    productsAndScanner: "Products and scanner",
-    scannerReady: "Scanner ready",
-    searchProduct: "Search products",
-    barcodeInput: "Barcode",
-    addByCode: "Add by code",
-    cameraScan: "Camera scan",
-    stopCamera: "Stop camera",
-    scannerHint: "Supports barcode scanner keyboard input and compatible camera scanning.",
-    currentOrder: "Current order",
-    cartAndPayment: "Cart and payment",
-    clearCart: "Clear",
-    customerName: "Customer name",
-    paymentMethod: "Payment method",
-    amountTendered: "Amount tendered",
-    items: "Items",
-    subtotal: "Subtotal",
-    tax: "Tax",
-    total: "Total",
-    change: "Change",
-    previewReceipt: "Preview receipt",
-    completeSale: "Complete sale",
-    manageProducts: "Manage products",
-    productName: "Product name",
-    productNameVi: "Vietnamese name",
-    generatedBarcode: "Generated barcode",
-    generateBarcode: "Generate",
-    barcodeFromPriceHint: "Barcode is generated automatically from the price.",
-    barcodeNeedsPrice: "Enter a price to generate a barcode.",
-    barcodeGenerationFailed: "Unable to generate a barcode from this price.",
-    category: "Category",
-    price: "Price",
-    stock: "Stock",
-    saveProduct: "Save product",
-    editProduct: "Edit product",
-    removeProduct: "Remove product",
-    cancelEdit: "Cancel",
-    editingProduct: "Editing this product. Save to update inventory details.",
-    creatingProduct: "Create a new product. Barcode is generated from the price.",
-    productCreated: "New product saved and barcode label is ready.",
-    productUpdated: "Product details updated.",
-    productRemoved: "Product removed from inventory.",
-    productDeleteConfirm: "Remove this product from inventory?",
-    liveCatalog: "Live catalog",
-    inventoryList: "Inventory list",
-    barcodeTemplates: "Barcode templates",
-    chooseBarcodeTemplate: "Choose a label style",
-    barcodePreview: "Barcode preview",
-    printBarcodeLabel: "Print barcode label",
-    printBarcodeBtn: "Print barcode",
-    labelProduct: "Product for label",
-    previewLabel: "Preview label",
-    printLabel: "Print label",
-    barcodeUseTemplate: "Use this label",
-    barcodeLabelEmpty: "Select a product in inventory to preview and print its barcode label.",
-    barcodeLabelReady: "Barcode label is ready to print.",
-    barcodePrinted: "Barcode label sent to print.",
-    barcodeTemplateStickerName: "Sticker",
-    barcodeTemplateStickerDescription: "Compact label for cups, jars, and takeaway bags.",
-    barcodeTemplateShelfName: "Shelf tag",
-    barcodeTemplateShelfDescription: "Balanced size for shelf rails and display trays.",
-    barcodeTemplatePremiumName: "Premium card",
-    barcodeTemplatePremiumDescription: "Store-first layout for gifts and lifestyle goods.",
-    barcodeTemplateManager: "Barcode template manager",
-    manageBarcodeTemplates: "Adjust, add, or remove label templates",
-    templateChooseEdit: "Template to edit",
-    templateNameEn: "Template name (EN)",
-    templateNameVi: "Template name (VI)",
-    templateDescriptionEn: "Description (EN)",
-    templateDescriptionVi: "Description (VI)",
-    templateStyle: "Label style",
-    templateStyleSticker: "Sticker",
-    templateStyleShelf: "Shelf",
-    templateStylePremium: "Premium",
-    templateVisibleFields: "Visible fields",
-    templateShowStore: "Show store name",
-    templateShowCategory: "Show category",
-    templateShowStock: "Show stock",
-    templateShowFooter: "Show footer contact",
-    templateCreateNew: "New template",
-    templateSave: "Save template",
-    templateRemove: "Remove template",
-    templateDraftOption: "Create new template",
-    templateCreated: "New barcode template created.",
-    templateUpdated: "Barcode template updated.",
-    templateRemoved: "Barcode template removed.",
-    templateDeleteBlocked: "At least one barcode template must remain.",
-    billTemplates: "Bill templates",
-    chooseTemplate: "Choose a receipt style",
-    preview: "Preview",
-    printReadyReceipt: "Print-ready receipt",
-    receiptTemplateManager: "Receipt template manager",
-    manageReceiptTemplates: "Adjust, add, or remove invoice templates",
-    receiptTemplateChooseEdit: "Template to edit",
-    receiptTemplateTheme: "Receipt style",
-    receiptThemeCompact: "Compact",
-    receiptThemeRetail: "Retail",
-    receiptThemeGift: "Gift",
-    receiptVisibleFields: "Visible fields",
-    receiptShowContact: "Show phone, email, website",
-    receiptShowTaxId: "Show tax ID",
-    receiptShowOrderMeta: "Show date and order ID",
-    receiptShowPayment: "Show payment details",
-    receiptShowCustomer: "Show customer name",
-    receiptShowFooter: "Show footer note",
-    receiptTemplateDraftOption: "Create new receipt template",
-    receiptTemplateCreated: "New receipt template created.",
-    receiptTemplateUpdated: "Receipt template updated.",
-    receiptTemplateRemoved: "Receipt template removed.",
-    receiptTemplateDeleteBlocked: "At least one receipt template must remain.",
-    storeSetup: "Store setup",
-    storeName: "Store name",
-    storeAddress: "Address",
-    storePhone: "Phone",
-    storeEmail: "Email",
-    storeWebsite: "Website",
-    taxId: "Tax ID",
-    taxRate: "Tax rate (%)",
-    receiptFooter: "Receipt footer",
-    saveSettings: "Save settings",
-    settingsAutosaveReady: "Changes save automatically in this browser.",
-    settingsAutosaveSaved: "Saved in this browser.",
-    shopProfile: "Shop profile",
-    shopProfilePreview: "Shop profile preview",
-    helpfulFlow: "Helpful flow",
-    howToUse: "How to use",
-  },
-  vi: {
-    brandTag: "Quầy thanh toán song ngữ",
-    brandCopy:
-      "Quy trình thu ngân nhanh với quét mã, xử lý thanh toán và mẫu hóa đơn.",
-    dashboard: "Tổng quan",
-    pos: "Quầy POS",
-    inventory: "Kho hàng",
-    receipts: "Hóa đơn",
-    settings: "Cài đặt",
-    quickTools: "Công cụ nhanh",
-    focusScan: "Mở ô mã vạch",
-    demoSale: "Bán thử",
-    printReceipt: "In hóa đơn",
-    headerLabel: "Web bán hàng của cửa hàng",
-    today: "Hôm nay",
-    heroTag: "Thân thiện và tiện lợi cho thu ngân",
-    heroTitle: "Bán nhanh hơn, quét mã ngay, in đẹp mắt.",
-    heroCopy:
-      "Màn hình quản lý bán hàng hiện đại cho đội ngũ song ngữ với tìm sản phẩm, quét mã vạch, theo dõi thanh toán và mẫu bill sẵn sàng để in.",
-    startSelling: "Bắt đầu bán",
-    seeTemplates: "Xem mẫu bill",
-    recentSales: "Giao dịch gần đây",
-    salesHistory: "Lịch sử bán hàng",
-    fastActions: "Thao tác nhanh",
-    whatIncluded: "Tính năng bao gồm",
-    catalog: "Danh mục",
-    productsAndScanner: "Sản phẩm và máy quét",
-    scannerReady: "Máy quét sẵn sàng",
-    searchProduct: "Tìm sản phẩm",
-    barcodeInput: "Mã vạch",
-    addByCode: "Thêm bằng mã",
-    cameraScan: "Quét bằng camera",
-    stopCamera: "Dừng camera",
-    scannerHint: "Hỗ trợ máy quét dạng bàn phím và quét camera nếu trình duyệt tương thích.",
-    currentOrder: "Đơn hiện tại",
-    cartAndPayment: "Giỏ hàng và thanh toán",
-    clearCart: "Xóa",
-    customerName: "Tên khách hàng",
-    paymentMethod: "Phương thức thanh toán",
-    amountTendered: "Tiền khách đưa",
-    items: "Số món",
-    subtotal: "Tạm tính",
-    tax: "Thuế",
-    total: "Tổng cộng",
-    change: "Tiền thừa",
-    previewReceipt: "Xem trước hóa đơn",
-    completeSale: "Hoàn tất bán hàng",
-    manageProducts: "Quản lý sản phẩm",
-    productName: "Tên sản phẩm",
-    productNameVi: "Tên tiếng Việt",
-    generatedBarcode: "Mã vạch tự động",
-    generateBarcode: "Tạo mã",
-    barcodeFromPriceHint: "Mã vạch được tạo tự động theo giá bán.",
-    barcodeNeedsPrice: "Hãy nhập giá bán để tạo mã vạch.",
-    barcodeGenerationFailed: "Không thể tạo mã vạch từ mức giá này.",
-    category: "Danh mục",
-    price: "Giá bán",
-    stock: "Tồn kho",
-    saveProduct: "Lưu sản phẩm",
-    editProduct: "Sửa sản phẩm",
-    removeProduct: "Xóa sản phẩm",
-    cancelEdit: "Hủy",
-    editingProduct: "Đang chỉnh sửa sản phẩm này. Hãy lưu để cập nhật kho hàng.",
-    creatingProduct: "Tạo sản phẩm mới. Mã vạch sẽ được tạo từ giá bán.",
-    productCreated: "Đã lưu sản phẩm mới và chuẩn bị tem mã vạch.",
-    productUpdated: "Đã cập nhật thông tin sản phẩm.",
-    productRemoved: "Đã xóa sản phẩm khỏi kho.",
-    productDeleteConfirm: "Bạn có muốn xóa sản phẩm này khỏi kho không?",
-    liveCatalog: "Danh mục hiện tại",
-    inventoryList: "Danh sách tồn kho",
-    barcodeTemplates: "Mẫu tem mã vạch",
-    chooseBarcodeTemplate: "Chọn kiểu tem nhãn",
-    barcodePreview: "Xem trước mã vạch",
-    printBarcodeLabel: "In tem mã vạch",
-    printBarcodeBtn: "In mã vạch",
-    labelProduct: "Sản phẩm in tem",
-    previewLabel: "Xem tem",
-    printLabel: "In tem",
-    barcodeUseTemplate: "Dùng mẫu này",
-    barcodeLabelEmpty: "Hãy chọn một sản phẩm trong kho để xem trước và in tem mã vạch.",
-    barcodeLabelReady: "Tem mã vạch đã sẵn sàng để in.",
-    barcodePrinted: "Đã gửi lệnh in tem mã vạch.",
-    barcodeTemplateStickerName: "Tem dán",
-    barcodeTemplateStickerDescription: "Tem nhỏ gọn cho ly, hũ và túi mang đi.",
-    barcodeTemplateShelfName: "Nhãn kệ",
-    barcodeTemplateShelfDescription: "Kích thước cân đối cho kệ hàng và khay trưng bày.",
-    barcodeTemplatePremiumName: "Thẻ cao cấp",
-    barcodeTemplatePremiumDescription: "Bố cục nổi bật tên cửa hàng cho quà tặng và sản phẩm phong cách.",
-    barcodeTemplateManager: "Quản lý mẫu tem mã vạch",
-    manageBarcodeTemplates: "Chỉnh sửa, thêm hoặc xóa mẫu tem",
-    templateChooseEdit: "Mẫu cần chỉnh",
-    templateNameEn: "Tên mẫu (EN)",
-    templateNameVi: "Tên mẫu (VI)",
-    templateDescriptionEn: "Mô tả (EN)",
-    templateDescriptionVi: "Mô tả (VI)",
-    templateStyle: "Kiểu tem",
-    templateStyleSticker: "Tem dán",
-    templateStyleShelf: "Nhãn kệ",
-    templateStylePremium: "Thẻ cao cấp",
-    templateVisibleFields: "Thông tin hiển thị",
-    templateShowStore: "Hiện tên cửa hàng",
-    templateShowCategory: "Hiện danh mục",
-    templateShowStock: "Hiện tồn kho",
-    templateShowFooter: "Hiện thông tin liên hệ cuối tem",
-    templateCreateNew: "Tạo mẫu mới",
-    templateSave: "Lưu mẫu",
-    templateRemove: "Xóa mẫu",
-    templateDraftOption: "Tạo mẫu tem mới",
-    templateCreated: "Đã tạo mẫu tem mã vạch mới.",
-    templateUpdated: "Đã cập nhật mẫu tem mã vạch.",
-    templateRemoved: "Đã xóa mẫu tem mã vạch.",
-    templateDeleteBlocked: "Cần giữ lại ít nhất một mẫu tem mã vạch.",
-    billTemplates: "Mẫu bill",
-    chooseTemplate: "Chọn kiểu hóa đơn",
-    preview: "Xem trước",
-    printReadyReceipt: "Hóa đơn sẵn sàng để in",
-    receiptTemplateManager: "Quản lý mẫu hóa đơn",
-    manageReceiptTemplates: "Chỉnh sửa, thêm hoặc xóa mẫu hóa đơn",
-    receiptTemplateChooseEdit: "Mẫu cần chỉnh",
-    receiptTemplateTheme: "Kiểu hóa đơn",
-    receiptThemeCompact: "Nhỏ gọn",
-    receiptThemeRetail: "Bán lẻ",
-    receiptThemeGift: "Quà tặng",
-    receiptVisibleFields: "Thông tin hiển thị",
-    receiptShowContact: "Hiện số điện thoại, email, website",
-    receiptShowTaxId: "Hiện mã số thuế",
-    receiptShowOrderMeta: "Hiện ngày giờ và mã đơn",
-    receiptShowPayment: "Hiện thông tin thanh toán",
-    receiptShowCustomer: "Hiện tên khách hàng",
-    receiptShowFooter: "Hiện lời nhắn cuối hóa đơn",
-    receiptTemplateDraftOption: "Tạo mẫu hóa đơn mới",
-    receiptTemplateCreated: "Đã tạo mẫu hóa đơn mới.",
-    receiptTemplateUpdated: "Đã cập nhật mẫu hóa đơn.",
-    receiptTemplateRemoved: "Đã xóa mẫu hóa đơn.",
-    receiptTemplateDeleteBlocked: "Cần giữ lại ít nhất một mẫu hóa đơn.",
-    storeSetup: "Thông tin cửa hàng",
-    storeName: "Tên cửa hàng",
-    storeAddress: "Địa chỉ",
-    storePhone: "Số điện thoại",
-    storeEmail: "Email",
-    storeWebsite: "Website",
-    taxId: "Mã số thuế",
-    taxRate: "Tỷ lệ thuế (%)",
-    receiptFooter: "Lời nhắn cuối hóa đơn",
-    saveSettings: "Lưu cài đặt",
-    settingsAutosaveReady: "Các thay đổi sẽ tự lưu trên trình duyệt này.",
-    settingsAutosaveSaved: "Đã lưu trên trình duyệt này.",
-    shopProfile: "Hồ sơ cửa hàng",
-    shopProfilePreview: "Xem trước hồ sơ cửa hàng",
-    helpfulFlow: "Quy trình gợi ý",
-    howToUse: "Cách sử dụng",
-  },
-};
-
-const paymentMethods = {
-  en: [
-    { value: "cash", label: "Cash" },
-    { value: "card", label: "Card" },
-    { value: "transfer", label: "Bank transfer" },
-    { value: "ewallet", label: "E-wallet" },
-  ],
-  vi: [
-    { value: "cash", label: "Tiền mặt" },
-    { value: "card", label: "Thẻ" },
-    { value: "transfer", label: "Chuyển khoản" },
-    { value: "ewallet", label: "Ví điện tử" },
-  ],
-};
-
-const defaultReceiptTemplates = [
-  {
-    id: "compact",
-    theme: "compact",
-    en: {
-      name: "Compact",
-      description: "Quick thermal style for small printers.",
-    },
-    vi: {
-      name: "Nhỏ gọn",
-      description: "Kiểu bill nhiệt nhanh cho máy in nhỏ.",
-    },
-    showContact: true,
-    showTaxId: true,
-    showOrderMeta: true,
-    showPayment: true,
-    showCustomer: true,
-    showFooter: true,
-  },
-  {
-    id: "retail",
-    theme: "retail",
-    en: {
-      name: "Retail",
-      description: "Clear totals and store-first layout.",
-    },
-    vi: {
-      name: "Bán lẻ",
-      description: "Bố cục rõ ràng, nhấn mạnh thông tin cửa hàng.",
-    },
-    showContact: true,
-    showTaxId: true,
-    showOrderMeta: true,
-    showPayment: true,
-    showCustomer: true,
-    showFooter: true,
-  },
-  {
-    id: "gift",
-    theme: "gift",
-    en: {
-      name: "Gift",
-      description: "Warm branded look for lifestyle shops.",
-    },
-    vi: {
-      name: "Phong cách quà tặng",
-      description: "Giao diện ấm áp cho cửa hàng phong cách.",
-    },
-    showContact: true,
-    showTaxId: true,
-    showOrderMeta: true,
-    showPayment: true,
-    showCustomer: true,
-    showFooter: true,
-  },
-];
-
-const defaultBarcodeLabelTemplates = [
-  {
-    id: "sticker",
-    name: "Sticker",
-    nameVi: "Tem dán",
-    description: "Compact label for cups, jars, and takeaway bags.",
-    descriptionVi: "Tem nhỏ gọn cho ly, hũ và túi mang đi.",
-    className: "sticker",
-    showStore: true,
-    showCategory: true,
-    showStock: true,
-    showFooter: true,
-  },
-  {
-    id: "shelf",
-    name: "Shelf tag",
-    nameVi: "Nhãn kệ",
-    description: "Balanced size for shelf rails and display trays.",
-    descriptionVi: "Kích thước cân đối cho kệ hàng và khay trưng bày.",
-    className: "shelf",
-    showStore: true,
-    showCategory: true,
-    showStock: true,
-    showFooter: false,
-  },
-  {
-    id: "premium",
-    name: "Premium card",
-    nameVi: "Thẻ cao cấp",
-    description: "Store-first layout for gifts and lifestyle goods.",
-    descriptionVi: "Bố cục nổi bật tên cửa hàng cho quà tặng và sản phẩm phong cách.",
-    className: "premium",
-    showStore: true,
-    showCategory: false,
-    showStock: false,
-    showFooter: true,
-  },
-];
-
-const appState = {
-  language: localStorage.getItem(STORAGE_KEYS.language) || "en",
-  products: normalizeProducts(loadState(STORAGE_KEYS.products, seedProducts)),
-  sales: loadState(STORAGE_KEYS.sales, []),
-  settings: normalizeSettings(loadState(STORAGE_KEYS.settings, defaultSettings)),
-  receiptTemplates: [],
-  barcodeTemplates: [],
-  selectedTemplate: localStorage.getItem(STORAGE_KEYS.template) || "compact",
-  editingReceiptTemplateId: null,
-  selectedBarcodeTemplate: localStorage.getItem(STORAGE_KEYS.barcodeLabelTemplate) || "sticker",
-  editingBarcodeTemplateId: null,
-  editingProductId: null,
-  selectedLabelProductId: null,
-  cart: [],
-  activeSection: "dashboard",
-  productSearch: "",
-  cameraStream: null,
-  scanLoopActive: false,
-  paymentMenuOpen: false,
-  lastReceipt: null,
-  scannerBuffer: "",
-  scannerLastKeyAt: 0,
-};
-
-const elements = {
-  storeName: document.getElementById("store-name"),
-  clockText: document.getElementById("clock-text"),
-  statsGrid: document.getElementById("stats-grid"),
-  featureList: document.getElementById("feature-list"),
-  usageList: document.getElementById("usage-list"),
-  salesHistory: document.getElementById("sales-history"),
-  productGrid: document.getElementById("product-grid"),
-  inventoryList: document.getElementById("inventory-list"),
-  cartList: document.getElementById("cart-list"),
-  templateGrid: document.getElementById("template-grid"),
-  barcodeTemplateGrid: document.getElementById("barcode-template-grid"),
-  receiptPreview: document.getElementById("receipt-preview"),
-  barcodeLabelPreview: document.getElementById("barcode-label-preview"),
-  barcodeLabelProductSelect: document.getElementById("barcode-label-product-select"),
-  toast: document.getElementById("toast"),
-  barcodeInput: document.getElementById("barcode-input"),
-  productSearch: document.getElementById("product-search"),
-  scannerStatus: document.getElementById("scanner-status"),
-  customerName: document.getElementById("customer-name"),
-  paymentMethod: document.getElementById("payment-method"),
-  paymentMethodMenu: document.getElementById("payment-method-menu"),
-  paymentMethodTrigger: document.getElementById("payment-method-trigger"),
-  paymentMethodLabel: document.getElementById("payment-method-label"),
-  paymentMethodOptions: document.getElementById("payment-method-options"),
-  amountTendered: document.getElementById("amount-tendered"),
-  quickCashRow: document.getElementById("quick-cash-row"),
-  summaryItems: document.getElementById("summary-items"),
-  summarySubtotal: document.getElementById("summary-subtotal"),
-  summaryTax: document.getElementById("summary-tax"),
-  summaryTotal: document.getElementById("summary-total"),
-  summaryChange: document.getElementById("summary-change"),
-  scannerVideo: document.getElementById("scanner-video"),
-  productForm: document.getElementById("product-form"),
-  settingsForm: document.getElementById("settings-form"),
-  receiptTemplateForm: document.getElementById("receipt-template-form"),
-  receiptTemplateEditorSelect: document.getElementById("receipt-template-editor-select"),
-  barcodeTemplateForm: document.getElementById("barcode-template-form"),
-  barcodeTemplateEditorSelect: document.getElementById("barcode-template-editor-select"),
-  inventoryBarcode: document.getElementById("inventory-barcode"),
-  barcodePreviewNote: document.getElementById("barcode-preview-note"),
-  productFormMode: document.getElementById("product-form-mode"),
-  productFormSubmit: document.getElementById("product-form-submit"),
-  productFormCancel: document.getElementById("product-form-cancel"),
-  settingsSaveState: document.getElementById("settings-save-state"),
-  settingsPreview: document.getElementById("settings-preview"),
-};
-
-function loadState(key, fallback) {
-  const raw = localStorage.getItem(key);
-  if (!raw) {
-    return structuredClone(fallback);
-  }
-
-  try {
-    return JSON.parse(raw);
-  } catch (error) {
-    console.error(`Failed to read ${key}`, error);
-    return structuredClone(fallback);
-  }
-}
-
-function saveState(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
-function normalizeSettings(settings) {
-  const nextSettings = {
-    ...defaultSettings,
-    ...(settings || {}),
-  };
-
-  if (nextSettings.receiptFooter === "Thank you for shopping with us. Hen gap lai quy khach!") {
-    nextSettings.receiptFooter = defaultSettings.receiptFooter;
-  }
-
-  return nextSettings;
-}
-
-function normalizeProducts(products) {
-  const defaultNameViByBarcode = new Map(
-    seedProducts.map((product) => [product.barcode, product.nameVi]),
-  );
-
-  return (products || []).map((product) => {
-    const normalizedNameVi = defaultNameViByBarcode.get(product.barcode);
-    return normalizedNameVi ? { ...product, nameVi: normalizedNameVi } : product;
-  });
-}
-
-function normalizeBarcodeTemplate(template, index) {
-  const fallback = defaultBarcodeLabelTemplates[index] || defaultBarcodeLabelTemplates[0];
-  const dictionary = translations.en;
-
-  const legacyName = template?.nameKey ? dictionary[template.nameKey] : "";
-  const legacyDescription = template?.descriptionKey ? dictionary[template.descriptionKey] : "";
-  const legacyNameVi = template?.nameKey ? translations.vi[template.nameKey] : "";
-  const legacyDescriptionVi = template?.descriptionKey ? translations.vi[template.descriptionKey] : "";
-
-  return {
-    id: template?.id || `barcode-template-${index + 1}`,
-    name: template?.name || legacyName || fallback.name,
-    nameVi: template?.nameVi || legacyNameVi || fallback.nameVi,
-    description: template?.description || legacyDescription || fallback.description,
-    descriptionVi: template?.descriptionVi || legacyDescriptionVi || fallback.descriptionVi,
-    className: ["sticker", "shelf", "premium"].includes(template?.className)
-      ? template.className
-      : fallback.className,
-    showStore: template?.showStore ?? fallback.showStore,
-    showCategory: template?.showCategory ?? fallback.showCategory,
-    showStock: template?.showStock ?? fallback.showStock,
-    showFooter: template?.showFooter ?? fallback.showFooter,
-  };
-}
-
-function normalizeBarcodeTemplates(templates) {
-  const source = Array.isArray(templates) && templates.length > 0 ? templates : defaultBarcodeLabelTemplates;
-  return source.map(normalizeBarcodeTemplate);
-}
-
-function normalizeReceiptTemplate(template, index) {
-  const fallback = defaultReceiptTemplates[index] || defaultReceiptTemplates[0];
-  return {
-    id: template?.id || `receipt-template-${index + 1}`,
-    theme: ["compact", "retail", "gift"].includes(template?.theme) ? template.theme : fallback.theme,
-    en: {
-      name: template?.en?.name || template?.name || fallback.en.name,
-      description: template?.en?.description || template?.description || fallback.en.description,
-    },
-    vi: {
-      name: template?.vi?.name || template?.nameVi || fallback.vi.name,
-      description: template?.vi?.description || template?.descriptionVi || fallback.vi.description,
-    },
-    showContact: template?.showContact ?? fallback.showContact,
-    showTaxId: template?.showTaxId ?? fallback.showTaxId,
-    showOrderMeta: template?.showOrderMeta ?? fallback.showOrderMeta,
-    showPayment: template?.showPayment ?? fallback.showPayment,
-    showCustomer: template?.showCustomer ?? fallback.showCustomer,
-    showFooter: template?.showFooter ?? fallback.showFooter,
-  };
-}
-
-function normalizeReceiptTemplates(templates) {
-  const source = Array.isArray(templates) && templates.length > 0 ? templates : defaultReceiptTemplates;
-  return source.map(normalizeReceiptTemplate);
-}
-
-function getCurrentDictionary() {
-  return translations[appState.language];
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function formatCurrency(value) {
-  return new Intl.NumberFormat(appState.language === "vi" ? "vi-VN" : "en-US", {
-    style: "currency",
-    currency: "VND",
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function formatDate(value) {
-  return new Intl.DateTimeFormat(appState.language === "vi" ? "vi-VN" : "en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
-function buildDashboardStats() {
-  const salesToday = appState.sales.filter((sale) => {
-    const today = new Date();
-    const saleDate = new Date(sale.createdAt);
-    return saleDate.toDateString() === today.toDateString();
-  });
-  const revenueToday = salesToday.reduce((sum, sale) => sum + sale.total, 0);
-  const lowStock = appState.products.filter((product) => product.stock <= 10).length;
-  const unitsInCart = appState.cart.reduce((sum, item) => sum + item.quantity, 0);
-
-  return [
-    {
-      label: appState.language === "vi" ? "Doanh thu hôm nay" : "Revenue today",
-      value: formatCurrency(revenueToday),
-    },
-    {
-      label: appState.language === "vi" ? "Đơn hôm nay" : "Orders today",
-      value: String(salesToday.length),
-    },
-    {
-      label: appState.language === "vi" ? "Sản phẩm sắp hết" : "Low stock items",
-      value: String(lowStock),
-    },
-    {
-      label: appState.language === "vi" ? "Mặt hàng trong giỏ" : "Units in cart",
-      value: String(unitsInCart),
-    },
-  ];
-}
-
-function buildFeatureItems() {
-  if (appState.language === "vi") {
-    return [
-      {
-        title: "Quét mã nhanh",
-        copy: "Nhận đầu vào từ máy quét dạng bàn phím, nhập tay mã vạch hoặc quét camera khi có hỗ trợ.",
-      },
-      {
-        title: "Thanh toán rõ ràng",
-        copy: "Tính tổng, thuế, tiền thừa và lưu lại phương thức thanh toán trong từng đơn.",
-      },
-      {
-        title: "Mẫu in linh hoạt",
-        copy: "Đổi kiểu bill trước khi in để phù hợp với cửa hàng và máy in nhiệt.",
-      },
-      {
-        title: "Song ngữ dễ dùng",
-        copy: "Chuyển ngay giữa tiếng Anh và tiếng Việt cho nhân viên và quản lý.",
-      },
-    ];
-  }
-
-  return [
-    {
-      title: "Fast barcode flow",
-      copy: "Accept keyboard-style scanners, manual barcode entry, or camera scan where supported.",
-    },
-    {
-      title: "Clear payment handling",
-      copy: "Track totals, tax, change, and the chosen payment method for every order.",
-    },
-    {
-      title: "Flexible bill templates",
-      copy: "Switch receipt styles before printing to match your shop and printer setup.",
-    },
-    {
-      title: "Easy bilingual mode",
-      copy: "Instantly move between English and Vietnamese for staff and management.",
-    },
-  ];
-}
-
-function buildUsageItems() {
-  if (appState.language === "vi") {
-    return [
-      {
-        title: "1. Thêm sản phẩm",
-        copy: "Tạo sản phẩm trong Kho hàng với mã vạch, giá bán và tồn kho để dùng ngay tại quầy POS.",
-      },
-      {
-        title: "2. Bán tại quầy",
-        copy: "Tìm sản phẩm hoặc quét mã vạch, điều chỉnh số lượng, sau đó nhập tiền khách đưa.",
-      },
-      {
-        title: "3. In hóa đơn",
-        copy: "Chọn mẫu bill trong tab Hóa đơn và bấm in sau khi xem trước.",
-      },
-      {
-        title: "4. Theo dõi lịch sử",
-        copy: "Kiểm tra giao dịch gần đây ở tab Tổng quan để xem tổng tiền và hình thức thanh toán.",
-      },
-    ];
-  }
-
-  return [
-    {
-      title: "1. Add products",
-      copy: "Create products in Inventory with barcode, price, and stock so they are ready at the POS.",
-    },
-    {
-      title: "2. Sell at the counter",
-      copy: "Search or scan items, adjust quantities, then enter the tendered amount.",
-    },
-    {
-      title: "3. Print the receipt",
-      copy: "Choose a bill style in the Receipts tab and print after previewing the layout.",
-    },
-    {
-      title: "4. Review history",
-      copy: "Check recent transactions in Dashboard to track totals and payment methods.",
-    },
-  ];
-}
-
-function getProductDisplayName(product) {
-  return appState.language === "vi" ? product.nameVi : product.name;
-}
-
-function getPaymentMethods() {
-  return paymentMethods[appState.language];
-}
-
-function closePaymentMethodMenu() {
-  appState.paymentMenuOpen = false;
-  elements.paymentMethodMenu.classList.remove("is-open");
-  elements.paymentMethodTrigger.setAttribute("aria-expanded", "false");
-}
-
-function openPaymentMethodMenu() {
-  appState.paymentMenuOpen = true;
-  elements.paymentMethodMenu.classList.add("is-open");
-  elements.paymentMethodTrigger.setAttribute("aria-expanded", "true");
-}
-
-function syncPaymentMethodDropdown() {
-  const methods = getPaymentMethods();
-  const fallback = methods[0];
-  const selectedMethod =
-    methods.find((method) => method.value === elements.paymentMethod.value) || fallback;
-
-  elements.paymentMethod.value = selectedMethod.value;
-  elements.paymentMethodLabel.textContent = selectedMethod.label;
-  elements.paymentMethodOptions.innerHTML = methods
-    .map(
-      (method) => `
-        <button
-          type="button"
-          class="select-option ${method.value === selectedMethod.value ? "is-active" : ""}"
-          data-payment-method-option="${method.value}"
-          role="option"
-          aria-selected="${method.value === selectedMethod.value}"
-        >
-          <span>${method.label}</span>
-          <span class="select-option-mark" aria-hidden="true">${method.value === selectedMethod.value ? "✓" : ""}</span>
-        </button>
-      `,
-    )
-    .join("");
-}
-
-function setPaymentMethod(value, { notify = false } = {}) {
-  const methodExists = getPaymentMethods().some((method) => method.value === value);
-  if (!methodExists) {
+  if (!root) {
     return;
   }
 
-  elements.paymentMethod.value = value;
-  syncPaymentMethodDropdown();
-
-  if (notify) {
-    elements.paymentMethod.dispatchEvent(new Event("change", { bubbles: true }));
-  }
-}
-
-function getSummary() {
-  const items = appState.cart.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = appState.cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = Math.round(subtotal * (Number(appState.settings.taxRate) / 100));
-  const total = subtotal + tax;
-  const amountTendered = Number(elements.amountTendered.value || 0);
-  const change = Math.max(amountTendered - total, 0);
-
-  return { items, subtotal, tax, total, amountTendered, change };
-}
-
-function computeEan13CheckDigit(baseDigits) {
-  const digits = String(baseDigits).split("").map(Number);
-  const weightedSum = digits.reduce((sum, digit, index) => {
-    return sum + digit * (index % 2 === 0 ? 1 : 3);
-  }, 0);
-
-  return (10 - (weightedSum % 10)) % 10;
-}
-
-function buildPriceBarcode(price, sequence) {
-  const normalizedPrice = Math.round(Number(price));
-  const baseDigits = `27${String(normalizedPrice).padStart(7, "0")}${String(sequence).padStart(3, "0")}`;
-  return `${baseDigits}${computeEan13CheckDigit(baseDigits)}`;
-}
-
-function generateBarcodeForPrice(price, options = {}) {
-  const normalizedPrice = Math.round(Number(price));
-  if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0 || normalizedPrice > 9999999) {
-    return "";
+  if (!window.React || !window.ReactDOM || !window.htm) {
+    root.innerHTML =
+      '<div style="padding:24px;font-family:sans-serif;color:#5b3a20">Khong tai duoc thu vien giao dien. Hay mo lai trang khi co ket noi internet.</div>';
+    return;
   }
 
-  for (let sequence = 0; sequence <= 999; sequence += 1) {
-    const barcode = buildPriceBarcode(normalizedPrice, sequence);
-    const exists = appState.products.some(
-      (product) => product.barcode === barcode && product.id !== options.ignoreProductId,
-    );
-    if (!exists) {
-      return barcode;
+  var useEffect = window.React.useEffect;
+  var useMemo = window.React.useMemo;
+  var useRef = window.React.useRef;
+  var useState = window.React.useState;
+  var html = window.htm.bind(window.React.createElement);
+
+  var STORAGE_KEY = "fruit-house-pos-suite-v3";
+  var APP_VERSION = "3.4.0";
+  var VAT_RATE = 0.08;
+  var LANGUAGE_OPTIONS = [
+    { id: "vi", label: "VI" },
+    { id: "en", label: "EN" }
+  ];
+  var PAYMENT_METHOD_OPTIONS = [
+    { value: "Tiền mặt / Cash", label: "Tiền mặt / Cash" },
+    { value: "Thẻ / Card", label: "Thẻ / Card" },
+    { value: "Chuyển khoản / Bank Transfer", label: "Chuyển khoản / Bank Transfer" },
+    { value: "Ví điện tử / E-wallet", label: "Ví điện tử / E-wallet" }
+  ];
+
+  var FILTER_ALL_CATEGORY = { id: "all", label: "Tất cả / All", icon: "🍊" };
+  var DEFAULT_CATEGORY_OPTIONS = [
+    { id: "fresh-juice", label: "Nước ép / Fresh Juice", icon: "🍹" },
+    { id: "smoothie", label: "Sinh tố / Smoothie", icon: "🥤" },
+    { id: "cut-fruit", label: "Trái cây cắt / Cut Fruit", icon: "🍍" },
+    { id: "fruit-box", label: "Hộp trái cây / Fruit Box", icon: "📦" },
+    { id: "combo", label: "Combo / Combo", icon: "✨" }
+  ];
+
+  var DEFAULT_ADD_ON_OPTIONS = [
+    { id: "sugar-50", label: "50% đường / Sugar 50%", price: 0, group: "sweetness" },
+    { id: "sugar-0", label: "Không đường / No Sugar", price: 0, group: "sweetness" },
+    { id: "ice-less", label: "Ít đá / Less Ice", price: 0, group: "ice" },
+    { id: "ice-none", label: "Không đá / No Ice", price: 0, group: "ice" },
+    { id: "chia", label: "Hạt chia / Chia Seeds", price: 8000, group: "extras" },
+    { id: "aloe", label: "Nha đam / Aloe Vera", price: 7000, group: "extras" },
+    { id: "yogurt", label: "Sữa chua Hy Lạp / Greek Yogurt", price: 12000, group: "extras" },
+    { id: "protein", label: "Protein thêm / Protein Shot", price: 15000, group: "extras" }
+  ];
+
+  var DEFAULT_COMPONENT_OPTIONS = [
+    { id: "orange", label: "Cam / Orange", unit: "trái / fruits", note: "Nguyên liệu nước ép cam / Juice base" },
+    { id: "watermelon", label: "Dưa hấu / Watermelon", unit: "gram", note: "Nguyên liệu lạnh / Chilled prep" },
+    { id: "mint", label: "Lá bạc hà / Mint", unit: "lá / leaves", note: "Trang trí và tạo mùi / Garnish" },
+    { id: "honey", label: "Mật ong / Honey", unit: "ml", note: "Tăng vị ngọt / Sweetener" },
+    { id: "yogurt-base", label: "Sữa chua / Yogurt", unit: "gram", note: "Base cho smoothie / Smoothie base" },
+    { id: "chia-base", label: "Hạt chia / Chia Seeds", unit: "gram", note: "Topping mặc định / Default topping" }
+  ];
+
+  var DEFAULT_PRODUCTS = [
+    {
+      id: "p-orange-juice",
+      name: "Cam Mat Ong",
+      category: "fresh-juice",
+      price: 45000,
+      stock: 28,
+      barcode: "TFH-001",
+      image: "🍊",
+      description: "Cam tuoi ep cung mat ong rung."
+    },
+    {
+      id: "p-watermelon",
+      name: "Dua Hau Mat Lanh",
+      category: "fresh-juice",
+      price: 42000,
+      stock: 24,
+      barcode: "TFH-002",
+      image: "🍉",
+      description: "Nuoc dua hau it da, giai nhiet nhanh."
+    },
+    {
+      id: "p-pineapple",
+      name: "Dua Thom Mint",
+      category: "fresh-juice",
+      price: 47000,
+      stock: 18,
+      barcode: "TFH-003",
+      image: "🍍",
+      description: "Thom ep cung la bac ha."
+    },
+    {
+      id: "p-detox",
+      name: "Detox Xanh",
+      category: "fresh-juice",
+      price: 49000,
+      stock: 16,
+      barcode: "TFH-004",
+      image: "🥒",
+      description: "Cần tây, táo xanh, dưa leo."
+    },
+    {
+      id: "p-mango",
+      name: "Mango Smoothie",
+      category: "smoothie",
+      price: 58000,
+      stock: 20,
+      barcode: "TFH-005",
+      image: "🥭",
+      description: "Xoai xay cung sua chua."
+    },
+    {
+      id: "p-berry",
+      name: "Berry Boost",
+      category: "smoothie",
+      price: 62000,
+      stock: 14,
+      barcode: "TFH-006",
+      image: "🫐",
+      description: "Viet quat va dau tay dam vi."
+    },
+    {
+      id: "p-avocado",
+      name: "Bo Kem Dua",
+      category: "smoothie",
+      price: 64000,
+      stock: 11,
+      barcode: "TFH-007",
+      image: "🥑",
+      description: "Sinh to bo mem min voi dua."
+    },
+    {
+      id: "p-dragon",
+      name: "Dragon Glow",
+      category: "smoothie",
+      price: 59000,
+      stock: 13,
+      barcode: "TFH-008",
+      image: "🐉",
+      description: "Thanh long hồng và chuối."
+    },
+    {
+      id: "p-cut-mix",
+      name: "Hop Trai Cay Mix",
+      category: "cut-fruit",
+      price: 55000,
+      stock: 17,
+      barcode: "TFH-009",
+      image: "🍇",
+      description: "Mix dua, tao, nho, kiwi."
+    },
+    {
+      id: "p-cut-tropical",
+      name: "Tropical Cup",
+      category: "cut-fruit",
+      price: 52000,
+      stock: 19,
+      barcode: "TFH-010",
+      image: "🥝",
+      description: "Cup trai cay nhiet doi an lien."
+    },
+    {
+      id: "p-box-family",
+      name: "Fruit Box Family",
+      category: "fruit-box",
+      price: 145000,
+      stock: 8,
+      barcode: "TFH-011",
+      image: "🧺",
+      description: "Hộp lớn cho gia đình 3-4 người."
+    },
+    {
+      id: "p-box-office",
+      name: "Office Energy Box",
+      category: "fruit-box",
+      price: 99000,
+      stock: 10,
+      barcode: "TFH-012",
+      image: "📦",
+      description: "Fruit box gon cho van phong."
+    },
+    {
+      id: "p-combo-breakfast",
+      name: "Combo Sang Nhe",
+      category: "combo",
+      price: 79000,
+      stock: 9,
+      barcode: "TFH-013",
+      image: "🌞",
+      description: "1 juice + 1 cut fruit."
+    },
+    {
+      id: "p-combo-clean",
+      name: "Combo Clean Body",
+      category: "combo",
+      price: 119000,
+      stock: 7,
+      barcode: "TFH-014",
+      image: "💚",
+      description: "2 chai detox + hat chia."
+    }
+  ];
+
+  var DEFAULT_SETTINGS = {
+    storeName: "The Fruit House",
+    brandLine: "THE FRUIT HOUSE",
+    brandDisplayName: "OriaFarm",
+    branchName: "Quầy Linh Trần",
+    address: "123 Nguyễn Huệ, Quận 1, TP.HCM",
+    phone: "0909 123 456",
+    taxId: "0312345678",
+    cashierName: "Linh Tran",
+    openHours: "07:00 - 22:00",
+    receiptFooter: "Cảm ơn bạn đã ghé The Fruit House.",
+    vatNote: "Hóa đơn VAT sẽ được gửi theo yêu cầu."
+  };
+
+  var DEFAULT_INVOICE_TEMPLATES = [
+    {
+      id: "invoice-classic",
+      name: "Classic Receipt",
+      title: "PHIẾU THANH TOÁN / RECEIPT",
+      subtitle: "Nhanh gọn cho đơn mang đi / Fast takeaway format",
+      footer: "Hẹn gặp lại quý khách / See you again.",
+      showSubtitle: true,
+      showAddress: true,
+      showBranch: true,
+      showPhone: true,
+      showTaxId: true,
+      showCashier: true,
+      showCustomerName: true,
+      showPaymentMethod: true,
+      showCashReceived: true,
+      showChangeDue: true,
+      showOrderMeta: true
+    },
+    {
+      id: "invoice-vat",
+      name: "VAT Invoice",
+      title: "HÓA ĐƠN VAT / VAT INVOICE",
+      subtitle: "Thông tin cho doanh nghiệp / Business details",
+      footer: "Vui lòng đối chiếu mã số thuế trước khi xuất / Please verify tax details before issuing.",
+      showSubtitle: true,
+      showAddress: true,
+      showBranch: true,
+      showPhone: true,
+      showTaxId: true,
+      showCashier: true,
+      showCustomerName: true,
+      showPaymentMethod: true,
+      showCashReceived: true,
+      showChangeDue: true,
+      showOrderMeta: true
+    }
+  ];
+
+  var DEFAULT_BARCODE_TEMPLATES = [
+    {
+      id: "barcode-retail",
+      name: "Retail Sticker",
+      prefix: "TFH",
+      suffix: "01",
+      width: 180,
+      height: 72,
+      title: "Tem bán lẻ / Retail Label",
+      subtitle: "Dùng cho quầy / For counter sales",
+      showName: true,
+      showPrice: true,
+      showStoreName: true,
+      showCategory: true,
+      showBarcodeValue: true,
+      accent: "#db5d17"
+    },
+    {
+      id: "barcode-shelf",
+      name: "Shelf Label",
+      prefix: "SHELF",
+      suffix: "A",
+      width: 220,
+      height: 84,
+      title: "Tem kệ hàng / Shelf Label",
+      subtitle: "Dành cho trưng bày / For display",
+      showName: true,
+      showPrice: false,
+      showStoreName: true,
+      showCategory: true,
+      showBarcodeValue: true,
+      accent: "#6dbb59"
+    }
+  ];
+
+  var EXPORT_TABLE_SCHEMAS = [
+    {
+      tableName: "products",
+      columns: [
+        { name: "product_id", type: "text", primaryKey: true },
+        { name: "barcode", type: "text" },
+        { name: "sku", type: "text" },
+        { name: "product_name", type: "text" },
+        { name: "category", type: "text" },
+        { name: "size_ml", type: "integer" },
+        { name: "price", type: "decimal" },
+        { name: "vat_rate", type: "decimal" },
+        { name: "active", type: "boolean" },
+        { name: "created_at", type: "datetime" },
+        { name: "updated_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "ingredients",
+      columns: [
+        { name: "ingredient_id", type: "text", primaryKey: true },
+        { name: "ingredient_name", type: "text" },
+        { name: "category", type: "text" },
+        { name: "unit", type: "text" },
+        { name: "cost_per_unit", type: "decimal" },
+        { name: "stock_qty", type: "decimal" },
+        { name: "min_stock", type: "decimal" },
+        { name: "supplier_id", type: "text", foreignKey: "suppliers.supplier_id" },
+        { name: "active", type: "boolean" },
+        { name: "created_at", type: "datetime" },
+        { name: "updated_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "product_ingredients",
+      columns: [
+        { name: "recipe_id", type: "text", primaryKey: true },
+        { name: "product_id", type: "text", foreignKey: "products.product_id" },
+        { name: "ingredient_id", type: "text", foreignKey: "ingredients.ingredient_id" },
+        { name: "qty_used", type: "decimal" },
+        { name: "unit", type: "text" },
+        { name: "waste_rate", type: "decimal" },
+        { name: "note", type: "text" },
+        { name: "created_at", type: "datetime" },
+        { name: "updated_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "orders",
+      columns: [
+        { name: "order_id", type: "text", primaryKey: true },
+        { name: "order_code", type: "text" },
+        { name: "order_date", type: "date" },
+        { name: "order_time", type: "time" },
+        { name: "cashier_id", type: "text", foreignKey: "users.user_id" },
+        { name: "customer_id", type: "text", foreignKey: "customers.customer_id" },
+        { name: "subtotal", type: "decimal" },
+        { name: "discount_amount", type: "decimal" },
+        { name: "vat_amount", type: "decimal" },
+        { name: "total_amount", type: "decimal" },
+        { name: "payment_status", type: "text" },
+        { name: "order_status", type: "text" },
+        { name: "note", type: "text" },
+        { name: "created_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "order_items",
+      columns: [
+        { name: "order_item_id", type: "text", primaryKey: true },
+        { name: "order_id", type: "text", foreignKey: "orders.order_id" },
+        { name: "product_id", type: "text", foreignKey: "products.product_id" },
+        { name: "barcode", type: "text" },
+        { name: "product_name", type: "text" },
+        { name: "qty", type: "decimal" },
+        { name: "unit_price", type: "decimal" },
+        { name: "discount_amount", type: "decimal" },
+        { name: "vat_rate", type: "decimal" },
+        { name: "vat_amount", type: "decimal" },
+        { name: "line_total", type: "decimal" },
+        { name: "created_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "payments",
+      columns: [
+        { name: "payment_id", type: "text", primaryKey: true },
+        { name: "order_id", type: "text", foreignKey: "orders.order_id" },
+        { name: "payment_date", type: "date" },
+        { name: "payment_time", type: "time" },
+        { name: "method", type: "text" },
+        { name: "amount", type: "decimal" },
+        { name: "bank", type: "text" },
+        { name: "transaction_ref", type: "text" },
+        { name: "note", type: "text" },
+        { name: "created_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "customers",
+      columns: [
+        { name: "customer_id", type: "text", primaryKey: true },
+        { name: "customer_name", type: "text" },
+        { name: "phone", type: "text" },
+        { name: "email", type: "text" },
+        { name: "birthday", type: "date" },
+        { name: "customer_group", type: "text" },
+        { name: "total_spent", type: "decimal" },
+        { name: "note", type: "text" },
+        { name: "created_at", type: "datetime" },
+        { name: "updated_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "inventory_movements",
+      columns: [
+        { name: "movement_id", type: "text", primaryKey: true },
+        { name: "movement_date", type: "date" },
+        { name: "movement_time", type: "time" },
+        { name: "movement_type", type: "text" },
+        { name: "reference_type", type: "text" },
+        { name: "reference_id", type: "text" },
+        { name: "product_id", type: "text", foreignKey: "products.product_id" },
+        { name: "ingredient_id", type: "text", foreignKey: "ingredients.ingredient_id" },
+        { name: "qty_in", type: "decimal" },
+        { name: "qty_out", type: "decimal" },
+        { name: "unit", type: "text" },
+        { name: "unit_cost", type: "decimal" },
+        { name: "total_cost", type: "decimal" },
+        { name: "balance_after", type: "decimal" },
+        { name: "note", type: "text" },
+        { name: "created_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "suppliers",
+      columns: [
+        { name: "supplier_id", type: "text", primaryKey: true },
+        { name: "supplier_name", type: "text" },
+        { name: "phone", type: "text" },
+        { name: "email", type: "text" },
+        { name: "address", type: "text" },
+        { name: "tax_code", type: "text" },
+        { name: "contact_person", type: "text" },
+        { name: "note", type: "text" },
+        { name: "active", type: "boolean" },
+        { name: "created_at", type: "datetime" },
+        { name: "updated_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "purchase_orders",
+      columns: [
+        { name: "purchase_id", type: "text", primaryKey: true },
+        { name: "purchase_code", type: "text" },
+        { name: "supplier_id", type: "text", foreignKey: "suppliers.supplier_id" },
+        { name: "purchase_date", type: "date" },
+        { name: "subtotal", type: "decimal" },
+        { name: "vat_amount", type: "decimal" },
+        { name: "total_amount", type: "decimal" },
+        { name: "payment_status", type: "text" },
+        { name: "note", type: "text" },
+        { name: "created_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "purchase_items",
+      columns: [
+        { name: "purchase_item_id", type: "text", primaryKey: true },
+        { name: "purchase_id", type: "text", foreignKey: "purchase_orders.purchase_id" },
+        { name: "ingredient_id", type: "text", foreignKey: "ingredients.ingredient_id" },
+        { name: "ingredient_name", type: "text" },
+        { name: "qty", type: "decimal" },
+        { name: "unit", type: "text" },
+        { name: "unit_cost", type: "decimal" },
+        { name: "vat_rate", type: "decimal" },
+        { name: "vat_amount", type: "decimal" },
+        { name: "line_total", type: "decimal" },
+        { name: "expiry_date", type: "date" },
+        { name: "created_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "cash_movements",
+      columns: [
+        { name: "cash_movement_id", type: "text", primaryKey: true },
+        { name: "date", type: "date" },
+        { name: "time", type: "time" },
+        { name: "type", type: "text" },
+        { name: "category", type: "text" },
+        { name: "amount", type: "decimal" },
+        { name: "payment_method", type: "text" },
+        { name: "reference_id", type: "text" },
+        { name: "description", type: "text" },
+        { name: "created_by", type: "text", foreignKey: "users.user_id" },
+        { name: "created_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "users",
+      columns: [
+        { name: "user_id", type: "text", primaryKey: true },
+        { name: "full_name", type: "text" },
+        { name: "role", type: "text" },
+        { name: "phone", type: "text" },
+        { name: "email", type: "text" },
+        { name: "active", type: "boolean" },
+        { name: "created_at", type: "datetime" },
+        { name: "updated_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "shifts",
+      columns: [
+        { name: "shift_id", type: "text", primaryKey: true },
+        { name: "user_id", type: "text", foreignKey: "users.user_id" },
+        { name: "shift_date", type: "date" },
+        { name: "start_time", type: "time" },
+        { name: "end_time", type: "time" },
+        { name: "opening_cash", type: "decimal" },
+        { name: "closing_cash", type: "decimal" },
+        { name: "expected_cash", type: "decimal" },
+        { name: "cash_difference", type: "decimal" },
+        { name: "note", type: "text" },
+        { name: "created_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "discounts",
+      columns: [
+        { name: "discount_id", type: "text", primaryKey: true },
+        { name: "discount_name", type: "text" },
+        { name: "discount_type", type: "text" },
+        { name: "discount_value", type: "decimal" },
+        { name: "start_date", type: "date" },
+        { name: "end_date", type: "date" },
+        { name: "active", type: "boolean" },
+        { name: "note", type: "text" }
+      ]
+    },
+    {
+      tableName: "tax_settings",
+      columns: [
+        { name: "tax_id", type: "text", primaryKey: true },
+        { name: "tax_name", type: "text" },
+        { name: "tax_rate", type: "decimal" },
+        { name: "applies_to", type: "text" },
+        { name: "active", type: "boolean" },
+        { name: "effective_from", type: "date" },
+        { name: "effective_to", type: "date" }
+      ]
+    },
+    {
+      tableName: "daily_summary",
+      columns: [
+        { name: "date", type: "date", primaryKey: true },
+        { name: "total_orders", type: "integer" },
+        { name: "total_items_sold", type: "integer" },
+        { name: "gross_revenue", type: "decimal" },
+        { name: "discount_total", type: "decimal" },
+        { name: "vat_output", type: "decimal" },
+        { name: "net_revenue", type: "decimal" },
+        { name: "cash_revenue", type: "decimal" },
+        { name: "bank_transfer_revenue", type: "decimal" },
+        { name: "card_revenue", type: "decimal" },
+        { name: "total_cost", type: "decimal" },
+        { name: "gross_profit", type: "decimal" },
+        { name: "created_at", type: "datetime" }
+      ]
+    },
+    {
+      tableName: "settings",
+      columns: [
+        { name: "setting_key", type: "text", primaryKey: true },
+        { name: "setting_value", type: "text" },
+        { name: "description", type: "text" },
+        { name: "updated_at", type: "datetime" }
+      ]
+    }
+  ];
+
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function uid(prefix) {
+    return prefix + "-" + Math.random().toString(36).slice(2, 7) + Date.now().toString(36).slice(-4);
+  }
+
+  function getExportTableNames() {
+    return EXPORT_TABLE_SCHEMAS.map(function (table) {
+      return table.tableName;
+    });
+  }
+
+  function formatExportDate(value) {
+    if (!value) {
+      return "";
+    }
+
+    var date = new Date(value);
+    if (isNaN(date.getTime())) {
+      return "";
+    }
+
+    return [
+      date.getFullYear(),
+      padNumber(date.getMonth() + 1, 2),
+      padNumber(date.getDate(), 2)
+    ].join("-");
+  }
+
+  function formatExportTime(value) {
+    if (!value) {
+      return "";
+    }
+
+    var date = new Date(value);
+    if (isNaN(date.getTime())) {
+      return "";
+    }
+
+    return [
+      padNumber(date.getHours(), 2),
+      padNumber(date.getMinutes(), 2),
+      padNumber(date.getSeconds(), 2)
+    ].join(":");
+  }
+
+  function formatExportDateTime(value) {
+    if (!value) {
+      return "";
+    }
+
+    var datePart = formatExportDate(value);
+    var timePart = formatExportTime(value);
+    return datePart && timePart ? datePart + " " + timePart : "";
+  }
+
+  function matchesExportDateRange(value, startDate, endDate) {
+    if (!startDate && !endDate) {
+      return true;
+    }
+
+    var datePart = formatExportDate(value);
+    if (!datePart) {
+      return false;
+    }
+
+    if (startDate && datePart < startDate) {
+      return false;
+    }
+
+    if (endDate && datePart > endDate) {
+      return false;
+    }
+
+    return true;
+  }
+
+  function toCsvBoolean(value) {
+    return value ? "TRUE" : "FALSE";
+  }
+
+  function escapeCsvCell(value) {
+    var stringValue = value === null || typeof value === "undefined" ? "" : String(value);
+    if (/[",\n\r]/.test(stringValue)) {
+      return '"' + stringValue.replace(/"/g, '""') + '"';
+    }
+    return stringValue;
+  }
+
+  function buildCsvContent(columns, rows) {
+    var header = columns.join(",");
+    var body = (rows || []).map(function (row) {
+      return columns.map(function (columnName) {
+        return escapeCsvCell(row[columnName]);
+      }).join(",");
+    }).join("\n");
+
+    return "\uFEFF" + header + (body ? "\n" + body : "\n");
+  }
+
+  function padNumber(value, length) {
+    return String(value).padStart(length, "0");
+  }
+
+  function getOrderDateKey(dateValue) {
+    var date = new Date(dateValue || Date.now());
+    return [
+      padNumber(date.getDate(), 2),
+      padNumber(date.getMonth() + 1, 2),
+      date.getFullYear()
+    ].join("/");
+  }
+
+  function buildOrderId(dateKey, sequenceNumber) {
+    return dateKey + "-" + padNumber(sequenceNumber, 3);
+  }
+
+  function normalizeBarcode(value) {
+    return String(value || "").trim().toUpperCase();
+  }
+
+  function renderBarcodeMarkup(value, options) {
+    var safeValue = normalizeBarcode(value);
+    if (!safeValue || !window.JsBarcode) {
+      return "";
+    }
+
+    try {
+      var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      window.JsBarcode(svg, safeValue, Object.assign({
+        format: "CODE128",
+        displayValue: false,
+        margin: 0,
+        background: "transparent",
+        lineColor: "#2f2116",
+        width: 1.6,
+        height: 42
+      }, options || {}));
+      return svg.outerHTML;
+    } catch (error) {
+      return "";
     }
   }
 
-  return "";
-}
+  function BarcodeGraphic(props) {
+    var svgRef = useRef(null);
 
-function ensureSelectedLabelProduct() {
-  const selectedProduct = appState.products.find((product) => product.id === appState.selectedLabelProductId);
-  if (selectedProduct) {
-    return selectedProduct;
+    useEffect(function () {
+      if (!svgRef.current || !window.JsBarcode) {
+        return;
+      }
+
+      try {
+        window.JsBarcode(svgRef.current, normalizeBarcode(props.value), Object.assign({
+          format: "CODE128",
+          displayValue: false,
+          margin: 0,
+          background: "transparent",
+          lineColor: "#2f2116",
+          width: 1.6,
+          height: 42
+        }, props.options || {}));
+      } catch (error) {
+        svgRef.current.innerHTML = "";
+      }
+    }, [props.value, props.options]);
+
+    return html`<svg ref=${svgRef} className=${props.className || ""}></svg>`;
   }
 
-  const fallbackProduct = appState.products[0] || null;
-  appState.selectedLabelProductId = fallbackProduct?.id || null;
-  return fallbackProduct;
-}
-
-function getEditingProduct() {
-  return appState.products.find((product) => product.id === appState.editingProductId) || null;
-}
-
-function getSelectedReceiptTemplate() {
-  return (
-    appState.receiptTemplates.find((template) => template.id === appState.selectedTemplate) ||
-    appState.receiptTemplates[0]
-  );
-}
-
-function getEditingReceiptTemplate() {
-  return (
-    appState.receiptTemplates.find((template) => template.id === appState.editingReceiptTemplateId) || null
-  );
-}
-
-function getSelectedBarcodeTemplate() {
-  return (
-    appState.barcodeTemplates.find((template) => template.id === appState.selectedBarcodeTemplate) ||
-    appState.barcodeTemplates[0]
-  );
-}
-
-function getEditingBarcodeTemplate() {
-  return appState.barcodeTemplates.find((template) => template.id === appState.editingBarcodeTemplateId) || null;
-}
-
-function updateInventoryBarcodePreview() {
-  const priceField = elements.productForm?.elements.namedItem("price");
-  if (!priceField || !elements.inventoryBarcode || !elements.barcodePreviewNote) {
-    return;
-  }
-
-  const editingProduct = getEditingProduct();
-  const normalizedPrice = Math.round(Number(priceField.value));
-  const barcode =
-    editingProduct && Number(editingProduct.price) === normalizedPrice
-      ? editingProduct.barcode
-      : generateBarcodeForPrice(priceField.value, { ignoreProductId: appState.editingProductId });
-  elements.inventoryBarcode.value = barcode;
-  elements.barcodePreviewNote.textContent = barcode
-    ? `${getCurrentDictionary().barcodeFromPriceHint} ${barcode}`
-    : getCurrentDictionary().barcodeNeedsPrice;
-}
-
-function renderProductForm() {
-  const form = elements.productForm;
-  if (!form || !elements.productFormMode || !elements.productFormSubmit || !elements.productFormCancel) {
-    return;
-  }
-
-  const editingProduct = getEditingProduct();
-  const dictionary = getCurrentDictionary();
-
-  if (editingProduct) {
-    form.elements.namedItem("productId").value = editingProduct.id;
-    form.elements.namedItem("name").value = editingProduct.name;
-    form.elements.namedItem("nameVi").value = editingProduct.nameVi;
-    form.elements.namedItem("category").value = editingProduct.category;
-    form.elements.namedItem("price").value = editingProduct.price;
-    form.elements.namedItem("stock").value = editingProduct.stock;
-    elements.inventoryBarcode.value = editingProduct.barcode;
-    elements.productFormMode.textContent = dictionary.editingProduct;
-    elements.productFormCancel.hidden = false;
-  } else {
-    form.elements.namedItem("productId").value = "";
-    elements.productFormMode.textContent = dictionary.creatingProduct;
-    elements.productFormCancel.hidden = true;
-  }
-
-  elements.productFormSubmit.textContent = dictionary.saveProduct;
-  updateInventoryBarcodePreview();
-}
-
-function renderTranslations() {
-  const dictionary = getCurrentDictionary();
-  document.documentElement.lang = appState.language;
-  document.querySelectorAll("[data-i18n]").forEach((node) => {
-    const key = node.dataset.i18n;
-    if (dictionary[key]) {
-      node.textContent = dictionary[key];
+  function pickLanguage(text, language) {
+    if (typeof text !== "string") {
+      return text;
     }
-  });
 
-  document.getElementById("product-search").placeholder =
-    appState.language === "vi" ? "Tìm theo tên hoặc mã vạch" : "Search by name or barcode";
-  document.getElementById("barcode-input").placeholder = appState.language === "vi" ? "Quét mã..." : "893...";
-  document.getElementById("customer-name").placeholder =
-    appState.language === "vi" ? "Khách lẻ" : "Walk-in customer";
-  updateInventoryBarcodePreview();
-}
+    var parts = text.split(" / ");
+    if (parts.length < 2) {
+      return text;
+    }
 
-function renderLanguageButtons() {
-  document.querySelectorAll(".lang-btn").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.lang === appState.language);
-  });
-}
-
-function renderNavigation() {
-  document.querySelectorAll(".nav-chip").forEach((button) => {
-    const isActive = button.dataset.section === appState.activeSection;
-    button.classList.toggle("is-active", isActive);
-  });
-
-  document.querySelectorAll(".section").forEach((section) => {
-    section.classList.toggle("is-visible", section.id === `section-${appState.activeSection}`);
-  });
-}
-
-function renderDashboard() {
-  const stats = buildDashboardStats();
-  elements.statsGrid.innerHTML = stats
-    .map(
-      (stat) => `
-        <article class="stat-card">
-          <p class="eyebrow">${stat.label}</p>
-          <strong>${stat.value}</strong>
-        </article>
-      `,
-    )
-    .join("");
-
-  elements.featureList.innerHTML = buildFeatureItems()
-    .map(
-      (item) => `
-        <article class="feature-item">
-          <strong>${item.title}</strong>
-          <p class="muted">${item.copy}</p>
-        </article>
-      `,
-    )
-    .join("");
-
-  elements.usageList.innerHTML = buildUsageItems()
-    .map(
-      (item) => `
-        <article class="feature-item">
-          <strong>${item.title}</strong>
-          <p class="muted">${item.copy}</p>
-        </article>
-      `,
-    )
-    .join("");
-
-  if (appState.sales.length === 0) {
-    elements.salesHistory.innerHTML = `<article class="history-card"><p class="muted">${
-      appState.language === "vi"
-        ? "Chưa có giao dịch nào. Thử nút 'Bán thử' để xem quy trình."
-        : "No transactions yet. Try the demo sale button to see the flow."
-    }</p></article>`;
-    return;
+    return language === "en" ? parts.slice(1).join(" / ").trim() : parts[0].trim();
   }
 
-  elements.salesHistory.innerHTML = appState.sales
-    .slice(0, 6)
-    .reverse()
-    .map((sale) => {
-      const paymentMethod = getPaymentMethods().find((method) => method.value === sale.paymentMethod);
-      return `
-        <article class="history-card">
-          <div class="history-meta">
-            <h5>${sale.orderId}</h5>
-            <span>${formatDate(sale.createdAt)}</span>
-          </div>
-          <div class="history-meta">
-            <span>${sale.customerName || (appState.language === "vi" ? "Khách lẻ" : "Walk-in")}</span>
-            <strong>${formatCurrency(sale.total)}</strong>
-          </div>
-          <div class="history-meta">
-            <span>${paymentMethod ? paymentMethod.label : sale.paymentMethod}</span>
-            <span>${sale.items.length} ${appState.language === "vi" ? "mặt hàng" : "items"}</span>
-          </div>
-        </article>
-      `;
-    })
-    .join("");
-}
+  function buildBilingualLabel(vi, en) {
+    var safeVi = String(vi || "").trim();
+    var safeEn = String(en || "").trim();
 
-function renderProducts() {
-  const keyword = appState.productSearch.trim().toLowerCase();
-  const filtered = appState.products.filter((product) => {
-    const haystack = [product.name, product.nameVi, product.category, product.barcode]
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(keyword);
-  });
+    if (safeVi && safeEn) {
+      return safeVi + " / " + safeEn;
+    }
 
-  if (filtered.length === 0) {
-    elements.productGrid.innerHTML = `<article class="product-card"><p class="muted">${
-      appState.language === "vi" ? "Không tìm thấy sản phẩm phù hợp." : "No matching products found."
-    }</p></article>`;
-    return;
+    return safeVi || safeEn;
   }
 
-  elements.productGrid.innerHTML = filtered
-    .map(
-      (product) => `
-        <article class="product-card">
-          <div class="product-meta">
-            <span class="tag">${product.category}</span>
-            <span>${appState.language === "vi" ? "Tồn" : "Stock"}: ${product.stock}</span>
-          </div>
-          <div>
-            <h5>${getProductDisplayName(product)}</h5>
-            <p class="muted">${product.barcode}</p>
-          </div>
-          <div class="product-meta">
-            <strong>${formatCurrency(product.price)}</strong>
-            <button class="primary-btn" data-product-add="${product.id}">
-              ${appState.language === "vi" ? "Thêm" : "Add"}
-            </button>
-          </div>
-        </article>
-      `,
-    )
-    .join("");
-}
+  function splitBilingualLabel(label) {
+    var value = String(label || "");
+    var parts = value.split(" / ");
+    return {
+      vi: (parts[0] || "").trim(),
+      en: (parts.slice(1).join(" / ") || "").trim()
+    };
+  }
 
-function renderInventory() {
-  const selectedProduct = ensureSelectedLabelProduct();
-  elements.inventoryList.innerHTML = appState.products
-    .map(
-      (product) => `
-        <article class="inventory-card ${selectedProduct?.id === product.id ? "is-selected" : ""}">
-          <div class="inventory-meta">
-            <h5>${product.name}</h5>
-            <span class="tag">${product.category}</span>
-          </div>
-          <div class="inventory-meta">
-            <span>${product.nameVi}</span>
-            <span>${product.barcode}</span>
-          </div>
-          <div class="inventory-meta">
-            <strong>${formatCurrency(product.price)}</strong>
-            <span>${appState.language === "vi" ? "Tồn kho" : "Stock"}: ${product.stock}</span>
-          </div>
-          <div class="inventory-actions">
-            <button class="secondary-btn" data-product-edit="${product.id}">
-              ${getCurrentDictionary().editProduct}
-            </button>
-            <button class="danger-btn" data-product-remove="${product.id}">
-              ${getCurrentDictionary().removeProduct}
-            </button>
-            <button class="secondary-btn" data-label-select="${product.id}">
-              ${getCurrentDictionary().previewLabel}
-            </button>
-            <button class="ghost-btn" data-barcode-print="${product.id}">
-              ${getCurrentDictionary().printLabel}
-            </button>
-          </div>
-        </article>
-      `,
-    )
-    .join("");
-}
+  function slugify(text) {
+    var normalized = String(text || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
 
-function renderPaymentOptions() {
-  const currentValue = elements.paymentMethod.value;
-  elements.paymentMethod.innerHTML = getPaymentMethods()
-    .map(
-      (method) => `<option value="${method.value}">${method.label}</option>`,
-    )
-    .join("");
-  elements.paymentMethod.value = currentValue || getPaymentMethods()[0].value;
-  syncPaymentMethodDropdown();
-  closePaymentMethodMenu();
-}
+    return normalized || uid("item");
+  }
 
-function renderQuickCashButtons() {
-  const amounts = [50000, 100000, 200000, 500000];
-  elements.quickCashRow.innerHTML = amounts
-    .map(
-      (amount) => `
-        <button class="quick-cash-btn" data-quick-cash="${amount}">
-          ${formatCurrency(amount)}
-        </button>
-      `,
-    )
-    .join("");
-}
+  function createOrder(sequenceByDate) {
+    var createdAt = Date.now();
+    var dateKey = getOrderDateKey(createdAt);
+    var nextSequenceByDate = Object.assign({}, sequenceByDate || {});
+    var nextSequence = (nextSequenceByDate[dateKey] || 0) + 1;
+    nextSequenceByDate[dateKey] = nextSequence;
 
-function renderCart() {
-  if (appState.cart.length === 0) {
-    elements.cartList.innerHTML = `<article class="cart-item"><p class="muted">${
-      appState.language === "vi"
-        ? "Chưa có sản phẩm trong giỏ. Quét mã vạch hoặc bấm Thêm."
-        : "No items in the cart yet. Scan a barcode or press Add."
-    }</p></article>`;
-  } else {
-    elements.cartList.innerHTML = appState.cart
-      .map(
-        (item) => `
-          <article class="cart-item">
-            <div class="cart-item-head">
-              <div>
-                <strong>${getProductDisplayName(item)}</strong>
-                <div class="muted">${item.barcode}</div>
-              </div>
-              <strong>${formatCurrency(item.price * item.quantity)}</strong>
-            </div>
-            <div class="cart-item-actions">
-              <span>${formatCurrency(item.price)}</span>
-              <div class="qty-group">
-                <button class="qty-btn" data-cart-change="${item.id}" data-delta="-1">-</button>
-                <strong>${item.quantity}</strong>
-                <button class="qty-btn" data-cart-change="${item.id}" data-delta="1">+</button>
-                <button class="ghost-btn" data-cart-remove="${item.id}">
-                  ${appState.language === "vi" ? "Bỏ" : "Remove"}
-                </button>
-              </div>
-            </div>
-          </article>
-        `,
-      )
+    return {
+      order: normalizeOrder({
+        id: buildOrderId(dateKey, nextSequence),
+        createdAt: createdAt
+      }),
+      nextSequenceByDate: nextSequenceByDate
+    };
+  }
+
+  function normalizeOrder(order) {
+    var baseOrder = order || {};
+    return {
+      id: baseOrder.id || buildOrderId(getOrderDateKey(baseOrder.createdAt || Date.now()), 1),
+      items: Array.isArray(baseOrder.items) ? baseOrder.items : [],
+      takeAway: !!baseOrder.takeAway,
+      discountPct: Number(baseOrder.discountPct) || 0,
+      status: baseOrder.status || "open",
+      createdAt: baseOrder.createdAt || Date.now(),
+      customerName: baseOrder.customerName || "Khách lẻ / Walk-in",
+      paymentMethod: baseOrder.paymentMethod || "Chuyển khoản / Bank Transfer",
+      cashReceived: Number(baseOrder.cashReceived) || 0
+    };
+  }
+
+  function getAddonById(addOnId, addOnOptions) {
+    var source = addOnOptions || [];
+    for (var i = 0; i < source.length; i += 1) {
+      if (source[i].id === addOnId) {
+        return source[i];
+      }
+    }
+
+    return null;
+  }
+
+  function getItemAddonTotal(item, addOnOptions) {
+    return (item.addOnIds || []).reduce(function (sum, addOnId) {
+      var addOn = getAddonById(addOnId, addOnOptions);
+      return sum + (addOn ? addOn.price : 0);
+    }, 0);
+  }
+
+  function calculateOrder(order, addOnOptions) {
+    var safeOrder = order || normalizeOrder({ createdAt: Date.now() });
+    var subtotal = (safeOrder.items || []).reduce(function (sum, item) {
+      var linePrice = item.price + getItemAddonTotal(item, addOnOptions);
+      return sum + linePrice * item.qty;
+    }, 0);
+    var discount = subtotal * ((Number(safeOrder.discountPct) || 0) / 100);
+    var taxable = Math.max(0, subtotal - discount);
+    var vat = taxable * VAT_RATE;
+    var total = taxable + vat;
+    var itemCount = (safeOrder.items || []).reduce(function (sum, item) {
+      return sum + item.qty;
+    }, 0);
+
+    return {
+      subtotal: subtotal,
+      discount: discount,
+      vat: vat,
+      total: total,
+      itemCount: itemCount
+    };
+  }
+
+  function formatCurrency(value) {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+      maximumFractionDigits: 0
+    }).format(Number(value) || 0);
+  }
+
+  function formatDateTime(dateValue) {
+    return new Intl.DateTimeFormat("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(new Date(dateValue));
+  }
+
+  function readStorage() {
+    try {
+      var raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        return null;
+      }
+
+      return JSON.parse(raw);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function buildInitialState() {
+    var stored = readStorage();
+    var emptySequenceByDate = {};
+
+    if (stored) {
+      var storedSequenceByDate = Object.assign({}, stored.orderSequenceByDate || {});
+      var normalizedOrders = Array.isArray(stored.orders) && stored.orders.length
+        ? stored.orders.map(function (order) {
+            var safeOrder = normalizeOrder(order);
+            var hasNewFormat = /^\d{2}\/\d{2}\/\d{4}-\d{3}$/.test(safeOrder.id);
+
+            if (hasNewFormat) {
+              var existingDateKey = safeOrder.id.slice(0, 10);
+              var existingSequence = Number(safeOrder.id.slice(11)) || 0;
+              storedSequenceByDate[existingDateKey] = Math.max(storedSequenceByDate[existingDateKey] || 0, existingSequence);
+              return safeOrder;
+            }
+
+            var migratedDateKey = getOrderDateKey(safeOrder.createdAt);
+            var migratedSequence = (storedSequenceByDate[migratedDateKey] || 0) + 1;
+            storedSequenceByDate[migratedDateKey] = migratedSequence;
+
+            return normalizeOrder(Object.assign({}, safeOrder, {
+              id: buildOrderId(migratedDateKey, migratedSequence)
+            }));
+          })
+        : null;
+
+      if (!normalizedOrders || !normalizedOrders.length) {
+        var createdStateOrder = createOrder(storedSequenceByDate);
+        normalizedOrders = [createdStateOrder.order];
+        storedSequenceByDate = createdStateOrder.nextSequenceByDate;
+      }
+
+      return {
+        categories: Array.isArray(stored.categories) && stored.categories.length ? stored.categories : clone(DEFAULT_CATEGORY_OPTIONS),
+        addOns: Array.isArray(stored.addOns) && stored.addOns.length ? stored.addOns : clone(DEFAULT_ADD_ON_OPTIONS),
+        components: Array.isArray(stored.components) && stored.components.length ? stored.components : clone(DEFAULT_COMPONENT_OPTIONS),
+        products: Array.isArray(stored.products) && stored.products.length ? stored.products.map(normalizeProduct) : clone(DEFAULT_PRODUCTS).map(normalizeProduct),
+        sales: Array.isArray(stored.sales) ? stored.sales : [],
+        orders: normalizedOrders,
+        activeOrderId: stored.activeOrderId || null,
+        language: stored.language || "vi",
+        orderSequenceByDate: storedSequenceByDate,
+        settings: Object.assign({}, DEFAULT_SETTINGS, stored.settings || {}),
+        invoiceTemplates: Array.isArray(stored.invoiceTemplates) && stored.invoiceTemplates.length
+          ? stored.invoiceTemplates.map(function (template, index) {
+              return normalizeInvoiceTemplate(template, DEFAULT_INVOICE_TEMPLATES[index] || DEFAULT_INVOICE_TEMPLATES[0]);
+            })
+          : clone(DEFAULT_INVOICE_TEMPLATES),
+        barcodeTemplates: Array.isArray(stored.barcodeTemplates) && stored.barcodeTemplates.length
+          ? stored.barcodeTemplates.map(function (template, index) {
+              return normalizeBarcodeTemplate(template, DEFAULT_BARCODE_TEMPLATES[index] || DEFAULT_BARCODE_TEMPLATES[0]);
+            })
+          : clone(DEFAULT_BARCODE_TEMPLATES),
+        selectedInvoiceTemplateId: stored.selectedInvoiceTemplateId || DEFAULT_INVOICE_TEMPLATES[0].id,
+        selectedBarcodeTemplateId: stored.selectedBarcodeTemplateId || DEFAULT_BARCODE_TEMPLATES[0].id
+      };
+    }
+
+    var firstOrderState = createOrder(emptySequenceByDate);
+    var firstOrder = firstOrderState.order;
+
+    return {
+      categories: clone(DEFAULT_CATEGORY_OPTIONS),
+      addOns: clone(DEFAULT_ADD_ON_OPTIONS),
+      components: clone(DEFAULT_COMPONENT_OPTIONS),
+      products: clone(DEFAULT_PRODUCTS).map(normalizeProduct),
+      sales: [],
+      orders: [firstOrder],
+      activeOrderId: firstOrder.id,
+      language: "vi",
+      orderSequenceByDate: firstOrderState.nextSequenceByDate,
+      settings: clone(DEFAULT_SETTINGS),
+      invoiceTemplates: clone(DEFAULT_INVOICE_TEMPLATES),
+      barcodeTemplates: clone(DEFAULT_BARCODE_TEMPLATES),
+      selectedInvoiceTemplateId: DEFAULT_INVOICE_TEMPLATES[0].id,
+      selectedBarcodeTemplateId: DEFAULT_BARCODE_TEMPLATES[0].id
+    };
+  }
+
+  function normalizeProduct(product) {
+    var baseProduct = product || {};
+    return Object.assign({}, baseProduct, {
+      componentIds: Array.isArray(baseProduct.componentIds) ? baseProduct.componentIds : []
+    });
+  }
+
+  function normalizeInvoiceTemplate(template, fallbackTemplate) {
+    return Object.assign({}, fallbackTemplate || DEFAULT_INVOICE_TEMPLATES[0], template || {});
+  }
+
+  function normalizeBarcodeTemplate(template, fallbackTemplate) {
+    return Object.assign({}, fallbackTemplate || DEFAULT_BARCODE_TEMPLATES[0], template || {});
+  }
+
+  function buildPrintMarkup(order, totals, settings, template, type, language, addOnOptions) {
+    var cashReceived = Number(order.cashReceived) || 0;
+    var changeDue = Math.max(0, cashReceived - (Number(totals.total) || 0));
+    var lineItems = (order.items || [])
+      .map(function (item) {
+        var addons = (item.addOnIds || [])
+          .map(function (addOnId) {
+            var addOn = getAddonById(addOnId, addOnOptions);
+            return addOn ? pickLanguage(addOn.label, language) : "";
+          })
+          .filter(Boolean)
+          .join(", ");
+
+        return (
+          "<tr>" +
+          "<td style='padding:8px 0;border-bottom:1px dashed #d8cdbf'>" +
+          "<div style='font-weight:600'>" + item.name + "</div>" +
+          (addons ? "<div style='font-size:12px;color:#7b6b5d'>" + addons + "</div>" : "") +
+          "</td>" +
+          "<td style='padding:8px 0;border-bottom:1px dashed #d8cdbf;text-align:center'>" + item.qty + "</td>" +
+          "<td style='padding:8px 0;border-bottom:1px dashed #d8cdbf;text-align:right'>" + formatCurrency((item.price + getItemAddonTotal(item, addOnOptions)) * item.qty) + "</td>" +
+          "</tr>"
+        );
+      })
       .join("");
+
+    return (
+      "<!DOCTYPE html><html><head><meta charset='utf-8'><title>" + template.title + "</title></head>" +
+      "<body style='font-family:Arial,sans-serif;padding:24px;color:#2d2117'>" +
+      "<div style='margin-bottom:18px'>" +
+      "<div style='font-size:12px;letter-spacing:0.24em;color:#8f7f71;text-transform:uppercase'>" + (settings.brandLine || settings.storeName) + "</div>" +
+      "<h2 style='margin:6px 0 8px'>" + (settings.brandDisplayName || settings.storeName) + "</h2>" +
+      "<div style='color:#6c5b4d'>" + pickLanguage(template.title, language) + " - " + pickLanguage(type, language) + "</div>" +
+      (template.showSubtitle ? "<div style='margin-top:6px;color:#8f7f71'>" + pickLanguage(template.subtitle || "", language) + "</div>" : "") +
+      "</div>" +
+      (template.showBranch ? "<div>" + pickLanguage("Chi nhánh / Branch", language) + ": " + settings.branchName + "</div>" : "") +
+      (template.showAddress ? "<div>" + settings.address + "</div>" : "") +
+      (template.showPhone ? "<div>" + pickLanguage("Điện thoại / Phone", language) + ": " + settings.phone + "</div>" : "") +
+      (template.showTaxId ? "<div>" + pickLanguage("Mã số thuế / Tax ID", language) + ": " + settings.taxId + "</div>" : "") +
+      (template.showCashier ? "<div>" + pickLanguage("Thu ngân / Cashier", language) + ": " + settings.cashierName + "</div>" : "") +
+      (template.showCustomerName ? "<div>" + pickLanguage("Khách hàng / Customer", language) + ": " + (order.customerName || pickLanguage("Khách lẻ / Walk-in", language)) + "</div>" : "") +
+      (template.showPaymentMethod ? "<div>" + pickLanguage("Thanh toán / Payment", language) + ": " + pickLanguage(order.paymentMethod || "Chuyển khoản / Bank Transfer", language) + "</div>" : "") +
+      (template.showOrderMeta ? "<div style='margin:12px 0'>" + pickLanguage("Mã đơn / Order ID", language) + ": " + order.id + "<br/>" + pickLanguage("Thời gian / Time", language) + ": " + formatDateTime(order.createdAt || Date.now()) + "</div>" : "") +
+      "<table style='width:100%;border-collapse:collapse'>" +
+      "<thead><tr><th align='left'>" + pickLanguage("Món / Item", language) + "</th><th align='center'>" + pickLanguage("SL / Qty", language) + "</th><th align='right'>" + pickLanguage("Thành tiền / Amount", language) + "</th></tr></thead>" +
+      "<tbody>" + lineItems + "</tbody></table>" +
+      "<div style='margin-top:16px;line-height:1.8'>" +
+      "<div>" + pickLanguage("Tạm tính / Subtotal", language) + ": " + formatCurrency(totals.subtotal) + "</div>" +
+      "<div>" + pickLanguage("Giảm giá / Discount", language) + ": " + formatCurrency(totals.discount) + "</div>" +
+      "<div>VAT 8%: " + formatCurrency(totals.vat) + "</div>" +
+      "<div style='font-size:18px;font-weight:700'>" + pickLanguage("Tổng cộng / Total", language) + ": " + formatCurrency(totals.total) + "</div>" +
+      (template.showCashReceived ? "<div>" + pickLanguage("Tiền khách đưa / Cash Received", language) + ": " + formatCurrency(cashReceived) + "</div>" : "") +
+      (template.showChangeDue ? "<div>" + pickLanguage("Tiền thừa / Change", language) + ": " + formatCurrency(changeDue) + "</div>" : "") +
+      "</div>" +
+      "<p style='margin-top:18px;color:#6c5b4d'>" + pickLanguage(template.footer, language) + "</p>" +
+      "</body></html>"
+    );
   }
 
-  const summary = getSummary();
-  elements.summaryItems.textContent = String(summary.items);
-  elements.summarySubtotal.textContent = formatCurrency(summary.subtotal);
-  elements.summaryTax.textContent = formatCurrency(summary.tax);
-  elements.summaryTotal.textContent = formatCurrency(summary.total);
-  elements.summaryChange.textContent = formatCurrency(summary.change);
-}
+  function MenuDrawer(props) {
+    var items = [
+      { id: "pos", label: "Bán hàng / POS", icon: "🧾", help: "Bán hàng tại quầy / Counter sales" },
+      { id: "dashboard", label: "Tổng quan / Dashboard", icon: "📊", help: "Tổng quan doanh thu / Sales overview" },
+      { id: "inventory", label: "Kho hàng / Inventory", icon: "📦", help: "Sửa, thêm, xóa sản phẩm / Manage products" },
+      { id: "settings", label: "Cài đặt / Settings", icon: "⚙️", help: "Cửa hàng, hóa đơn, mã vạch / Shop, invoice, barcode" }
+    ];
 
-function buildReceiptSale() {
-  const summary = getSummary();
-  const now = new Date().toISOString();
-  return {
-    orderId: appState.lastReceipt?.orderId || `POS-${Date.now().toString().slice(-6)}`,
-    createdAt: appState.lastReceipt?.createdAt || now,
-    customerName: elements.customerName.value.trim(),
-    paymentMethod: elements.paymentMethod.value,
-    amountTendered: summary.amountTendered,
-    change: summary.change,
-    subtotal: summary.subtotal,
-    tax: summary.tax,
-    total: summary.total,
-    items: appState.cart.map((item) => ({
-      id: item.id,
-      name: item.name,
-      nameVi: item.nameVi,
-      barcode: item.barcode,
-      quantity: item.quantity,
-      price: item.price,
-    })),
-  };
-}
+    return html`
+      <div className=${"drawer-backdrop" + (props.open ? " is-open" : "")} onClick=${props.onClose}>
+        <aside className=${"drawer surface" + (props.open ? " is-open" : "")} onClick=${function (event) {
+          event.stopPropagation();
+        }}>
+          <div className="drawer-top">
+            <div>
+              <div className="drawer-eyebrow">${pickLanguage("Danh mục / Menu", props.language)}</div>
+              <h2 className="drawer-title">${props.storeName}</h2>
+            </div>
+            <button className="ghost-btn" onClick=${props.onClose}>${pickLanguage("Đóng / Close", props.language)}</button>
+          </div>
+          <div className="drawer-list">
+            ${items.map(function (item) {
+              return html`
+                <button
+                  key=${item.id}
+                  className=${"drawer-link" + (props.activeView === item.id ? " is-active" : "")}
+                  onClick=${function () {
+                    props.onSelect(item.id);
+                  }}
+                >
+                  <span className="drawer-link-icon">${item.icon}</span>
+                  <span>
+                    <strong>${pickLanguage(item.label, props.language)}</strong>
+                    <small>${pickLanguage(item.help, props.language)}</small>
+                  </span>
+                </button>
+              `;
+            })}
+          </div>
+        </aside>
+      </div>
+    `;
+  }
 
-function renderReceiptPreview() {
-  const sale = appState.lastReceipt || buildReceiptSale();
-  const template = getSelectedReceiptTemplate();
-  const paymentMethod = getPaymentMethods().find((method) => method.value === sale.paymentMethod);
-  const shopContact = [
-    appState.settings.storePhone,
-    appState.settings.storeEmail,
-    appState.settings.storeWebsite,
-  ]
-    .filter(Boolean)
-    .join(" • ");
+  function App() {
+    var initialState = useMemo(buildInitialState, []);
+    var [categories, setCategories] = useState(initialState.categories);
+    var [addOns, setAddOns] = useState(initialState.addOns);
+    var [components, setComponents] = useState(initialState.components);
+    var [products, setProducts] = useState(initialState.products);
+    var [sales, setSales] = useState(initialState.sales);
+    var [orders, setOrders] = useState(initialState.orders);
+    var [activeOrderId, setActiveOrderId] = useState(initialState.activeOrderId || initialState.orders[0].id);
+    var [language, setLanguage] = useState(initialState.language || "vi");
+    var [orderSequenceByDate, setOrderSequenceByDate] = useState(initialState.orderSequenceByDate || {});
+    var [settings, setSettings] = useState(initialState.settings);
+    var [invoiceTemplates, setInvoiceTemplates] = useState(initialState.invoiceTemplates);
+    var [barcodeTemplates, setBarcodeTemplates] = useState(initialState.barcodeTemplates);
+    var [selectedInvoiceTemplateId, setSelectedInvoiceTemplateId] = useState(initialState.selectedInvoiceTemplateId);
+    var [selectedBarcodeTemplateId, setSelectedBarcodeTemplateId] = useState(initialState.selectedBarcodeTemplateId);
+    var [activeView, setActiveView] = useState("pos");
+    var [menuOpen, setMenuOpen] = useState(false);
+    var [paymentMenuOpen, setPaymentMenuOpen] = useState(false);
+    var [selectedCategory, setSelectedCategory] = useState("all");
+    var [searchTerm, setSearchTerm] = useState("");
+    var [settingsSection, setSettingsSection] = useState("general");
+    var [inventorySection, setInventorySection] = useState("stock");
+    var [selectedProductIds, setSelectedProductIds] = useState([]);
+    var [labelPrintQuantities, setLabelPrintQuantities] = useState({});
+    var [previewLabelQuantity, setPreviewLabelQuantity] = useState(1);
+    var [selectedExportTables, setSelectedExportTables] = useState(getExportTableNames());
+    var [exportFilterMode, setExportFilterMode] = useState("all");
+    var [exportStartDate, setExportStartDate] = useState("");
+    var [exportEndDate, setExportEndDate] = useState("");
+    var [exportActiveOnly, setExportActiveOnly] = useState(false);
+    var [exportCompletedOrdersOnly, setExportCompletedOrdersOnly] = useState(false);
+    var [exportBusy, setExportBusy] = useState(false);
+    var [barcodeInput, setBarcodeInput] = useState("");
+    var [scanMessage, setScanMessage] = useState("");
+    var [cameraActive, setCameraActive] = useState(false);
+    var [productDraft, setProductDraft] = useState({
+      id: null,
+      name: "",
+      category: initialState.categories[0] ? initialState.categories[0].id : "",
+      price: 0,
+      stock: 0,
+      barcode: "",
+      image: "🍊",
+      description: "",
+      componentIds: []
+    });
+    var [categoryDraft, setCategoryDraft] = useState({
+      id: null,
+      labelVi: "",
+      labelEn: "",
+      icon: "🍊"
+    });
+    var [addOnDraft, setAddOnDraft] = useState({
+      id: null,
+      labelVi: "",
+      labelEn: "",
+      price: 0,
+      group: "extras"
+    });
+    var [componentDraft, setComponentDraft] = useState({
+      id: null,
+      labelVi: "",
+      labelEn: "",
+      unit: "",
+      note: ""
+    });
+    var [selectedBarcodeProductId, setSelectedBarcodeProductId] = useState(initialState.products[0] ? initialState.products[0].id : "");
+    var videoRef = useRef(null);
+    var cameraStreamRef = useRef(null);
+    var scanIntervalRef = useRef(null);
+    var lastScannedCodeRef = useRef("");
 
-  const receiptHtml = `
-    <div class="receipt-head">
-      <h5>${appState.settings.storeName}</h5>
-      <p>${appState.settings.storeAddress}</p>
-      ${template?.showContact && shopContact ? `<p>${shopContact}</p>` : ""}
-      ${template?.showTaxId && appState.settings.taxId ? `<p>${appState.language === "vi" ? "MST" : "Tax ID"}: ${appState.settings.taxId}</p>` : ""}
-      ${template?.showOrderMeta ? `<p>${formatDate(sale.createdAt)}</p>` : ""}
-      ${template?.showOrderMeta ? `<p>${sale.orderId}</p>` : ""}
-    </div>
-    <div class="receipt-lines">
-      ${sale.items
-        .map(
-          (item) => `
-            <div class="receipt-line">
-              <div>
-                <strong>${appState.language === "vi" ? item.nameVi : item.name}</strong>
-                <div>${item.quantity} x ${formatCurrency(item.price)}</div>
-              </div>
-              <strong>${formatCurrency(item.quantity * item.price)}</strong>
-            </div>
-          `,
-        )
-        .join("")}
-    </div>
-    <div class="receipt-total">
-      <div class="receipt-total-row">
-        <span>${appState.language === "vi" ? "Tạm tính" : "Subtotal"}</span>
-        <span>${formatCurrency(sale.subtotal)}</span>
-      </div>
-      <div class="receipt-total-row">
-        <span>${appState.language === "vi" ? "Thuế" : "Tax"}</span>
-        <span>${formatCurrency(sale.tax)}</span>
-      </div>
-      <div class="receipt-total-row">
-        <strong>${appState.language === "vi" ? "Tổng cộng" : "Total"}</strong>
-        <strong>${formatCurrency(sale.total)}</strong>
-      </div>
-      ${
-        template?.showPayment
-          ? `
-            <div class="receipt-total-row">
-              <span>${appState.language === "vi" ? "Thanh toán" : "Payment"}</span>
-              <span>${paymentMethod ? paymentMethod.label : sale.paymentMethod}</span>
-            </div>
-            <div class="receipt-total-row">
-              <span>${appState.language === "vi" ? "Tiền thừa" : "Change"}</span>
-              <span>${formatCurrency(sale.change)}</span>
-            </div>
-          `
-          : ""
+    useEffect(function () {
+      try {
+        window.localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            categories: categories,
+            addOns: addOns,
+            components: components,
+            products: products,
+            sales: sales,
+            orders: orders,
+            activeOrderId: activeOrderId,
+            language: language,
+            orderSequenceByDate: orderSequenceByDate,
+            settings: settings,
+            invoiceTemplates: invoiceTemplates,
+            barcodeTemplates: barcodeTemplates,
+            selectedInvoiceTemplateId: selectedInvoiceTemplateId,
+            selectedBarcodeTemplateId: selectedBarcodeTemplateId
+          })
+        );
+      } catch (error) {
+        // Keep the POS working even when storage is unavailable.
       }
-    </div>
-    <div class="receipt-footer">
-      ${template?.showCustomer ? `<p>${sale.customerName || (appState.language === "vi" ? "Khách lẻ" : "Walk-in customer")}</p>` : ""}
-      <p>${template?.[appState.language].name || ""}</p>
-      ${template?.showFooter ? `<p>${appState.settings.receiptFooter}</p>` : ""}
-    </div>
-  `;
+    }, [
+      categories,
+      addOns,
+      components,
+      products,
+      sales,
+      orders,
+      activeOrderId,
+      language,
+      orderSequenceByDate,
+      settings,
+      invoiceTemplates,
+      barcodeTemplates,
+      selectedInvoiceTemplateId,
+      selectedBarcodeTemplateId
+    ]);
 
-  elements.receiptPreview.className = `receipt-preview ${template?.theme || "compact"}`;
-  elements.receiptPreview.innerHTML = receiptHtml;
-}
+    useEffect(function () {
+      if (!orders.some(function (order) { return order.id === activeOrderId; })) {
+        setActiveOrderId(orders[0] ? orders[0].id : "");
+      }
+    }, [orders, activeOrderId]);
 
-function renderTemplates() {
-  elements.templateGrid.innerHTML = appState.receiptTemplates
-    .map((template) => {
-      const content = template[appState.language];
-      return `
-        <article class="template-card ${appState.selectedTemplate === template.id ? "is-active" : ""}">
-          <div class="product-meta">
-            <h5>${content.name}</h5>
-            <span class="tag">${template.id}</span>
-          </div>
-          <p class="muted">${content.description}</p>
-          <button class="secondary-btn" data-template-select="${template.id}">
-            ${appState.language === "vi" ? "Dùng mẫu này" : "Use this template"}
-          </button>
-        </article>
-      `;
-    })
-    .join("");
-}
+    useEffect(function () {
+      if (products.length && !products.some(function (product) { return product.id === selectedBarcodeProductId; })) {
+        setSelectedBarcodeProductId(products[0].id);
+      }
+    }, [products, selectedBarcodeProductId]);
 
-function renderReceiptTemplateEditor() {
-  const dictionary = getCurrentDictionary();
-  const editingTemplate = getEditingReceiptTemplate();
-  const form = elements.receiptTemplateForm;
-  if (!form || !elements.receiptTemplateEditorSelect) {
-    return;
-  }
+    useEffect(function () {
+      setSelectedProductIds(function (currentIds) {
+        return currentIds.filter(function (productId) {
+          return products.some(function (product) { return product.id === productId; });
+        });
+      });
+    }, [products]);
 
-  elements.receiptTemplateEditorSelect.innerHTML = `
-    <option value="">${dictionary.receiptTemplateDraftOption}</option>
-    ${appState.receiptTemplates
-      .map((template) => {
-        const content = template[appState.language];
-        return `<option value="${template.id}">${escapeHtml(content.name)}</option>`;
-      })
-      .join("")}
-  `;
+    useEffect(function () {
+      setLabelPrintQuantities(function (currentQuantities) {
+        var nextQuantities = {};
+        Object.keys(currentQuantities).forEach(function (productId) {
+          if (products.some(function (product) { return product.id === productId; })) {
+            nextQuantities[productId] = currentQuantities[productId];
+          }
+        });
+        return nextQuantities;
+      });
+    }, [products]);
 
-  if (editingTemplate) {
-    elements.receiptTemplateEditorSelect.value = editingTemplate.id;
-    form.elements.namedItem("name").value = editingTemplate.en.name;
-    form.elements.namedItem("nameVi").value = editingTemplate.vi.name;
-    form.elements.namedItem("description").value = editingTemplate.en.description;
-    form.elements.namedItem("descriptionVi").value = editingTemplate.vi.description;
-    form.elements.namedItem("theme").value = editingTemplate.theme;
-    form.elements.namedItem("showContact").checked = editingTemplate.showContact;
-    form.elements.namedItem("showTaxId").checked = editingTemplate.showTaxId;
-    form.elements.namedItem("showOrderMeta").checked = editingTemplate.showOrderMeta;
-    form.elements.namedItem("showPayment").checked = editingTemplate.showPayment;
-    form.elements.namedItem("showCustomer").checked = editingTemplate.showCustomer;
-    form.elements.namedItem("showFooter").checked = editingTemplate.showFooter;
-  } else {
-    elements.receiptTemplateEditorSelect.value = "";
-    form.reset();
-    form.elements.namedItem("theme").value = "compact";
-    form.elements.namedItem("showContact").checked = true;
-    form.elements.namedItem("showTaxId").checked = true;
-    form.elements.namedItem("showOrderMeta").checked = true;
-    form.elements.namedItem("showPayment").checked = true;
-    form.elements.namedItem("showCustomer").checked = true;
-    form.elements.namedItem("showFooter").checked = true;
-  }
-}
+    useEffect(function () {
+      if (selectedCategory !== "all" && !categories.some(function (category) { return category.id === selectedCategory; })) {
+        setSelectedCategory("all");
+      }
+    }, [categories, selectedCategory]);
 
-function renderBarcodeTemplateGrid() {
-  const dictionary = getCurrentDictionary();
-  elements.barcodeTemplateGrid.innerHTML = appState.barcodeTemplates
-    .map((template) => {
-      const name = appState.language === "vi" ? template.nameVi : template.name;
-      const description = appState.language === "vi" ? template.descriptionVi : template.description;
-      return `
-        <article class="template-card ${appState.selectedBarcodeTemplate === template.id ? "is-active" : ""}">
-          <div class="product-meta">
-            <h5>${escapeHtml(name)}</h5>
-            <span class="tag">${template.id}</span>
-          </div>
-          <p class="muted">${escapeHtml(description)}</p>
-          <button class="secondary-btn" data-barcode-template-select="${template.id}">
-            ${dictionary.barcodeUseTemplate}
-          </button>
-        </article>
-      `;
-    })
-    .join("");
-}
+    useEffect(function () {
+      if (productDraft.category && !categories.some(function (category) { return category.id === productDraft.category; })) {
+        setProductDraft(function (currentDraft) {
+          return Object.assign({}, currentDraft, {
+            category: categories[0] ? categories[0].id : ""
+          });
+        });
+      }
+    }, [categories, productDraft.category]);
 
-function renderBarcodeTemplateEditor() {
-  const dictionary = getCurrentDictionary();
-  const editingTemplate = getEditingBarcodeTemplate();
-  const form = elements.barcodeTemplateForm;
-  if (!form || !elements.barcodeTemplateEditorSelect) {
-    return;
-  }
+    useEffect(function () {
+      var validComponentIds = (productDraft.componentIds || []).filter(function (componentId) {
+        return components.some(function (component) { return component.id === componentId; });
+      });
 
-  elements.barcodeTemplateEditorSelect.innerHTML = `
-    <option value="">${dictionary.templateDraftOption}</option>
-    ${appState.barcodeTemplates
-      .map((template) => {
-        const name = appState.language === "vi" ? template.nameVi : template.name;
-        return `<option value="${template.id}">${escapeHtml(name)}</option>`;
-      })
-      .join("")}
-  `;
+      if (validComponentIds.length !== (productDraft.componentIds || []).length) {
+        setProductDraft(function (currentDraft) {
+          return Object.assign({}, currentDraft, {
+            componentIds: validComponentIds
+          });
+        });
+      }
+    }, [components, productDraft.componentIds]);
 
-  if (editingTemplate) {
-    elements.barcodeTemplateEditorSelect.value = editingTemplate.id;
-    form.elements.namedItem("name").value = editingTemplate.name;
-    form.elements.namedItem("nameVi").value = editingTemplate.nameVi;
-    form.elements.namedItem("description").value = editingTemplate.description;
-    form.elements.namedItem("descriptionVi").value = editingTemplate.descriptionVi;
-    form.elements.namedItem("className").value = editingTemplate.className;
-    form.elements.namedItem("showStore").checked = editingTemplate.showStore;
-    form.elements.namedItem("showCategory").checked = editingTemplate.showCategory;
-    form.elements.namedItem("showStock").checked = editingTemplate.showStock;
-    form.elements.namedItem("showFooter").checked = editingTemplate.showFooter;
-  } else {
-    elements.barcodeTemplateEditorSelect.value = "";
-    form.reset();
-    form.elements.namedItem("className").value = "sticker";
-    form.elements.namedItem("showStore").checked = true;
-    form.elements.namedItem("showCategory").checked = true;
-    form.elements.namedItem("showStock").checked = true;
-    form.elements.namedItem("showFooter").checked = true;
-  }
-}
-
-function renderBarcodeProductSelect() {
-  const selectedProduct = ensureSelectedLabelProduct();
-  elements.barcodeLabelProductSelect.innerHTML = appState.products
-    .map(
-      (product) =>
-        `<option value="${product.id}">${escapeHtml(product.name)} • ${formatCurrency(product.price)} • ${product.barcode}</option>`,
-    )
-    .join("");
-
-  if (selectedProduct) {
-    elements.barcodeLabelProductSelect.value = selectedProduct.id;
-  }
-}
-
-function buildEan13Pattern(barcode) {
-  const normalizedBarcode = String(barcode).trim();
-  if (!/^\d{13}$/.test(normalizedBarcode)) {
-    return "";
-  }
-
-  const leftParityMap = {
-    0: "LLLLLL",
-    1: "LLGLGG",
-    2: "LLGGLG",
-    3: "LLGGGL",
-    4: "LGLLGG",
-    5: "LGGLLG",
-    6: "LGGGLL",
-    7: "LGLGLG",
-    8: "LGLGGL",
-    9: "LGGLGL",
-  };
-
-  const encodings = {
-    L: {
-      0: "0001101",
-      1: "0011001",
-      2: "0010011",
-      3: "0111101",
-      4: "0100011",
-      5: "0110001",
-      6: "0101111",
-      7: "0111011",
-      8: "0110111",
-      9: "0001011",
-    },
-    G: {
-      0: "0100111",
-      1: "0110011",
-      2: "0011011",
-      3: "0100001",
-      4: "0011101",
-      5: "0111001",
-      6: "0000101",
-      7: "0010001",
-      8: "0001001",
-      9: "0010111",
-    },
-    R: {
-      0: "1110010",
-      1: "1100110",
-      2: "1101100",
-      3: "1000010",
-      4: "1011100",
-      5: "1001110",
-      6: "1010000",
-      7: "1000100",
-      8: "1001000",
-      9: "1110100",
-    },
-  };
-
-  const leadingDigit = Number(normalizedBarcode[0]);
-  const parity = leftParityMap[leadingDigit];
-  const leftDigits = normalizedBarcode.slice(1, 7).split("");
-  const rightDigits = normalizedBarcode.slice(7).split("");
-
-  const leftPattern = leftDigits
-    .map((digit, index) => encodings[parity[index]][digit])
-    .join("");
-  const rightPattern = rightDigits.map((digit) => encodings.R[digit]).join("");
-
-  return `101${leftPattern}01010${rightPattern}101`;
-}
-
-function renderEan13BarcodeSvg(barcode) {
-  const pattern = buildEan13Pattern(barcode);
-  if (!pattern) {
-    return `<div class="muted">${escapeHtml(barcode)}</div>`;
-  }
-
-  const moduleWidth = 2;
-  const quietZone = 12;
-  const barHeight = 72;
-  const guardHeight = 84;
-  const width = (pattern.length + quietZone * 2) * moduleWidth;
-  const viewBoxHeight = 92;
-  const guardIndexes = new Set([
-    0, 1, 2,
-    45, 46, 47, 48, 49,
-    92, 93, 94,
-  ]);
-
-  const bars = pattern
-    .split("")
-    .map((bit, index) => {
-      if (bit !== "1") {
-        return "";
+    useEffect(function () {
+      if (!paymentMenuOpen) {
+        return undefined;
       }
 
-      const x = (quietZone + index) * moduleWidth;
-      const height = guardIndexes.has(index) ? guardHeight : barHeight;
-      return `<rect x="${x}" y="0" width="${moduleWidth}" height="${height}" fill="#111111" />`;
-    })
-    .join("");
+      function closePaymentMenu() {
+        setPaymentMenuOpen(false);
+      }
 
-  return `
-    <svg class="barcode-svg" viewBox="0 0 ${width} ${viewBoxHeight}" role="img" aria-label="EAN-13 barcode ${escapeHtml(barcode)}">
-      <rect width="${width}" height="${viewBoxHeight}" fill="#ffffff" />
-      ${bars}
-    </svg>
-  `;
-}
+      window.addEventListener("click", closePaymentMenu);
+      return function () {
+        window.removeEventListener("click", closePaymentMenu);
+      };
+    }, [paymentMenuOpen]);
 
-function renderBarcodeLabelPreview() {
-  const dictionary = getCurrentDictionary();
-  const product = ensureSelectedLabelProduct();
-  const template = getSelectedBarcodeTemplate();
+    useEffect(function () {
+      return function () {
+        stopCameraScan();
+      };
+    }, []);
 
-  if (!product) {
-    elements.barcodeLabelPreview.className = "barcode-label-preview";
-    elements.barcodeLabelPreview.innerHTML = `<p class="muted">${dictionary.barcodeLabelEmpty}</p>`;
-    return;
-  }
+    useEffect(function () {
+      if (activeView !== "pos" && cameraActive) {
+        stopCameraScan();
+      }
+    }, [activeView, cameraActive]);
 
-  const barcodeSvg = renderEan13BarcodeSvg(product.barcode);
-  const categoryLabel = appState.language === "vi" ? "Danh mục" : "Category";
-  const stockLabel = appState.language === "vi" ? "Tồn kho" : "Stock";
-  const websiteText = appState.settings.storeWebsite || appState.settings.storePhone || "";
-  const templateMeta = [
-    template.showCategory ? `<div>${categoryLabel}: ${escapeHtml(product.category)}</div>` : "",
-    template.showStock ? `<div>${stockLabel}: ${product.stock}</div>` : "",
-  ]
-    .filter(Boolean)
-    .join("");
+    var activeOrder = orders.find(function (order) {
+      return order.id === activeOrderId;
+    }) || orders[0] || normalizeOrder({ createdAt: Date.now() });
 
-  elements.barcodeLabelPreview.className = `barcode-label-preview ${template.className}`;
-  elements.barcodeLabelPreview.innerHTML = `
-    <div class="barcode-label-head">
-      <div>
-        ${template.showStore ? `<div class="barcode-label-store">${escapeHtml(appState.settings.storeName)}</div>` : ""}
-        <h5>${escapeHtml(getProductDisplayName(product))}</h5>
-      </div>
-      <div class="barcode-label-price">${formatCurrency(product.price)}</div>
-    </div>
-    <div class="barcode-svg-wrap">
-      ${barcodeSvg}
-      <div class="barcode-code">${escapeHtml(product.barcode)}</div>
-    </div>
-    ${templateMeta ? `<div class="barcode-label-meta">${templateMeta}</div>` : ""}
-    ${template.showFooter && websiteText ? `<div class="barcode-label-foot">${escapeHtml(websiteText)}</div>` : ""}
-  `;
-}
+    var totals = calculateOrder(activeOrder, addOns);
 
-function renderSettingsForm() {
-  elements.settingsForm.elements.namedItem("storeName").value = appState.settings.storeName;
-  elements.settingsForm.elements.namedItem("storeAddress").value = appState.settings.storeAddress;
-  elements.settingsForm.elements.namedItem("storePhone").value = appState.settings.storePhone;
-  elements.settingsForm.elements.namedItem("storeEmail").value = appState.settings.storeEmail;
-  elements.settingsForm.elements.namedItem("storeWebsite").value = appState.settings.storeWebsite;
-  elements.settingsForm.elements.namedItem("taxId").value = appState.settings.taxId;
-  elements.settingsForm.elements.namedItem("taxRate").value = appState.settings.taxRate;
-  elements.settingsForm.elements.namedItem("receiptFooter").value = appState.settings.receiptFooter;
-  elements.storeName.textContent = appState.settings.storeName;
-  if (elements.settingsSaveState) {
-    elements.settingsSaveState.textContent = getCurrentDictionary().settingsAutosaveReady;
-  }
-}
+    var filterCategories = useMemo(function () {
+      return [FILTER_ALL_CATEGORY].concat(categories);
+    }, [categories]);
 
-function renderSettingsPreview() {
-  if (!elements.settingsPreview) {
-    return;
-  }
+    var filteredProducts = useMemo(function () {
+      return products.filter(function (product) {
+        var category = categories.find(function (item) {
+          return item.id === product.category;
+        });
+        var matchesCategory = selectedCategory === "all" || product.category === selectedCategory;
+        var matchesSearch = !searchTerm || (product.name + " " + product.category + " " + (category ? category.label : "") + " " + product.description)
+          .toLowerCase()
+          .indexOf(searchTerm.toLowerCase()) !== -1;
+        return matchesCategory && matchesSearch;
+      });
+    }, [products, categories, selectedCategory, searchTerm]);
 
-  const labels =
-    appState.language === "vi"
-      ? {
-          address: "Địa chỉ",
-          phone: "Số điện thoại",
-          email: "Email",
-          website: "Website",
-          taxId: "Mã số thuế",
-          taxRate: "Thuế",
+    var activeInvoiceTemplate = invoiceTemplates.find(function (template) {
+      return template.id === selectedInvoiceTemplateId;
+    }) || invoiceTemplates[0];
+
+    var activeBarcodeTemplate = barcodeTemplates.find(function (template) {
+      return template.id === selectedBarcodeTemplateId;
+    }) || barcodeTemplates[0];
+
+    var barcodePreviewProduct = products.find(function (product) {
+      return product.id === selectedBarcodeProductId;
+    }) || products[0] || null;
+
+    var cameraScanSupported = typeof window !== "undefined"
+      && !!window.BarcodeDetector
+      && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+    var dashboardMetrics = useMemo(function () {
+      var todayKey = new Date().toDateString();
+      var salesToday = sales.filter(function (sale) {
+        return new Date(sale.createdAt).toDateString() === todayKey;
+      });
+      var revenueToday = salesToday.reduce(function (sum, sale) {
+        return sum + sale.total;
+      }, 0);
+      var ordersToday = salesToday.length;
+      var lowStock = products.filter(function (product) {
+        return Number(product.stock) <= 10;
+      });
+      return {
+        revenueToday: revenueToday,
+        ordersToday: ordersToday,
+        lowStock: lowStock,
+        recentSales: clone(sales).sort(function (a, b) { return b.createdAt - a.createdAt; }).slice(0, 5)
+      };
+    }, [products, sales]);
+
+    var inventoryTabs = [
+      { id: "stock", label: "Kiểm hàng tồn kho / Stock Check" },
+      { id: "product", label: "Thêm sản phẩm / Add Product" },
+      { id: "catalog", label: "Điều chỉnh danh mục / Catalog Adjustments" }
+    ];
+
+    var addOnGroupLabels = {
+      sweetness: "Độ ngọt / Sweetness",
+      ice: "Đá / Ice",
+      extras: "Thêm topping / Extras"
+    };
+
+    function L(text) {
+      return pickLanguage(text, language);
+    }
+
+    function updateActiveOrder(updater) {
+      setOrders(function (currentOrders) {
+        return currentOrders.map(function (order) {
+          if (order.id !== activeOrderId) {
+            return order;
+          }
+
+          return updater(order);
+        });
+      });
+    }
+
+    function findProductByBarcode(rawCode) {
+      var safeCode = normalizeBarcode(rawCode);
+      if (!safeCode) {
+        return null;
+      }
+
+      return products.find(function (product) {
+        return normalizeBarcode(product.barcode) === safeCode;
+      }) || null;
+    }
+
+    function handleScannedBarcode(rawCode) {
+      var safeCode = normalizeBarcode(rawCode);
+      if (!safeCode) {
+        setScanMessage(L("Nhập hoặc quét mã barcode trước. / Enter or scan a barcode first."));
+        return;
+      }
+
+      var matchedProduct = findProductByBarcode(safeCode);
+      if (!matchedProduct) {
+        setScanMessage(L("Không tìm thấy sản phẩm với mã này. / No product found for this barcode."));
+        return;
+      }
+
+      addProductToOrder(matchedProduct);
+      setBarcodeInput("");
+      setScanMessage(L("Đã thêm sản phẩm từ barcode: / Added product from barcode: ") + matchedProduct.name);
+    }
+
+    function stopCameraScan() {
+      if (scanIntervalRef.current) {
+        window.clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = null;
+      }
+
+      if (cameraStreamRef.current) {
+        cameraStreamRef.current.getTracks().forEach(function (track) {
+          track.stop();
+        });
+        cameraStreamRef.current = null;
+      }
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+
+      lastScannedCodeRef.current = "";
+      setCameraActive(false);
+    }
+
+    function startCameraScan() {
+      if (!cameraScanSupported) {
+        setScanMessage(L("Trình duyệt này chưa hỗ trợ quét camera. Hãy dùng máy scan hoặc nhập mã barcode. / This browser does not support camera scanning yet. Use a barcode scanner or type the code."));
+        return;
+      }
+
+      stopCameraScan();
+
+      navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" }
+        },
+        audio: false
+      }).then(function (stream) {
+        cameraStreamRef.current = stream;
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(function () {
+            return undefined;
+          });
         }
-      : {
-          address: "Address",
-          phone: "Phone",
-          email: "Email",
-          website: "Website",
-          taxId: "Tax ID",
-          taxRate: "Tax",
+
+        var detector = new window.BarcodeDetector({
+          formats: ["code_128", "code_39", "ean_13", "ean_8", "upc_a", "upc_e", "qr_code"]
+        });
+
+        setCameraActive(true);
+        setScanMessage(L("Camera đã sẵn sàng. Đưa mã vào khung hình. / Camera is ready. Place the barcode in view."));
+
+        scanIntervalRef.current = window.setInterval(function () {
+          if (!videoRef.current || videoRef.current.readyState < 2) {
+            return;
+          }
+
+          detector.detect(videoRef.current).then(function (codes) {
+            if (!codes || !codes.length) {
+              return;
+            }
+
+            var rawValue = codes[0].rawValue || "";
+            var safeCode = normalizeBarcode(rawValue);
+            if (!safeCode || lastScannedCodeRef.current === safeCode) {
+              return;
+            }
+
+            lastScannedCodeRef.current = safeCode;
+            setBarcodeInput(safeCode);
+            handleScannedBarcode(safeCode);
+            window.setTimeout(function () {
+              if (lastScannedCodeRef.current === safeCode) {
+                lastScannedCodeRef.current = "";
+              }
+            }, 1500);
+          }).catch(function () {
+            return undefined;
+          });
+        }, 500);
+      }).catch(function () {
+        setScanMessage(L("Không thể mở camera. Hãy kiểm tra quyền truy cập camera. / Unable to open the camera. Please check camera permissions."));
+        stopCameraScan();
+      });
+    }
+
+    function ensureAtLeastOneOrder(currentOrders) {
+      if (currentOrders.length) {
+        return currentOrders;
+      }
+
+      var createdFallback = createOrder(orderSequenceByDate);
+      setOrderSequenceByDate(createdFallback.nextSequenceByDate);
+      return [createdFallback.order];
+    }
+
+    function createNewOrder() {
+      var createdOrderState = createOrder(orderSequenceByDate);
+      var newOrder = createdOrderState.order;
+      setOrderSequenceByDate(createdOrderState.nextSequenceByDate);
+      setOrders(function (currentOrders) {
+        return [newOrder].concat(currentOrders);
+      });
+      setActiveOrderId(newOrder.id);
+      setActiveView("pos");
+    }
+
+    function addProductToOrder(product) {
+      updateActiveOrder(function (order) {
+        var existingItem = (order.items || []).find(function (item) {
+          return item.productId === product.id && (!item.addOnIds || item.addOnIds.length === 0);
+        });
+
+        if (existingItem) {
+          return Object.assign({}, order, {
+            items: order.items.map(function (item) {
+              return item.id === existingItem.id
+                ? Object.assign({}, item, { qty: item.qty + 1 })
+                : item;
+            })
+          });
+        }
+
+        var newItem = {
+          id: uid("item"),
+          productId: product.id,
+          barcode: product.barcode || "",
+          name: product.name,
+          price: Number(product.price) || 0,
+          qty: 1,
+          addOnIds: []
         };
 
-  elements.settingsPreview.innerHTML = `
-    <article class="settings-preview-card">
-      <h5>${appState.settings.storeName}</h5>
-      <div class="settings-preview-grid">
-        <div class="settings-preview-row"><span>${labels.address}</span><strong>${appState.settings.storeAddress}</strong></div>
-        <div class="settings-preview-row"><span>${labels.phone}</span><strong>${appState.settings.storePhone || "-"}</strong></div>
-        <div class="settings-preview-row"><span>${labels.email}</span><strong>${appState.settings.storeEmail || "-"}</strong></div>
-        <div class="settings-preview-row"><span>${labels.website}</span><strong>${appState.settings.storeWebsite || "-"}</strong></div>
-        <div class="settings-preview-row"><span>${labels.taxId}</span><strong>${appState.settings.taxId || "-"}</strong></div>
-        <div class="settings-preview-row"><span>${labels.taxRate}</span><strong>${appState.settings.taxRate}%</strong></div>
-      </div>
-    </article>
-  `;
-}
-
-function renderClock() {
-  elements.clockText.textContent = new Intl.DateTimeFormat(
-    appState.language === "vi" ? "vi-VN" : "en-US",
-    {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    },
-  ).format(new Date());
-}
-
-function renderAll() {
-  renderTranslations();
-  renderLanguageButtons();
-  renderNavigation();
-  renderDashboard();
-  renderProducts();
-  renderProductForm();
-  renderInventory();
-  renderReceiptTemplateEditor();
-  renderBarcodeTemplateGrid();
-  renderBarcodeTemplateEditor();
-  renderBarcodeProductSelect();
-  renderBarcodeLabelPreview();
-  renderPaymentOptions();
-  renderQuickCashButtons();
-  renderCart();
-  renderTemplates();
-  renderReceiptPreview();
-  renderSettingsForm();
-  renderSettingsPreview();
-  renderClock();
-}
-
-function showToast(message) {
-  elements.toast.textContent = message;
-  elements.toast.classList.add("is-visible");
-  window.clearTimeout(showToast.timer);
-  showToast.timer = window.setTimeout(() => {
-    elements.toast.classList.remove("is-visible");
-  }, 2200);
-}
-
-function setLanguage(language) {
-  appState.language = language;
-  localStorage.setItem(STORAGE_KEYS.language, language);
-  renderAll();
-}
-
-function changeSection(section) {
-  appState.activeSection = section;
-  renderNavigation();
-}
-
-function invalidateDraftReceipt() {
-  appState.lastReceipt = null;
-}
-
-function addProductToCart(productId) {
-  const product = appState.products.find((entry) => entry.id === productId);
-  if (!product) {
-    return;
-  }
-
-  if (product.stock <= 0) {
-    showToast(appState.language === "vi" ? "Sản phẩm đã hết hàng." : "This product is out of stock.");
-    return;
-  }
-
-  const existing = appState.cart.find((item) => item.id === productId);
-  if (existing) {
-    if (existing.quantity >= product.stock) {
-      showToast(appState.language === "vi" ? "Vượt quá tồn kho hiện có." : "Cannot exceed available stock.");
-      return;
+        return Object.assign({}, order, {
+          items: (order.items || []).concat(newItem)
+        });
+      });
     }
-    existing.quantity += 1;
-  } else {
-    appState.cart.push({ ...product, quantity: 1 });
-  }
 
-  invalidateDraftReceipt();
-  renderAll();
-}
+    function adjustItemQty(itemId, delta) {
+      updateActiveOrder(function (order) {
+        var nextItems = (order.items || [])
+          .map(function (item) {
+            if (item.id !== itemId) {
+              return item;
+            }
 
-function updateCartQuantity(productId, delta) {
-  const item = appState.cart.find((entry) => entry.id === productId);
-  if (!item) {
-    return;
-  }
+            return Object.assign({}, item, { qty: item.qty + delta });
+          })
+          .filter(function (item) {
+            return item.qty > 0;
+          });
 
-  const product = appState.products.find((entry) => entry.id === productId);
-  const nextQuantity = item.quantity + delta;
-
-  if (nextQuantity <= 0) {
-    appState.cart = appState.cart.filter((entry) => entry.id !== productId);
-  } else if (product && nextQuantity <= product.stock) {
-    item.quantity = nextQuantity;
-  } else {
-    showToast(appState.language === "vi" ? "Không đủ tồn kho." : "Not enough stock.");
-  }
-
-  invalidateDraftReceipt();
-  renderAll();
-}
-
-function removeCartItem(productId) {
-  appState.cart = appState.cart.filter((entry) => entry.id !== productId);
-  invalidateDraftReceipt();
-  renderAll();
-}
-
-function addByBarcode(code) {
-  const normalized = code.trim();
-  if (!normalized) {
-    return;
-  }
-
-  const product = appState.products.find((entry) => entry.barcode === normalized);
-  if (!product) {
-    showToast(appState.language === "vi" ? "Không tìm thấy mã vạch." : "Barcode not found.");
-    return;
-  }
-
-  addProductToCart(product.id);
-  elements.barcodeInput.value = "";
-  showToast(
-    appState.language === "vi"
-      ? `Đã thêm ${product.nameVi}`
-      : `Added ${product.name}`,
-  );
-}
-
-function handleCompleteSale() {
-  if (appState.cart.length === 0) {
-    showToast(appState.language === "vi" ? "Giỏ hàng đang trống." : "Your cart is empty.");
-    return;
-  }
-
-  const summary = getSummary();
-  if (summary.amountTendered < summary.total && elements.paymentMethod.value === "cash") {
-    showToast(
-      appState.language === "vi"
-        ? "Tiền khách đưa chưa đủ để thanh toán."
-        : "Tendered amount is not enough for this cash sale.",
-    );
-    return;
-  }
-
-  const sale = buildReceiptSale();
-  appState.lastReceipt = sale;
-  appState.sales.push(sale);
-
-  appState.products = appState.products.map((product) => {
-    const cartItem = appState.cart.find((item) => item.id === product.id);
-    if (!cartItem) {
-      return product;
+        return Object.assign({}, order, { items: nextItems });
+      });
     }
-    return {
-      ...product,
-      stock: Math.max(product.stock - cartItem.quantity, 0),
-    };
-  });
 
-  saveState(STORAGE_KEYS.products, appState.products);
-  saveState(STORAGE_KEYS.sales, appState.sales);
+    function removeItem(itemId) {
+      updateActiveOrder(function (order) {
+        return Object.assign({}, order, {
+          items: (order.items || []).filter(function (item) {
+            return item.id !== itemId;
+          })
+        });
+      });
+    }
 
-  appState.cart = [];
-  elements.amountTendered.value = "";
-  elements.customerName.value = "";
-  renderAll();
-  changeSection("receipts");
-  showToast(appState.language === "vi" ? "Đã hoàn tất bán hàng." : "Sale completed.");
-}
+    function toggleAddon(itemId, addOnId) {
+      updateActiveOrder(function (order) {
+        return Object.assign({}, order, {
+          items: (order.items || []).map(function (item) {
+            if (item.id !== itemId) {
+              return item;
+            }
 
-function createProductFromForm(formData) {
-  const price = Number(formData.get("price"));
-  const editingProduct = getEditingProduct();
-  const barcode =
-    formData.get("barcode").trim() ||
-    (editingProduct && editingProduct.price === price
-      ? editingProduct.barcode
-      : generateBarcodeForPrice(price, { ignoreProductId: editingProduct?.id || null }));
+            var currentIds = item.addOnIds || [];
+            var hasAddon = currentIds.indexOf(addOnId) !== -1;
+            var nextIds;
+            var addOn = getAddonById(addOnId, addOns);
 
-  if (!barcode) {
-    showToast(getCurrentDictionary().barcodeGenerationFailed);
-    return;
-  }
+            if (addOn && addOn.group !== "extras") {
+              nextIds = currentIds.filter(function (currentId) {
+                var currentAddon = getAddonById(currentId, addOns);
+                return !(currentAddon && currentAddon.group === addOn.group);
+              });
+            } else {
+              nextIds = currentIds.slice();
+            }
 
-  const nextProduct = {
-    id: editingProduct?.id || crypto.randomUUID(),
-    name: formData.get("name").trim(),
-    nameVi: formData.get("nameVi").trim(),
-    category: formData.get("category").trim(),
-    barcode,
-    price,
-    stock: Number(formData.get("stock")),
-  };
+            if (!hasAddon) {
+              nextIds.push(addOnId);
+            } else if (addOn && addOn.group === "extras") {
+              nextIds = nextIds.filter(function (currentId) {
+                return currentId !== addOnId;
+              });
+            } else if (hasAddon) {
+              nextIds = nextIds.filter(function (currentId) {
+                return currentId !== addOnId;
+              });
+            }
 
-  if (editingProduct) {
-    appState.products = appState.products.map((product) =>
-      product.id === editingProduct.id ? nextProduct : product,
-    );
-    appState.cart = appState.cart
-      .map((item) => {
-        if (item.id !== editingProduct.id) {
-          return item;
+            return Object.assign({}, item, { addOnIds: nextIds });
+          })
+        });
+      });
+    }
+
+    function holdOrder() {
+      updateActiveOrder(function (order) {
+        return Object.assign({}, order, { status: "held" });
+      });
+      createNewOrder();
+    }
+
+    function cancelOrder() {
+      updateActiveOrder(function (order) {
+        return Object.assign({}, order, {
+          items: [],
+          discountPct: 0,
+          takeAway: false,
+          status: "open",
+          customerName: "Khách lẻ / Walk-in",
+          paymentMethod: "Chuyển khoản / Bank Transfer",
+          cashReceived: 0
+        });
+      });
+    }
+
+    function payNow() {
+      if (!activeOrder.items.length) {
+        window.alert(L("Đơn hiện tại chưa có món. / This order is empty."));
+        return;
+      }
+
+      var orderSnapshot = clone(activeOrder);
+      var saleRecord = {
+        id: uid("sale"),
+        orderId: activeOrder.id,
+        createdAt: Date.now(),
+        items: orderSnapshot.items,
+        total: totals.total,
+        subtotal: totals.subtotal,
+        vat: totals.vat,
+        discount: totals.discount,
+        customerName: orderSnapshot.customerName || "",
+        paymentMethod: orderSnapshot.paymentMethod || "",
+        cashReceived: Number(orderSnapshot.cashReceived) || 0,
+        cashierName: settings.cashierName || "",
+        paymentStatus: "paid",
+        orderStatus: "completed",
+        note: ""
+      };
+
+      setSales(function (currentSales) {
+        return [saleRecord].concat(currentSales);
+      });
+
+      setOrders(function (currentOrders) {
+        var remaining = currentOrders.filter(function (order) {
+          return order.id !== activeOrder.id;
+        });
+
+        if (!remaining.length) {
+          var createdNextOrderState = createOrder(orderSequenceByDate);
+          setOrderSequenceByDate(createdNextOrderState.nextSequenceByDate);
+          return [createdNextOrderState.order];
         }
 
-        const quantity = Math.min(item.quantity, nextProduct.stock);
-        return quantity > 0
-          ? {
-              ...item,
-              ...nextProduct,
-              quantity,
-            }
-          : null;
-      })
-      .filter(Boolean);
-    appState.editingProductId = null;
-  } else {
-    appState.products.unshift(nextProduct);
-  }
+        return remaining;
+      });
+    }
 
-  appState.selectedLabelProductId = nextProduct.id;
-  saveState(STORAGE_KEYS.products, appState.products);
-  elements.productForm.reset();
-  elements.inventoryBarcode.value = "";
-  invalidateDraftReceipt();
-  renderAll();
-  showToast(getCurrentDictionary()[editingProduct ? "productUpdated" : "productCreated"]);
-}
+    function printWithTemplate(type) {
+      if (!activeOrder.items.length) {
+        window.alert(L("Đơn hiện tại chưa có món. / This order is empty."));
+        return;
+      }
 
-function saveSettingsFromForm(formData, options = {}) {
-  appState.settings = normalizeSettings({
-    storeName: formData.get("storeName").trim(),
-    storeAddress: formData.get("storeAddress").trim(),
-    storePhone: formData.get("storePhone").trim(),
-    storeEmail: formData.get("storeEmail").trim(),
-    storeWebsite: formData.get("storeWebsite").trim(),
-    taxId: formData.get("taxId").trim(),
-    taxRate: Number(formData.get("taxRate")),
-    receiptFooter: formData.get("receiptFooter").trim(),
-  });
-  saveState(STORAGE_KEYS.settings, appState.settings);
-  elements.storeName.textContent = appState.settings.storeName;
-  renderSettingsPreview();
-  renderReceiptPreview();
+      var popup = window.open("", "_blank", "width=720,height=840");
+      if (!popup) {
+        window.alert(L("Trình duyệt đang chặn cửa sổ in hóa đơn. / Your browser blocked the print window."));
+        return;
+      }
 
-  if (elements.settingsSaveState) {
-    elements.settingsSaveState.textContent = options.auto
-      ? getCurrentDictionary().settingsAutosaveSaved
-      : getCurrentDictionary().settingsAutosaveReady;
-  }
+      popup.document.write(buildPrintMarkup(activeOrder, totals, settings, activeInvoiceTemplate, type, language, addOns));
+      popup.document.close();
+      popup.focus();
+      popup.print();
+    }
 
-  if (!options.silent) {
-    showToast(appState.language === "vi" ? "Đã cập nhật cài đặt cửa hàng." : "Store settings updated.");
-  }
-}
+    function previewInvoice() {
+      if (!activeOrder.items.length) {
+        window.alert(L("Đơn hiện tại chưa có món. / This order is empty."));
+        return;
+      }
 
-function saveReceiptTemplatesState() {
-  saveState(STORAGE_KEYS.receiptTemplates, appState.receiptTemplates);
-  localStorage.setItem(STORAGE_KEYS.template, appState.selectedTemplate);
-}
+      var popup = window.open("", "_blank", "width=720,height=840");
+      if (!popup) {
+        window.alert(L("Trình duyệt đang chặn cửa sổ xem trước hóa đơn. / Your browser blocked the invoice preview window."));
+        return;
+      }
 
-function saveBarcodeTemplatesState() {
-  saveState(STORAGE_KEYS.barcodeTemplates, appState.barcodeTemplates);
-  localStorage.setItem(STORAGE_KEYS.barcodeLabelTemplate, appState.selectedBarcodeTemplate);
-}
+      popup.document.write(buildPrintMarkup(activeOrder, totals, settings, activeInvoiceTemplate, "Xem trước hóa đơn / Preview Invoice", language, addOns));
+      popup.document.close();
+      popup.focus();
+    }
 
-function selectTemplate(templateId) {
-  appState.selectedTemplate = templateId;
-  appState.editingReceiptTemplateId = templateId;
-  localStorage.setItem(STORAGE_KEYS.template, templateId);
-  renderTemplates();
-  renderReceiptTemplateEditor();
-  renderReceiptPreview();
-}
+    function previewInvoiceTemplate() {
+      var sampleItems = activeOrder.items.length
+        ? activeOrder.items
+        : [{
+            id: "sample-item",
+            productId: products[0] ? products[0].id : "sample",
+            name: products[0] ? products[0].name : "Cam Mat Ong",
+            price: products[0] ? products[0].price : 45000,
+            qty: 2,
+            addOnIds: addOns.slice(0, 2).map(function (item) { return item.id; })
+          }];
+      var sampleOrder = {
+        id: "TFH-DEMO",
+        items: sampleItems
+      };
+      var sampleTotals = calculateOrder(sampleOrder, addOns);
+      var popup = window.open("", "_blank", "width=720,height=840");
+      if (!popup) {
+        window.alert(L("Trình duyệt đang chặn cửa sổ xem trước hóa đơn. / Your browser blocked the invoice preview window."));
+        return;
+      }
 
-function selectBarcodeTemplate(templateId) {
-  appState.selectedBarcodeTemplate = templateId;
-  appState.editingBarcodeTemplateId = templateId;
-  localStorage.setItem(STORAGE_KEYS.barcodeLabelTemplate, templateId);
-  renderBarcodeTemplateGrid();
-  renderBarcodeTemplateEditor();
-  renderBarcodeLabelPreview();
-}
+      popup.document.write(buildPrintMarkup(sampleOrder, sampleTotals, settings, activeInvoiceTemplate, "Xem trước mẫu hóa đơn / Invoice Template Preview", language, addOns));
+      popup.document.close();
+      popup.focus();
+    }
 
-function selectLabelProduct(productId) {
-  appState.selectedLabelProductId = productId;
-  renderInventory();
-  renderBarcodeProductSelect();
-  renderBarcodeLabelPreview();
-}
+    function getProductCategoryLabel(product) {
+      var category = categories.find(function (item) {
+        return item.id === (product ? product.category : "");
+      });
 
-function startEditingProduct(productId) {
-  appState.editingProductId = productId;
-  changeSection("inventory");
-  renderProductForm();
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
+      return category ? L(category.label) : "";
+    }
 
-function resetProductForm() {
-  appState.editingProductId = null;
-  elements.productForm.reset();
-  elements.inventoryBarcode.value = "";
-  renderProductForm();
-}
+    function buildBarcodeLabelCardMarkup(product, template) {
+      var categoryLabel = getProductCategoryLabel(product);
+      var barcodeSvg = renderBarcodeMarkup(product.barcode, {
+        width: 1.9,
+        height: Math.max(52, Math.round((Number(template.height) || 72) * 0.7)),
+        lineColor: "#1f1b18"
+      });
 
-function removeProduct(productId) {
-  if (!window.confirm(getCurrentDictionary().productDeleteConfirm)) {
-    return;
-  }
-
-  appState.products = appState.products.filter((product) => product.id !== productId);
-  appState.cart = appState.cart.filter((item) => item.id !== productId);
-  if (appState.editingProductId === productId) {
-    appState.editingProductId = null;
-  }
-  if (appState.selectedLabelProductId === productId) {
-    appState.selectedLabelProductId = null;
-  }
-
-  ensureSelectedLabelProduct();
-  saveState(STORAGE_KEYS.products, appState.products);
-  invalidateDraftReceipt();
-  renderAll();
-  showToast(getCurrentDictionary().productRemoved);
-}
-
-function startNewReceiptTemplate() {
-  appState.editingReceiptTemplateId = null;
-  renderReceiptTemplateEditor();
-}
-
-function saveReceiptTemplateFromForm(formData) {
-  const templateId = appState.editingReceiptTemplateId || `receipt-${crypto.randomUUID().slice(0, 8)}`;
-  const nextTemplate = normalizeReceiptTemplate(
-    {
-      id: templateId,
-      theme: formData.get("theme"),
-      en: {
-        name: formData.get("name").trim(),
-        description: formData.get("description").trim(),
-      },
-      vi: {
-        name: formData.get("nameVi").trim(),
-        description: formData.get("descriptionVi").trim(),
-      },
-      showContact: formData.get("showContact") === "on",
-      showTaxId: formData.get("showTaxId") === "on",
-      showOrderMeta: formData.get("showOrderMeta") === "on",
-      showPayment: formData.get("showPayment") === "on",
-      showCustomer: formData.get("showCustomer") === "on",
-      showFooter: formData.get("showFooter") === "on",
-    },
-    0,
-  );
-
-  const existingIndex = appState.receiptTemplates.findIndex((template) => template.id === templateId);
-  const isNewTemplate = existingIndex === -1;
-
-  if (isNewTemplate) {
-    appState.receiptTemplates.push(nextTemplate);
-  } else {
-    appState.receiptTemplates[existingIndex] = nextTemplate;
-  }
-
-  appState.selectedTemplate = templateId;
-  appState.editingReceiptTemplateId = templateId;
-  saveReceiptTemplatesState();
-  renderAll();
-  showToast(getCurrentDictionary()[isNewTemplate ? "receiptTemplateCreated" : "receiptTemplateUpdated"]);
-}
-
-function removeEditingReceiptTemplate() {
-  if (!appState.editingReceiptTemplateId) {
-    startNewReceiptTemplate();
-    return;
-  }
-
-  if (appState.receiptTemplates.length <= 1) {
-    showToast(getCurrentDictionary().receiptTemplateDeleteBlocked);
-    return;
-  }
-
-  appState.receiptTemplates = appState.receiptTemplates.filter(
-    (template) => template.id !== appState.editingReceiptTemplateId,
-  );
-  appState.selectedTemplate = appState.receiptTemplates[0].id;
-  appState.editingReceiptTemplateId = appState.selectedTemplate;
-  saveReceiptTemplatesState();
-  renderAll();
-  showToast(getCurrentDictionary().receiptTemplateRemoved);
-}
-
-function startNewBarcodeTemplate() {
-  appState.editingBarcodeTemplateId = null;
-  renderBarcodeTemplateEditor();
-}
-
-function saveBarcodeTemplateFromForm(formData) {
-  const templateId = appState.editingBarcodeTemplateId || `barcode-${crypto.randomUUID().slice(0, 8)}`;
-  const nextTemplate = normalizeBarcodeTemplate(
-    {
-      id: templateId,
-      name: formData.get("name").trim(),
-      nameVi: formData.get("nameVi").trim(),
-      description: formData.get("description").trim(),
-      descriptionVi: formData.get("descriptionVi").trim(),
-      className: formData.get("className"),
-      showStore: formData.get("showStore") === "on",
-      showCategory: formData.get("showCategory") === "on",
-      showStock: formData.get("showStock") === "on",
-      showFooter: formData.get("showFooter") === "on",
-    },
-    0,
-  );
-
-  const existingIndex = appState.barcodeTemplates.findIndex((template) => template.id === templateId);
-  const isNewTemplate = existingIndex === -1;
-
-  if (isNewTemplate) {
-    appState.barcodeTemplates.push(nextTemplate);
-  } else {
-    appState.barcodeTemplates[existingIndex] = nextTemplate;
-  }
-
-  appState.selectedBarcodeTemplate = templateId;
-  appState.editingBarcodeTemplateId = templateId;
-  saveBarcodeTemplatesState();
-  renderAll();
-  showToast(getCurrentDictionary()[isNewTemplate ? "templateCreated" : "templateUpdated"]);
-}
-
-function removeEditingBarcodeTemplate() {
-  if (!appState.editingBarcodeTemplateId) {
-    startNewBarcodeTemplate();
-    return;
-  }
-
-  if (appState.barcodeTemplates.length <= 1) {
-    showToast(getCurrentDictionary().templateDeleteBlocked);
-    return;
-  }
-
-  appState.barcodeTemplates = appState.barcodeTemplates.filter(
-    (template) => template.id !== appState.editingBarcodeTemplateId,
-  );
-  appState.selectedBarcodeTemplate = appState.barcodeTemplates[0].id;
-  appState.editingBarcodeTemplateId = appState.selectedBarcodeTemplate;
-  saveBarcodeTemplatesState();
-  renderAll();
-  showToast(getCurrentDictionary().templateRemoved);
-}
-
-async function startCameraScan() {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    showToast(appState.language === "vi" ? "Trình duyệt không hỗ trợ camera." : "Camera is not supported.");
-    return;
-  }
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
-      audio: false,
-    });
-
-    appState.cameraStream = stream;
-    elements.scannerVideo.srcObject = stream;
-    await elements.scannerVideo.play();
-    appState.scanLoopActive = true;
-    elements.scannerStatus.textContent =
-      appState.language === "vi" ? "Đang quét bằng camera" : "Camera scanning";
-
-    if ("BarcodeDetector" in window) {
-      scanWithBarcodeDetector(new window.BarcodeDetector({ formats: ["ean_13", "ean_8", "code_128"] }));
-    } else {
-      showToast(
-        appState.language === "vi"
-          ? "Camera đã mở, nhưng trình duyệt này không có BarcodeDetector."
-          : "Camera started, but this browser does not provide BarcodeDetector.",
+      return (
+        "<article class='print-label-card'>" +
+        "<div class='print-label-top'>" +
+        "<div class='print-label-brand-block'>" +
+        (template.showStoreName ? "<div class='print-label-brand'>" + (settings.brandDisplayName || settings.storeName) + "</div>" : "") +
+        (template.showName ? "<div class='print-label-name'>" + product.name + "</div>" : "") +
+        "</div>" +
+        (template.showPrice ? "<div class='print-label-price'>" + formatCurrency(product.price) + "</div>" : "") +
+        "</div>" +
+        "<div class='print-label-barcode-wrap'>" + barcodeSvg + "</div>" +
+        (template.showBarcodeValue ? "<div class='print-label-code'>" + normalizeBarcode(product.barcode) + "</div>" : "") +
+        (template.showCategory ? "<div class='print-label-category'>" + pickLanguage("Danh mục / Category", language) + ": " + categoryLabel + "</div>" : "") +
+        "</article>"
       );
     }
-  } catch (error) {
-    console.error(error);
-    showToast(appState.language === "vi" ? "Không thể mở camera." : "Unable to access the camera.");
-  }
-}
 
-async function scanWithBarcodeDetector(detector) {
-  while (appState.scanLoopActive) {
-    try {
-      const detections = await detector.detect(elements.scannerVideo);
-      if (detections.length > 0 && detections[0].rawValue) {
-        addByBarcode(detections[0].rawValue);
-        stopCameraScan();
-        break;
+    function buildBarcodeLabelDocument(productsToPrint, template, quantities) {
+      var cards = (productsToPrint || []).map(function (product) {
+        var repeatCount = Math.max(1, Number(quantities[product.id]) || 1);
+        return Array.from({ length: repeatCount }).map(function () {
+          return buildBarcodeLabelCardMarkup(product, template);
+        }).join("");
+      }).join("");
+
+      return (
+        "<!DOCTYPE html><html><head><meta charset='utf-8'><title>" + L("In tem mã vạch / Print Barcode Labels") + "</title>" +
+        "<style>" +
+        "body{margin:0;padding:24px;font-family:Arial,sans-serif;background:#fff8ef;color:#2d2117}" +
+        ".print-label-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(" + Math.max(300, Number(template.width) || 180) + "px,1fr));gap:20px;align-items:start}" +
+        ".print-label-card{padding:28px 30px;background:linear-gradient(180deg,#fffdf9 0%,#fff4e7 100%);border:1px solid rgba(231,194,164,0.72);border-radius:28px;box-shadow:0 24px 56px rgba(123,82,28,0.10);break-inside:avoid;page-break-inside:avoid;min-height:" + Math.max(220, Number(template.height) * 3 || 240) + "px}" +
+        ".print-label-top{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}" +
+        ".print-label-brand{font-size:26px;line-height:1.05;color:#73685d}" +
+        ".print-label-name{margin-top:6px;font-size:30px;line-height:1.08;font-weight:700;color:#231a14}" +
+        ".print-label-price{font-size:32px;line-height:1.08;font-weight:700;color:#9e4518;white-space:nowrap}" +
+        ".print-label-barcode-wrap{margin-top:26px;padding:18px 18px 10px;background:#fff;display:flex;justify-content:center}" +
+        ".print-label-barcode-wrap svg{width:100%;height:auto;display:block}" +
+        ".print-label-code{margin-top:10px;text-align:center;font-size:22px;letter-spacing:.18em;color:#74695d}" +
+        ".print-label-category{margin-top:28px;font-size:22px;color:#74695d}" +
+        "@media print{body{padding:0}.print-label-grid{gap:12px}.print-label-card{box-shadow:none}}" +
+        "</style></head><body><div class='print-label-grid'>" + cards + "</div></body></html>"
+      );
+    }
+
+    function previewBarcodeTemplate() {
+      if (!barcodePreviewProduct) {
+        return;
       }
-    } catch (error) {
-      console.error("Barcode scan failed", error);
-      break;
-    }
 
-    await new Promise((resolve) => window.setTimeout(resolve, 240));
-  }
-}
-
-function stopCameraScan() {
-  appState.scanLoopActive = false;
-  if (appState.cameraStream) {
-    appState.cameraStream.getTracks().forEach((track) => track.stop());
-  }
-  appState.cameraStream = null;
-  elements.scannerVideo.srcObject = null;
-  elements.scannerStatus.textContent =
-    appState.language === "vi" ? "Máy quét sẵn sàng" : "Scanner ready";
-}
-
-function handleScannerKeyboard(event) {
-  if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) {
-    return;
-  }
-
-  const now = Date.now();
-  if (now - appState.scannerLastKeyAt > 120) {
-    appState.scannerBuffer = "";
-  }
-  appState.scannerLastKeyAt = now;
-
-  if (event.key === "Enter") {
-    if (appState.scannerBuffer.length >= 8) {
-      addByBarcode(appState.scannerBuffer);
-    }
-    appState.scannerBuffer = "";
-    return;
-  }
-
-  if (/^[0-9A-Za-z]$/.test(event.key)) {
-    appState.scannerBuffer += event.key;
-  }
-}
-
-function printReceipt() {
-  renderReceiptPreview();
-  const template = document.getElementById("receipt-print-template");
-  const clone = template.content.cloneNode(true);
-  const printableReceipt = clone.querySelector("#printable-receipt");
-  printableReceipt.className = elements.receiptPreview.className;
-  printableReceipt.innerHTML = elements.receiptPreview.innerHTML;
-
-  document.body.appendChild(clone);
-  window.print();
-  const printStage = document.querySelector(".print-stage");
-  if (printStage) {
-    printStage.remove();
-  }
-}
-
-function printBarcodeLabel(productId = appState.selectedLabelProductId) {
-  if (productId) {
-    appState.selectedLabelProductId = productId;
-  }
-
-  const product = ensureSelectedLabelProduct();
-  if (!product) {
-    showToast(getCurrentDictionary().barcodeLabelEmpty);
-    return;
-  }
-
-  renderInventory();
-  renderBarcodeProductSelect();
-  renderBarcodeLabelPreview();
-
-  const printStage = document.createElement("div");
-  printStage.className = "print-stage";
-  const printableLabel = document.createElement("div");
-  printableLabel.className = elements.barcodeLabelPreview.className;
-  printableLabel.innerHTML = elements.barcodeLabelPreview.innerHTML;
-  printStage.appendChild(printableLabel);
-  document.body.appendChild(printStage);
-  window.print();
-  printStage.remove();
-  showToast(getCurrentDictionary().barcodePrinted);
-}
-
-function createDemoSale() {
-  if (appState.products.length === 0) {
-    showToast(appState.language === "vi" ? "Hãy tạo sản phẩm trước." : "Add products first.");
-    return;
-  }
-
-  appState.cart = [];
-  appState.products.slice(0, 3).forEach((product) => {
-    addProductToCart(product.id);
-  });
-  elements.customerName.value = appState.language === "vi" ? "Khách thử nghiệm" : "Demo customer";
-  elements.amountTendered.value = "200000";
-  changeSection("pos");
-  renderAll();
-}
-
-function scheduleSettingsAutoSave() {
-  window.clearTimeout(scheduleSettingsAutoSave.timer);
-  scheduleSettingsAutoSave.timer = window.setTimeout(() => {
-    if (!elements.settingsForm.reportValidity()) {
-      return;
-    }
-    saveSettingsFromForm(new FormData(elements.settingsForm), { auto: true, silent: true });
-  }, 420);
-}
-
-function bindEvents() {
-  document.querySelectorAll(".nav-chip").forEach((button) => {
-    button.addEventListener("click", () => changeSection(button.dataset.section));
-  });
-
-  document.querySelectorAll("[data-section-jump]").forEach((button) => {
-    button.addEventListener("click", () => changeSection(button.dataset.sectionJump));
-  });
-
-  document.querySelectorAll(".lang-btn").forEach((button) => {
-    button.addEventListener("click", () => setLanguage(button.dataset.lang));
-  });
-
-  document.body.addEventListener("click", (event) => {
-    const paymentTrigger = event.target.closest("[data-payment-method-toggle]");
-    if (paymentTrigger) {
-      if (appState.paymentMenuOpen) {
-        closePaymentMethodMenu();
-      } else {
-        openPaymentMethodMenu();
+      var popup = window.open("", "_blank", "width=520,height=420");
+      if (!popup) {
+        window.alert(L("Trình duyệt đang chặn cửa sổ xem trước tem. / Your browser blocked the label preview window."));
+        return;
       }
-      return;
+
+      popup.document.write(buildBarcodeLabelDocument([barcodePreviewProduct], activeBarcodeTemplate, (function () {
+        var quantities = {};
+        quantities[barcodePreviewProduct.id] = Math.max(1, Number(previewLabelQuantity) || 1);
+        return quantities;
+      })()));
+      popup.document.close();
+      popup.focus();
     }
 
-    const paymentOptionTarget = event.target.closest("[data-payment-method-option]");
-    if (paymentOptionTarget) {
-      setPaymentMethod(paymentOptionTarget.dataset.paymentMethodOption, { notify: true });
-      closePaymentMethodMenu();
-      return;
+    function printBarcodeLabels(productsToPrint, quantities) {
+      if (!productsToPrint || !productsToPrint.length) {
+        window.alert(L("Chưa có sản phẩm để in tem. / No products selected for label printing."));
+        return;
+      }
+
+      var popup = window.open("", "_blank", "width=960,height=720");
+      if (!popup) {
+        window.alert(L("Trình duyệt đang chặn cửa sổ in tem. / Your browser blocked the label print window."));
+        return;
+      }
+
+      popup.document.write(buildBarcodeLabelDocument(productsToPrint, activeBarcodeTemplate, quantities || {}));
+      popup.document.close();
+      popup.focus();
+      popup.print();
     }
 
-    if (appState.paymentMenuOpen && !event.target.closest("#payment-method-menu")) {
-      closePaymentMethodMenu();
+    function toggleExportTable(tableName) {
+      setSelectedExportTables(function (currentTables) {
+        return currentTables.indexOf(tableName) === -1
+          ? currentTables.concat(tableName)
+          : currentTables.filter(function (currentTableName) {
+              return currentTableName !== tableName;
+            });
+      });
     }
 
-    const addTarget = event.target.closest("[data-product-add]");
-    if (addTarget) {
-      addProductToCart(addTarget.dataset.productAdd);
+    function toggleAllExportTables() {
+      setSelectedExportTables(function (currentTables) {
+        return currentTables.length === EXPORT_TABLE_SCHEMAS.length ? [] : getExportTableNames();
+      });
     }
 
-    const changeTarget = event.target.closest("[data-cart-change]");
-    if (changeTarget) {
-      updateCartQuantity(changeTarget.dataset.cartChange, Number(changeTarget.dataset.delta));
+    function isWalkInCustomerName(name) {
+      var safeName = String(name || "").trim().toLowerCase();
+      return !safeName || safeName.indexOf("walk-in") !== -1 || safeName.indexOf("khách lẻ") !== -1 || safeName.indexOf("khach le") !== -1;
     }
 
-    const removeTarget = event.target.closest("[data-cart-remove]");
-    if (removeTarget) {
-      removeCartItem(removeTarget.dataset.cartRemove);
+    function buildExportPayload(tableNames) {
+      var now = Date.now();
+      var startDate = exportFilterMode === "date_range" ? exportStartDate : "";
+      var endDate = exportFilterMode === "date_range" ? exportEndDate : "";
+      var exportAllTables = !tableNames || !tableNames.length;
+      var selectedTablesMap = {};
+      var customerMap = {};
+      var customerSequence = 0;
+      var userId = "user-default";
+      var productLookup = {};
+
+      products.forEach(function (product) {
+        productLookup[product.id] = product;
+      });
+
+      function includeByDate(value) {
+        return matchesExportDateRange(value, startDate, endDate);
+      }
+
+      function ensureCustomer(name, createdAt, totalAmount) {
+        if (isWalkInCustomerName(name)) {
+          return "";
+        }
+
+        var key = String(name || "").trim().toLowerCase();
+        if (!customerMap[key]) {
+          customerSequence += 1;
+          customerMap[key] = {
+            customer_id: "cust-" + padNumber(customerSequence, 4),
+            customer_name: String(name || "").trim(),
+            phone: "",
+            email: "",
+            birthday: "",
+            customer_group: "regular",
+            total_spent: 0,
+            note: "",
+            created_at: formatExportDateTime(createdAt),
+            updated_at: formatExportDateTime(createdAt)
+          };
+        }
+
+        customerMap[key].total_spent += Number(totalAmount) || 0;
+        customerMap[key].updated_at = formatExportDateTime(createdAt);
+        return customerMap[key].customer_id;
+      }
+
+      if (!exportAllTables) {
+        tableNames.forEach(function (tableName) {
+          selectedTablesMap[tableName] = true;
+        });
+      }
+
+      var completedOrderRecords = sales
+        .filter(function (sale) {
+          return includeByDate(sale.createdAt);
+        })
+        .map(function (sale) {
+          return {
+            source: "sale",
+            orderId: sale.orderId,
+            createdAt: sale.createdAt,
+            cashierName: sale.cashierName || settings.cashierName || "",
+            customerName: sale.customerName || "",
+            paymentMethod: sale.paymentMethod || "",
+            cashReceived: Number(sale.cashReceived) || 0,
+            subtotal: Number(sale.subtotal) || 0,
+            discount: Number(sale.discount) || 0,
+            vat: Number(sale.vat) || 0,
+            total: Number(sale.total) || 0,
+            paymentStatus: sale.paymentStatus || "paid",
+            orderStatus: sale.orderStatus || "completed",
+            note: sale.note || "",
+            items: Array.isArray(sale.items) ? sale.items : []
+          };
+        });
+
+      var openOrderRecords = orders
+        .filter(function (order) {
+          return includeByDate(order.createdAt);
+        })
+        .map(function (order) {
+          var orderTotals = calculateOrder(order, addOns);
+          return {
+            source: "order",
+            orderId: order.id,
+            createdAt: order.createdAt,
+            cashierName: settings.cashierName || "",
+            customerName: order.customerName || "",
+            paymentMethod: order.paymentMethod || "",
+            cashReceived: Number(order.cashReceived) || 0,
+            subtotal: Number(orderTotals.subtotal) || 0,
+            discount: Number(orderTotals.discount) || 0,
+            vat: Number(orderTotals.vat) || 0,
+            total: Number(orderTotals.total) || 0,
+            paymentStatus: order.items && order.items.length ? "pending" : "unpaid",
+            orderStatus: order.status || "open",
+            note: "",
+            items: Array.isArray(order.items) ? order.items : []
+          };
+        });
+
+      var exportOrderRecords = exportCompletedOrdersOnly
+        ? completedOrderRecords
+        : completedOrderRecords.concat(openOrderRecords);
+
+      completedOrderRecords.forEach(function (record) {
+        ensureCustomer(record.customerName, record.createdAt, record.total);
+      });
+
+      if (!exportCompletedOrdersOnly) {
+        openOrderRecords.forEach(function (record) {
+          ensureCustomer(record.customerName, record.createdAt, 0);
+        });
+      }
+
+      var productsRows = products
+        .filter(function (product) {
+          return !exportActiveOnly || product.active !== false;
+        })
+        .map(function (product) {
+          return {
+            product_id: product.id,
+            barcode: normalizeBarcode(product.barcode),
+            sku: normalizeBarcode(product.barcode),
+            product_name: product.name,
+            category: getProductCategoryLabel(product),
+            size_ml: "",
+            price: Number(product.price) || 0,
+            vat_rate: VAT_RATE,
+            active: toCsvBoolean(product.active !== false),
+            created_at: "",
+            updated_at: ""
+          };
+        });
+
+      var ingredientsRows = components
+        .filter(function (component) {
+          return !exportActiveOnly || component.active !== false;
+        })
+        .map(function (component) {
+          return {
+            ingredient_id: component.id,
+            ingredient_name: L(component.label),
+            category: "ingredient",
+            unit: component.unit || "",
+            cost_per_unit: 0,
+            stock_qty: 0,
+            min_stock: 0,
+            supplier_id: "",
+            active: toCsvBoolean(component.active !== false),
+            created_at: "",
+            updated_at: ""
+          };
+        });
+
+      var activeIngredientIds = {};
+      ingredientsRows.forEach(function (ingredient) {
+        activeIngredientIds[ingredient.ingredient_id] = true;
+      });
+
+      var activeProductIds = {};
+      productsRows.forEach(function (product) {
+        activeProductIds[product.product_id] = true;
+      });
+
+      var productIngredientsRows = products.reduce(function (rows, product) {
+        return rows.concat((product.componentIds || []).filter(function (componentId) {
+          return (!exportActiveOnly || (activeProductIds[product.id] && activeIngredientIds[componentId]));
+        }).map(function (componentId) {
+          var component = components.find(function (item) {
+            return item.id === componentId;
+          }) || {};
+          return {
+            recipe_id: product.id + "-" + componentId,
+            product_id: product.id,
+            ingredient_id: componentId,
+            qty_used: 1,
+            unit: component.unit || "",
+            waste_rate: 0,
+            note: component.note || "",
+            created_at: "",
+            updated_at: ""
+          };
+        }));
+      }, []);
+
+      var ordersRows = exportOrderRecords.map(function (record) {
+        return {
+          order_id: record.orderId,
+          order_code: record.orderId,
+          order_date: formatExportDate(record.createdAt),
+          order_time: formatExportTime(record.createdAt),
+          cashier_id: userId,
+          customer_id: ensureCustomer(record.customerName, record.createdAt, record.source === "sale" ? record.total : 0),
+          subtotal: record.subtotal,
+          discount_amount: record.discount,
+          vat_amount: record.vat,
+          total_amount: record.total,
+          payment_status: record.paymentStatus,
+          order_status: record.orderStatus,
+          note: record.note,
+          created_at: formatExportDateTime(record.createdAt)
+        };
+      });
+
+      var orderItemsRows = exportOrderRecords.reduce(function (rows, record) {
+        return rows.concat((record.items || []).map(function (item, index) {
+          var product = productLookup[item.productId] || {};
+          var addOnTotal = getItemAddonTotal(item, addOns);
+          var unitPrice = (Number(item.price) || 0) + addOnTotal;
+          var lineSubtotal = unitPrice * (Number(item.qty) || 0);
+          var lineVat = lineSubtotal * VAT_RATE;
+          return {
+            order_item_id: item.id || record.orderId + "-item-" + padNumber(index + 1, 3),
+            order_id: record.orderId,
+            product_id: item.productId || "",
+            barcode: normalizeBarcode(item.barcode || product.barcode || ""),
+            product_name: item.name || product.name || "",
+            qty: Number(item.qty) || 0,
+            unit_price: unitPrice,
+            discount_amount: 0,
+            vat_rate: VAT_RATE,
+            vat_amount: lineVat,
+            line_total: lineSubtotal + lineVat,
+            created_at: formatExportDateTime(record.createdAt)
+          };
+        }));
+      }, []);
+
+      var paymentsRows = completedOrderRecords.map(function (record, index) {
+        return {
+          payment_id: "payment-" + padNumber(index + 1, 4),
+          order_id: record.orderId,
+          payment_date: formatExportDate(record.createdAt),
+          payment_time: formatExportTime(record.createdAt),
+          method: L(record.paymentMethod || ""),
+          amount: record.total,
+          bank: /bank transfer|chuyển khoản/i.test(record.paymentMethod || "") ? "Bank Transfer" : "",
+          transaction_ref: "",
+          note: record.note || "",
+          created_at: formatExportDateTime(record.createdAt)
+        };
+      });
+
+      var customersRows = Object.keys(customerMap).map(function (key) {
+        var customer = customerMap[key];
+        return Object.assign({}, customer, {
+          total_spent: Number(customer.total_spent) || 0
+        });
+      });
+
+      var inventoryMovementsRows = completedOrderRecords.reduce(function (rows, record) {
+        return rows.concat((record.items || []).map(function (item, index) {
+          var product = productLookup[item.productId] || {};
+          return {
+            movement_id: "movement-" + record.orderId + "-" + padNumber(index + 1, 3),
+            movement_date: formatExportDate(record.createdAt),
+            movement_time: formatExportTime(record.createdAt),
+            movement_type: "OUT",
+            reference_type: "ORDER",
+            reference_id: record.orderId,
+            product_id: item.productId || "",
+            ingredient_id: "",
+            qty_in: 0,
+            qty_out: Number(item.qty) || 0,
+            unit: "item",
+            unit_cost: "",
+            total_cost: "",
+            balance_after: typeof product.stock === "number" ? product.stock : "",
+            note: "Auto export from completed order",
+            created_at: formatExportDateTime(record.createdAt)
+          };
+        }));
+      }, []);
+
+      var suppliersRows = [];
+      var purchaseOrdersRows = [];
+      var purchaseItemsRows = [];
+
+      var cashMovementsRows = completedOrderRecords.map(function (record, index) {
+        return {
+          cash_movement_id: "cash-" + padNumber(index + 1, 4),
+          date: formatExportDate(record.createdAt),
+          time: formatExportTime(record.createdAt),
+          type: "IN",
+          category: "sale",
+          amount: record.total,
+          payment_method: L(record.paymentMethod || ""),
+          reference_id: record.orderId,
+          description: "Sale payment",
+          created_by: userId,
+          created_at: formatExportDateTime(record.createdAt)
+        };
+      });
+
+      var usersRows = [{
+        user_id: userId,
+        full_name: settings.cashierName || "POS User",
+        role: "cashier",
+        phone: settings.phone || "",
+        email: "",
+        active: toCsvBoolean(true),
+        created_at: formatExportDateTime(now),
+        updated_at: formatExportDateTime(now)
+      }];
+
+      var shiftsRows = [];
+      var discountsRows = [];
+      var taxSettingsRows = [{
+        tax_id: "vat-8",
+        tax_name: "VAT 8%",
+        tax_rate: VAT_RATE,
+        applies_to: "products",
+        active: toCsvBoolean(true),
+        effective_from: "",
+        effective_to: ""
+      }];
+
+      var dailySummaryMap = {};
+      completedOrderRecords.forEach(function (record) {
+        var dateKey = formatExportDate(record.createdAt);
+        if (!dailySummaryMap[dateKey]) {
+          dailySummaryMap[dateKey] = {
+            date: dateKey,
+            total_orders: 0,
+            total_items_sold: 0,
+            gross_revenue: 0,
+            discount_total: 0,
+            vat_output: 0,
+            net_revenue: 0,
+            cash_revenue: 0,
+            bank_transfer_revenue: 0,
+            card_revenue: 0,
+            total_cost: 0,
+            gross_profit: 0,
+            created_at: formatExportDateTime(record.createdAt)
+          };
+        }
+
+        dailySummaryMap[dateKey].total_orders += 1;
+        dailySummaryMap[dateKey].total_items_sold += (record.items || []).reduce(function (sum, item) {
+          return sum + (Number(item.qty) || 0);
+        }, 0);
+        dailySummaryMap[dateKey].gross_revenue += record.subtotal;
+        dailySummaryMap[dateKey].discount_total += record.discount;
+        dailySummaryMap[dateKey].vat_output += record.vat;
+        dailySummaryMap[dateKey].net_revenue += record.total - record.vat;
+
+        if (/cash|tiền mặt/i.test(record.paymentMethod || "")) {
+          dailySummaryMap[dateKey].cash_revenue += record.total;
+        } else if (/bank transfer|chuyển khoản/i.test(record.paymentMethod || "")) {
+          dailySummaryMap[dateKey].bank_transfer_revenue += record.total;
+        } else if (/card|thẻ/i.test(record.paymentMethod || "")) {
+          dailySummaryMap[dateKey].card_revenue += record.total;
+        }
+      });
+
+      var dailySummaryRows = Object.keys(dailySummaryMap).sort().map(function (dateKey) {
+        return dailySummaryMap[dateKey];
+      });
+
+      var settingsDescriptions = {
+        storeName: "Store name for receipts and exports",
+        brandLine: "Upper brand line",
+        brandDisplayName: "Primary display brand",
+        branchName: "Branch name",
+        address: "Store address",
+        phone: "Store phone number",
+        taxId: "Tax identification number",
+        cashierName: "Default cashier name",
+        openHours: "Opening hours",
+        receiptFooter: "Receipt footer text",
+        vatNote: "VAT invoice note"
+      };
+
+      var settingsRows = Object.keys(settings).map(function (settingKey) {
+        return {
+          setting_key: settingKey,
+          setting_value: settings[settingKey],
+          description: settingsDescriptions[settingKey] || "",
+          updated_at: formatExportDateTime(now)
+        };
+      }).concat([
+        {
+          setting_key: "selected_invoice_template_id",
+          setting_value: selectedInvoiceTemplateId,
+          description: "Active invoice template id",
+          updated_at: formatExportDateTime(now)
+        },
+        {
+          setting_key: "selected_barcode_template_id",
+          setting_value: selectedBarcodeTemplateId,
+          description: "Active barcode template id",
+          updated_at: formatExportDateTime(now)
+        }
+      ]);
+
+      var rowsByTable = {
+        products: productsRows,
+        ingredients: ingredientsRows,
+        product_ingredients: productIngredientsRows,
+        orders: ordersRows,
+        order_items: orderItemsRows,
+        payments: paymentsRows,
+        customers: customersRows,
+        inventory_movements: inventoryMovementsRows,
+        suppliers: suppliersRows,
+        purchase_orders: purchaseOrdersRows,
+        purchase_items: purchaseItemsRows,
+        cash_movements: cashMovementsRows,
+        users: usersRows,
+        shifts: shiftsRows,
+        discounts: discountsRows,
+        tax_settings: taxSettingsRows,
+        daily_summary: dailySummaryRows,
+        settings: settingsRows
+      };
+
+      var exportLog = {
+        export_date: formatExportDateTime(now),
+        exported_by: settings.cashierName || "POS User",
+        total_rows_per_table: {},
+        pos_app_version: APP_VERSION,
+        date_range: exportFilterMode === "date_range"
+          ? {
+              start_date: exportStartDate || null,
+              end_date: exportEndDate || null
+            }
+          : null
+      };
+
+      EXPORT_TABLE_SCHEMAS.forEach(function (tableSchema) {
+        var includeTable = exportAllTables || selectedTablesMap[tableSchema.tableName];
+        if (includeTable) {
+          exportLog.total_rows_per_table[tableSchema.tableName] = (rowsByTable[tableSchema.tableName] || []).length;
+        }
+      });
+
+      return {
+        rowsByTable: rowsByTable,
+        schema: EXPORT_TABLE_SCHEMAS.map(function (tableSchema) {
+          return {
+            table_name: tableSchema.tableName,
+            columns: tableSchema.columns.map(function (column) {
+              return {
+                name: column.name,
+                data_type: column.type,
+                primary_key: !!column.primaryKey,
+                foreign_key: column.foreignKey || null
+              };
+            })
+          };
+        }),
+        exportLog: exportLog
+      };
     }
 
-    const cashTarget = event.target.closest("[data-quick-cash]");
-    if (cashTarget) {
-      elements.amountTendered.value = cashTarget.dataset.quickCash;
-      renderCart();
+    function downloadBlob(blob, fileName) {
+      var url = window.URL.createObjectURL(blob);
+      var link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(function () {
+        window.URL.revokeObjectURL(url);
+      }, 1500);
     }
 
-    const templateTarget = event.target.closest("[data-template-select]");
-    if (templateTarget) {
-      selectTemplate(templateTarget.dataset.templateSelect);
+    function buildBackupFileName() {
+      var now = new Date();
+      return "pos_database_backup_" + [
+        now.getFullYear(),
+        padNumber(now.getMonth() + 1, 2),
+        padNumber(now.getDate(), 2)
+      ].join("-") + "_" + [
+        padNumber(now.getHours(), 2),
+        padNumber(now.getMinutes(), 2)
+      ].join("-") + ".zip";
     }
 
-    const productEditTarget = event.target.closest("[data-product-edit]");
-    if (productEditTarget) {
-      startEditingProduct(productEditTarget.dataset.productEdit);
+    function exportDatabaseBackup(tableNames) {
+      if (!window.JSZip) {
+        window.alert(L("Thiếu thư viện tạo file ZIP. Hãy mở lại trang khi có internet. / The ZIP export library is missing. Reload the page with an internet connection."));
+        return;
+      }
+
+      if (exportFilterMode === "date_range" && exportStartDate && exportEndDate && exportStartDate > exportEndDate) {
+        window.alert(L("Khoảng ngày export chưa hợp lệ. / The export date range is invalid."));
+        return;
+      }
+
+      if (tableNames && !tableNames.length) {
+        window.alert(L("Hãy chọn ít nhất 1 bảng để export. / Select at least one table to export."));
+        return;
+      }
+
+      var payload = buildExportPayload(tableNames);
+      var zip = new window.JSZip();
+      var selectedMap = {};
+
+      (tableNames || getExportTableNames()).forEach(function (tableName) {
+        selectedMap[tableName] = true;
+      });
+
+      setExportBusy(true);
+
+      EXPORT_TABLE_SCHEMAS.forEach(function (tableSchema) {
+        if (tableNames && !selectedMap[tableSchema.tableName]) {
+          return;
+        }
+
+        var csvColumns = tableSchema.columns.map(function (column) {
+          return column.name;
+        });
+        var tableRows = payload.rowsByTable[tableSchema.tableName] || [];
+        zip.file(tableSchema.tableName + ".csv", buildCsvContent(csvColumns, tableRows));
+      });
+
+      zip.file("schema.json", JSON.stringify(payload.schema.filter(function (tableSchema) {
+        return !tableNames || selectedMap[tableSchema.table_name];
+      }), null, 2));
+      zip.file("export_log.json", JSON.stringify(payload.exportLog, null, 2));
+
+      zip.generateAsync({ type: "blob" }).then(function (blob) {
+        downloadBlob(blob, buildBackupFileName());
+      }).catch(function () {
+        window.alert(L("Không thể tạo file backup. / Failed to create the backup file."));
+      }).finally(function () {
+        setExportBusy(false);
+      });
     }
 
-    const productRemoveTarget = event.target.closest("[data-product-remove]");
-    if (productRemoveTarget) {
-      removeProduct(productRemoveTarget.dataset.productRemove);
+    function updateProductDraft(field, value) {
+      setProductDraft(function (currentDraft) {
+        return Object.assign({}, currentDraft, { [field]: value });
+      });
     }
 
-    const barcodeTemplateTarget = event.target.closest("[data-barcode-template-select]");
-    if (barcodeTemplateTarget) {
-      selectBarcodeTemplate(barcodeTemplateTarget.dataset.barcodeTemplateSelect);
+    function resetProductDraft() {
+      setProductDraft({
+        id: null,
+        name: "",
+        category: categories[0] ? categories[0].id : "",
+        price: 0,
+        stock: 0,
+        barcode: "",
+        image: "🍊",
+        description: "",
+        componentIds: []
+      });
     }
 
-    const labelSelectTarget = event.target.closest("[data-label-select]");
-    if (labelSelectTarget) {
-      selectLabelProduct(labelSelectTarget.dataset.labelSelect);
-      showToast(getCurrentDictionary().barcodeLabelReady);
+    function toggleProductDraftComponent(componentId) {
+      setProductDraft(function (currentDraft) {
+        var currentIds = currentDraft.componentIds || [];
+        var nextIds = currentIds.indexOf(componentId) === -1
+          ? currentIds.concat(componentId)
+          : currentIds.filter(function (currentId) {
+              return currentId !== componentId;
+            });
+
+        return Object.assign({}, currentDraft, { componentIds: nextIds });
+      });
     }
 
-    const barcodePrintTarget = event.target.closest("[data-barcode-print]");
-    if (barcodePrintTarget) {
-      printBarcodeLabel(barcodePrintTarget.dataset.barcodePrint);
+    function updateCategoryDraft(field, value) {
+      setCategoryDraft(function (currentDraft) {
+        return Object.assign({}, currentDraft, { [field]: value });
+      });
     }
-  });
 
-  elements.productSearch.addEventListener("input", (event) => {
-    appState.productSearch = event.target.value;
-    renderProducts();
-  });
-
-  document.getElementById("scan-submit").addEventListener("click", () => addByBarcode(elements.barcodeInput.value));
-  elements.barcodeInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      addByBarcode(elements.barcodeInput.value);
+    function resetCategoryDraft() {
+      setCategoryDraft({
+        id: null,
+        labelVi: "",
+        labelEn: "",
+        icon: "🍊"
+      });
     }
-  });
 
-  document.getElementById("clear-cart").addEventListener("click", () => {
-    appState.cart = [];
-    invalidateDraftReceipt();
-    renderAll();
-  });
-  elements.amountTendered.addEventListener("input", () => {
-    invalidateDraftReceipt();
-    renderCart();
-    renderReceiptPreview();
-  });
-  elements.paymentMethod.addEventListener("change", () => {
-    syncPaymentMethodDropdown();
-    invalidateDraftReceipt();
-    renderReceiptPreview();
-  });
-  elements.paymentMethodTrigger.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " " || event.key === "ArrowDown") {
+    function startEditCategory(category) {
+      var labelParts = splitBilingualLabel(category.label);
+      setCategoryDraft({
+        id: category.id,
+        labelVi: labelParts.vi,
+        labelEn: labelParts.en,
+        icon: category.icon || "🍊"
+      });
+      setActiveView("inventory");
+      setInventorySection("catalog");
+    }
+
+    function submitCategory(event) {
       event.preventDefault();
-      openPaymentMethodMenu();
+
+      var label = buildBilingualLabel(categoryDraft.labelVi, categoryDraft.labelEn);
+      if (!label.trim()) {
+        window.alert(L("Nhập tên danh mục trước khi lưu. / Enter a category name before saving."));
+        return;
+      }
+
+      if (categoryDraft.id) {
+        setCategories(function (currentCategories) {
+          return currentCategories.map(function (category) {
+            return category.id === categoryDraft.id
+              ? Object.assign({}, category, {
+                  label: label,
+                  icon: categoryDraft.icon || category.icon || "🍊"
+                })
+              : category;
+          });
+        });
+      } else {
+        var baseId = slugify(categoryDraft.labelEn || categoryDraft.labelVi || uid("category"));
+        var nextId = baseId;
+
+        while (categories.some(function (category) { return category.id === nextId; })) {
+          nextId = baseId + "-" + Math.random().toString(36).slice(2, 5);
+        }
+
+        setCategories(function (currentCategories) {
+          return currentCategories.concat({
+            id: nextId,
+            label: label,
+            icon: categoryDraft.icon || "🍊"
+          });
+        });
+      }
+
+      resetCategoryDraft();
     }
-  });
-  elements.customerName.addEventListener("input", () => {
-    invalidateDraftReceipt();
-    renderReceiptPreview();
-  });
-  document.getElementById("preview-bill").addEventListener("click", () => {
-    appState.lastReceipt = buildReceiptSale();
-    renderReceiptPreview();
-    changeSection("receipts");
-  });
-  document.getElementById("complete-sale").addEventListener("click", handleCompleteSale);
 
-  elements.productForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    createProductFromForm(new FormData(event.currentTarget));
-  });
-  elements.productFormCancel.addEventListener("click", resetProductForm);
-  elements.productForm.elements.namedItem("price").addEventListener("input", updateInventoryBarcodePreview);
-  document.getElementById("generate-barcode-btn").addEventListener("click", updateInventoryBarcodePreview);
-  elements.receiptTemplateEditorSelect.addEventListener("change", (event) => {
-    const templateId = event.target.value || null;
-    appState.editingReceiptTemplateId = templateId;
-    if (templateId) {
-      appState.selectedTemplate = templateId;
-      localStorage.setItem(STORAGE_KEYS.template, templateId);
-      renderTemplates();
-      renderReceiptPreview();
+    function removeCategory(categoryId) {
+      if (categories.length === 1) {
+        window.alert(L("Cần giữ ít nhất 1 danh mục. / Keep at least one category."));
+        return;
+      }
+
+      if (!window.confirm(L("Xóa danh mục này và chuyển sản phẩm sang danh mục khác? / Remove this category and move its products to another category?"))) {
+        return;
+      }
+
+      var fallbackCategory = categories.find(function (category) {
+        return category.id !== categoryId;
+      });
+
+      setCategories(function (currentCategories) {
+        return currentCategories.filter(function (category) {
+          return category.id !== categoryId;
+        });
+      });
+
+      if (fallbackCategory) {
+        setProducts(function (currentProducts) {
+          return currentProducts.map(function (product) {
+            return product.category === categoryId
+              ? Object.assign({}, product, { category: fallbackCategory.id })
+              : product;
+          });
+        });
+      }
+
+      if (productDraft.category === categoryId) {
+        setProductDraft(function (currentDraft) {
+          return Object.assign({}, currentDraft, {
+            category: fallbackCategory ? fallbackCategory.id : ""
+          });
+        });
+      }
+
+      if (categoryDraft.id === categoryId) {
+        resetCategoryDraft();
+      }
     }
-    renderReceiptTemplateEditor();
-  });
-  elements.barcodeLabelProductSelect.addEventListener("change", (event) => {
-    selectLabelProduct(event.target.value);
-  });
-  elements.barcodeTemplateEditorSelect.addEventListener("change", (event) => {
-    const templateId = event.target.value || null;
-    appState.editingBarcodeTemplateId = templateId;
-    if (templateId) {
-      appState.selectedBarcodeTemplate = templateId;
-      localStorage.setItem(STORAGE_KEYS.barcodeLabelTemplate, templateId);
-      renderBarcodeTemplateGrid();
-      renderBarcodeLabelPreview();
+
+    function updateAddOnDraft(field, value) {
+      setAddOnDraft(function (currentDraft) {
+        return Object.assign({}, currentDraft, { [field]: value });
+      });
     }
-    renderBarcodeTemplateEditor();
-  });
 
-  elements.settingsForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    saveSettingsFromForm(new FormData(event.currentTarget));
-  });
-  elements.settingsForm.addEventListener("input", scheduleSettingsAutoSave);
-  elements.settingsForm.addEventListener("change", scheduleSettingsAutoSave);
-  elements.receiptTemplateForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    saveReceiptTemplateFromForm(new FormData(event.currentTarget));
-  });
-  elements.barcodeTemplateForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    saveBarcodeTemplateFromForm(new FormData(event.currentTarget));
-  });
-  document.getElementById("receipt-template-new-btn").addEventListener("click", startNewReceiptTemplate);
-  document.getElementById("receipt-template-remove-btn").addEventListener("click", removeEditingReceiptTemplate);
-  document.getElementById("barcode-template-new-btn").addEventListener("click", startNewBarcodeTemplate);
-  document.getElementById("barcode-template-remove-btn").addEventListener("click", removeEditingBarcodeTemplate);
-
-  document.getElementById("print-receipt-btn").addEventListener("click", printReceipt);
-  document.getElementById("print-barcode-btn").addEventListener("click", () => {
-    printBarcodeLabel();
-  });
-  document.getElementById("open-print-preview").addEventListener("click", () => {
-    changeSection("receipts");
-    renderReceiptPreview();
-  });
-  document.getElementById("focus-scan").addEventListener("click", () => {
-    changeSection("pos");
-    elements.barcodeInput.focus();
-  });
-  document.getElementById("start-demo-sale").addEventListener("click", createDemoSale);
-  document.getElementById("start-camera-scan").addEventListener("click", startCameraScan);
-  document.getElementById("stop-camera-scan").addEventListener("click", stopCameraScan);
-
-  window.addEventListener("keydown", handleScannerKeyboard);
-  window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && appState.paymentMenuOpen) {
-      closePaymentMethodMenu();
-      elements.paymentMethodTrigger.focus();
+    function resetAddOnDraft() {
+      setAddOnDraft({
+        id: null,
+        labelVi: "",
+        labelEn: "",
+        price: 0,
+        group: "extras"
+      });
     }
-  });
-}
 
-function init() {
-  appState.products = normalizeProducts(appState.products);
-  appState.settings = normalizeSettings(appState.settings);
-  appState.receiptTemplates = normalizeReceiptTemplates(
-    loadState(STORAGE_KEYS.receiptTemplates, defaultReceiptTemplates),
-  );
-  appState.selectedTemplate = getSelectedReceiptTemplate().id;
-  appState.editingReceiptTemplateId = appState.selectedTemplate;
-  appState.barcodeTemplates = normalizeBarcodeTemplates(
-    loadState(STORAGE_KEYS.barcodeTemplates, defaultBarcodeLabelTemplates),
-  );
-  appState.selectedBarcodeTemplate = getSelectedBarcodeTemplate().id;
-  appState.editingBarcodeTemplateId = appState.selectedBarcodeTemplate;
-  ensureSelectedLabelProduct();
-  saveState(STORAGE_KEYS.products, appState.products);
-  saveState(STORAGE_KEYS.settings, appState.settings);
-  saveState(STORAGE_KEYS.receiptTemplates, appState.receiptTemplates);
-  saveState(STORAGE_KEYS.barcodeTemplates, appState.barcodeTemplates);
-  bindEvents();
-  renderAll();
-  updateInventoryBarcodePreview();
-  window.setInterval(renderClock, 60000);
-}
+    function startEditAddOn(addOn) {
+      var labelParts = splitBilingualLabel(addOn.label);
+      setAddOnDraft({
+        id: addOn.id,
+        labelVi: labelParts.vi,
+        labelEn: labelParts.en,
+        price: Number(addOn.price) || 0,
+        group: addOn.group || "extras"
+      });
+      setActiveView("inventory");
+      setInventorySection("catalog");
+    }
 
-init();
+    function submitAddOn(event) {
+      event.preventDefault();
+
+      var label = buildBilingualLabel(addOnDraft.labelVi, addOnDraft.labelEn);
+      if (!label.trim()) {
+        window.alert(L("Nhập tên add-on trước khi lưu. / Enter an add-on name before saving."));
+        return;
+      }
+
+      if (addOnDraft.id) {
+        setAddOns(function (currentAddOns) {
+          return currentAddOns.map(function (addOn) {
+            return addOn.id === addOnDraft.id
+              ? Object.assign({}, addOn, {
+                  label: label,
+                  price: Number(addOnDraft.price) || 0,
+                  group: addOnDraft.group || "extras"
+                })
+              : addOn;
+          });
+        });
+      } else {
+        var baseId = slugify(addOnDraft.labelEn || addOnDraft.labelVi || uid("addon"));
+        var nextId = baseId;
+
+        while (addOns.some(function (addOn) { return addOn.id === nextId; })) {
+          nextId = baseId + "-" + Math.random().toString(36).slice(2, 5);
+        }
+
+        setAddOns(function (currentAddOns) {
+          return currentAddOns.concat({
+            id: nextId,
+            label: label,
+            price: Number(addOnDraft.price) || 0,
+            group: addOnDraft.group || "extras"
+          });
+        });
+      }
+
+      resetAddOnDraft();
+    }
+
+    function removeAddOn(addOnId) {
+      if (!window.confirm(L("Xóa add-on này khỏi toàn bộ hệ thống? / Remove this add-on from the whole system?"))) {
+        return;
+      }
+
+      setAddOns(function (currentAddOns) {
+        return currentAddOns.filter(function (addOn) {
+          return addOn.id !== addOnId;
+        });
+      });
+
+      setOrders(function (currentOrders) {
+        return currentOrders.map(function (order) {
+          return Object.assign({}, order, {
+            items: (order.items || []).map(function (item) {
+              return Object.assign({}, item, {
+                addOnIds: (item.addOnIds || []).filter(function (currentId) {
+                  return currentId !== addOnId;
+                })
+              });
+            })
+          });
+        });
+      });
+
+      if (addOnDraft.id === addOnId) {
+        resetAddOnDraft();
+      }
+    }
+
+    function updateComponentDraft(field, value) {
+      setComponentDraft(function (currentDraft) {
+        return Object.assign({}, currentDraft, { [field]: value });
+      });
+    }
+
+    function resetComponentDraft() {
+      setComponentDraft({
+        id: null,
+        labelVi: "",
+        labelEn: "",
+        unit: "",
+        note: ""
+      });
+    }
+
+    function startEditComponent(component) {
+      var labelParts = splitBilingualLabel(component.label);
+      setComponentDraft({
+        id: component.id,
+        labelVi: labelParts.vi,
+        labelEn: labelParts.en,
+        unit: component.unit || "",
+        note: component.note || ""
+      });
+      setActiveView("inventory");
+      setInventorySection("catalog");
+    }
+
+    function submitComponent(event) {
+      event.preventDefault();
+
+      var label = buildBilingualLabel(componentDraft.labelVi, componentDraft.labelEn);
+      if (!label.trim()) {
+        window.alert(L("Nhập tên thành phần trước khi lưu. / Enter a component name before saving."));
+        return;
+      }
+
+      if (componentDraft.id) {
+        setComponents(function (currentComponents) {
+          return currentComponents.map(function (component) {
+            return component.id === componentDraft.id
+              ? Object.assign({}, component, {
+                  label: label,
+                  unit: componentDraft.unit,
+                  note: componentDraft.note
+                })
+              : component;
+          });
+        });
+      } else {
+        var baseId = slugify(componentDraft.labelEn || componentDraft.labelVi || uid("component"));
+        var nextId = baseId;
+
+        while (components.some(function (component) { return component.id === nextId; })) {
+          nextId = baseId + "-" + Math.random().toString(36).slice(2, 5);
+        }
+
+        setComponents(function (currentComponents) {
+          return currentComponents.concat({
+            id: nextId,
+            label: label,
+            unit: componentDraft.unit,
+            note: componentDraft.note
+          });
+        });
+      }
+
+      resetComponentDraft();
+    }
+
+    function removeComponent(componentId) {
+      if (!window.confirm(L("Xóa thành phần này khỏi toàn bộ sản phẩm? / Remove this component from all products?"))) {
+        return;
+      }
+
+      setComponents(function (currentComponents) {
+        return currentComponents.filter(function (component) {
+          return component.id !== componentId;
+        });
+      });
+
+      setProducts(function (currentProducts) {
+        return currentProducts.map(function (product) {
+          return Object.assign({}, product, {
+            componentIds: (product.componentIds || []).filter(function (currentId) {
+              return currentId !== componentId;
+            })
+          });
+        });
+      });
+
+      if (productDraft.componentIds && productDraft.componentIds.indexOf(componentId) !== -1) {
+        setProductDraft(function (currentDraft) {
+          return Object.assign({}, currentDraft, {
+            componentIds: (currentDraft.componentIds || []).filter(function (currentId) {
+              return currentId !== componentId;
+            })
+          });
+        });
+      }
+
+      if (componentDraft.id === componentId) {
+        resetComponentDraft();
+      }
+    }
+
+    function submitProduct(event) {
+      event.preventDefault();
+
+      if (!productDraft.name.trim()) {
+        window.alert(L("Nhập tên sản phẩm trước khi lưu. / Enter a product name before saving."));
+        return;
+      }
+
+      if (productDraft.id) {
+        setProducts(function (currentProducts) {
+          return currentProducts.map(function (product) {
+            return product.id === productDraft.id
+              ? Object.assign({}, product, {
+                  name: productDraft.name,
+                  category: productDraft.category,
+                  price: Number(productDraft.price) || 0,
+                  stock: Number(productDraft.stock) || 0,
+                  barcode: productDraft.barcode || product.barcode,
+                  image: productDraft.image || "🍊",
+                  description: productDraft.description,
+                  componentIds: productDraft.componentIds || []
+                })
+              : product;
+          });
+        });
+
+        setOrders(function (currentOrders) {
+          return currentOrders.map(function (order) {
+            return Object.assign({}, order, {
+              items: (order.items || []).map(function (item) {
+                return item.productId === productDraft.id
+                  ? Object.assign({}, item, {
+                      name: productDraft.name,
+                      price: Number(productDraft.price) || 0
+                    })
+                  : item;
+              })
+            });
+          });
+        });
+      } else {
+        var newProduct = {
+          id: uid("product"),
+          name: productDraft.name,
+          category: productDraft.category,
+          price: Number(productDraft.price) || 0,
+          stock: Number(productDraft.stock) || 0,
+          barcode: productDraft.barcode || uid("TFH").toUpperCase(),
+          image: productDraft.image || "🍊",
+          description: productDraft.description,
+          componentIds: productDraft.componentIds || []
+        };
+
+        setProducts(function (currentProducts) {
+          return [newProduct].concat(currentProducts);
+        });
+        setSelectedBarcodeProductId(newProduct.id);
+      }
+
+      resetProductDraft();
+    }
+
+    function startEditProduct(product) {
+      setProductDraft({
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        price: product.price,
+        stock: product.stock,
+        barcode: product.barcode,
+        image: product.image,
+        description: product.description || "",
+        componentIds: product.componentIds || []
+      });
+      setActiveView("inventory");
+      setInventorySection("product");
+    }
+
+    function removeProduct(productId) {
+      if (!window.confirm(L("Xóa sản phẩm này khỏi kho hàng? / Remove this product from inventory?"))) {
+        return;
+      }
+
+      setProducts(function (currentProducts) {
+        return currentProducts.filter(function (product) {
+          return product.id !== productId;
+        });
+      });
+
+      if (productDraft.id === productId) {
+        resetProductDraft();
+      }
+    }
+
+    function updateProductStock(productId, nextStock) {
+      setProducts(function (currentProducts) {
+        return currentProducts.map(function (product) {
+          return product.id === productId
+            ? Object.assign({}, product, { stock: Math.max(0, Number(nextStock) || 0) })
+            : product;
+        });
+      });
+    }
+
+    function toggleProductSelection(productId) {
+      setSelectedProductIds(function (currentIds) {
+        return currentIds.indexOf(productId) === -1
+          ? currentIds.concat(productId)
+          : currentIds.filter(function (currentId) {
+              return currentId !== productId;
+            });
+      });
+    }
+
+    function toggleSelectAllProducts() {
+      setSelectedProductIds(function (currentIds) {
+        if (currentIds.length === products.length) {
+          return [];
+        }
+
+        return products.map(function (product) {
+          return product.id;
+        });
+      });
+    }
+
+    function getLabelQuantity(productId) {
+      return Math.max(1, Number(labelPrintQuantities[productId]) || 1);
+    }
+
+    function updateLabelQuantity(productId, value) {
+      setLabelPrintQuantities(function (currentQuantities) {
+        return Object.assign({}, currentQuantities, {
+          [productId]: Math.max(1, Number(value) || 1)
+        });
+      });
+    }
+
+    function patchSettings(field, value) {
+      setSettings(function (currentSettings) {
+        return Object.assign({}, currentSettings, { [field]: value });
+      });
+    }
+
+    function patchInvoiceTemplate(templateId, field, value) {
+      setInvoiceTemplates(function (currentTemplates) {
+        return currentTemplates.map(function (template) {
+          return template.id === templateId
+            ? Object.assign({}, template, { [field]: value })
+            : template;
+        });
+      });
+    }
+
+    function patchBarcodeTemplate(templateId, field, value) {
+      setBarcodeTemplates(function (currentTemplates) {
+        return currentTemplates.map(function (template) {
+          return template.id === templateId
+            ? Object.assign({}, template, { [field]: value })
+            : template;
+        });
+      });
+    }
+
+    function addInvoiceTemplate() {
+      var newTemplate = {
+        id: uid("invoice"),
+        name: "New Invoice",
+        title: "PHIEU THANH TOAN",
+        subtitle: "Tuy chinh moi",
+        footer: "Cam on quy khach.",
+        showSubtitle: true,
+        showAddress: true,
+        showBranch: true,
+        showPhone: true,
+        showTaxId: true,
+        showCashier: true,
+        showCustomerName: true,
+        showPaymentMethod: true,
+        showCashReceived: true,
+        showChangeDue: true,
+        showOrderMeta: true
+      };
+
+      setInvoiceTemplates(function (currentTemplates) {
+        return currentTemplates.concat(newTemplate);
+      });
+      setSelectedInvoiceTemplateId(newTemplate.id);
+    }
+
+    function removeInvoiceTemplate(templateId) {
+      if (invoiceTemplates.length === 1) {
+        window.alert(L("Cần giữ ít nhất 1 mẫu hóa đơn. / Keep at least one invoice template."));
+        return;
+      }
+
+      setInvoiceTemplates(function (currentTemplates) {
+        return currentTemplates.filter(function (template) {
+          return template.id !== templateId;
+        });
+      });
+
+      if (selectedInvoiceTemplateId === templateId) {
+        var fallbackTemplate = invoiceTemplates.find(function (template) {
+          return template.id !== templateId;
+        });
+        if (fallbackTemplate) {
+          setSelectedInvoiceTemplateId(fallbackTemplate.id);
+        }
+      }
+    }
+
+    function addBarcodeTemplate() {
+      var newTemplate = {
+        id: uid("barcode"),
+        name: "New Barcode",
+        prefix: "TFH",
+        suffix: "X",
+        width: 180,
+        height: 72,
+        title: "New Barcode Label",
+        subtitle: "Custom barcode label",
+        showName: true,
+        showPrice: true,
+        showStoreName: true,
+        showCategory: true,
+        showBarcodeValue: true,
+        accent: "#db5d17"
+      };
+
+      setBarcodeTemplates(function (currentTemplates) {
+        return currentTemplates.concat(newTemplate);
+      });
+      setSelectedBarcodeTemplateId(newTemplate.id);
+    }
+
+    function removeBarcodeTemplate(templateId) {
+      if (barcodeTemplates.length === 1) {
+        window.alert(L("Cần giữ ít nhất 1 mẫu mã vạch. / Keep at least one barcode template."));
+        return;
+      }
+
+      setBarcodeTemplates(function (currentTemplates) {
+        return currentTemplates.filter(function (template) {
+          return template.id !== templateId;
+        });
+      });
+
+      if (selectedBarcodeTemplateId === templateId) {
+        var fallbackTemplate = barcodeTemplates.find(function (template) {
+          return template.id !== templateId;
+        });
+        if (fallbackTemplate) {
+          setSelectedBarcodeTemplateId(fallbackTemplate.id);
+        }
+      }
+    }
+
+    function renderPosView() {
+      var changeDue = Math.max(0, (Number(activeOrder.cashReceived) || 0) - totals.total);
+      var quickCashOptions = [50000, 100000, 200000, 500000];
+      return html`
+        <section className="pos-layout">
+          <aside className="pos-category-toolbar surface">
+            <div>
+              <p className="eyebrow">${L("Danh mục / Categories")}</p>
+              <h2 className="section-title">${L("Loại đồ uống / Product Groups")}</h2>
+            </div>
+            <div className="pos-category-list">
+              ${filterCategories.map(function (category) {
+                return html`
+                  <button
+                    key=${category.id}
+                    className=${"category-pill category-pill-toolbar" + (selectedCategory === category.id ? " is-active" : "")}
+                    onClick=${function () {
+                      setSelectedCategory(category.id);
+                    }}
+                  >
+                    <span>${category.icon}</span>
+                    <span>${L(category.label)}</span>
+                  </button>
+                `;
+              })}
+            </div>
+          </aside>
+
+          <div className="pos-main-stack">
+            <section className="surface section-card pos-bill-board">
+              <div className="section-top">
+                <div>
+                  <p className="eyebrow">${L("Đơn đang mở / Open Orders")}</p>
+                  <h2 className="section-title">${L("Chọn bill đang thao tác / Pick Active Bill")}</h2>
+                </div>
+              </div>
+
+              <div className="order-switcher order-switcher-board">
+                ${orders.map(function (order) {
+                  return html`
+                    <button
+                      key=${order.id}
+                      className=${"order-chip order-chip-board" + (order.id === activeOrder.id ? " is-active" : "")}
+                      onClick=${function () {
+                        setActiveOrderId(order.id);
+                      }}
+                    >
+                      <span>${order.id}</span>
+                      <small>${order.status === "held" ? L("Tạm giữ / Held") : L("Đang mở / Open")}</small>
+                    </button>
+                  `;
+                })}
+                <button className="order-chip order-chip-create order-chip-board" onClick=${createNewOrder}>
+                  <span>${L("+ Đơn mới / + New Order")}</span>
+                  <small>${L("Tạo giỏ khác / Create another cart")}</small>
+                </button>
+              </div>
+            </section>
+
+            <section className="catalog-panel surface scanner-panel">
+              <div className="section-top">
+                <div>
+                  <p className="eyebrow">${L("Barcode / Barcode")}</p>
+                  <h2 className="section-title">${L("Quét mã sản phẩm / Scan Product Barcode")}</h2>
+                </div>
+              </div>
+
+              <form className="scanner-form" onSubmit=${function (event) {
+                event.preventDefault();
+                handleScannedBarcode(barcodeInput);
+              }}>
+                <label className="field">
+                  <span>${L("Mã barcode / Barcode Value")}</span>
+                  <input
+                    value=${barcodeInput}
+                    placeholder=${L("Quét bằng máy scan hoặc nhập mã / Scan with a scanner or type the code")}
+                    onInput=${function (event) {
+                      setBarcodeInput(event.target.value);
+                    }}
+                  />
+                </label>
+
+                <div className="scanner-actions">
+                  <button type="submit" className="primary-btn">${L("Thêm bằng barcode / Add by Barcode")}</button>
+                  ${cameraActive
+                    ? html`<button type="button" className="ghost-btn" onClick=${stopCameraScan}>${L("Dừng camera / Stop Camera")}</button>`
+                    : html`<button type="button" className="ghost-btn" onClick=${startCameraScan}>${L("Mở camera / Open Camera")}</button>`}
+                </div>
+              </form>
+
+              <div className="scanner-helper">
+                <div className="empty-state align-left">
+                  ${L("Desktop: dùng máy scan barcode cắm USB hoặc nhập mã rồi nhấn Enter. / Desktop: use a USB barcode scanner or type the code and press Enter.")}
+                </div>
+                <div className="empty-state align-left">
+                  ${cameraScanSupported
+                    ? L("Mobile: bấm Mở camera để quét mã bằng camera điện thoại. / Mobile: tap Open Camera to scan using the phone camera.")
+                    : L("Mobile camera scan phụ thuộc trình duyệt. Nếu camera không hỗ trợ, hãy nhập mã barcode thủ công. / Mobile camera scanning depends on browser support. If unavailable, enter the barcode manually.")}
+                </div>
+                ${scanMessage ? html`<div className="scanner-status">${scanMessage}</div>` : null}
+              </div>
+
+              ${cameraActive ? html`
+                <div className="scanner-video-shell">
+                  <video ref=${videoRef} className="scanner-video" playsInline muted autoplay></video>
+                </div>
+              ` : null}
+
+              <div className="list-stack">
+                ${(selectedCategory === "all" ? products : filteredProducts).slice(0, 6).map(function (product) {
+                  return html`
+                    <article key=${product.id} className="list-row list-row-actions">
+                      <div>
+                        <strong>${product.image} ${product.name}</strong>
+                        <p>${product.barcode} · ${formatCurrency(product.price)}</p>
+                      </div>
+                      <div className="row-actions">
+                        <span className="stock-badge">${product.stock}</span>
+                        <button className="ghost-btn" onClick=${function () { addProductToOrder(product); }}>${L("Thêm / Add")}</button>
+                      </div>
+                    </article>
+                  `;
+                })}
+              </div>
+            </section>
+          </div>
+
+          <aside className="order-panel surface">
+            <div className="order-panel-top">
+              <div className="order-hero">
+                <div>
+                  <p className="eyebrow">${L("Đơn hiện tại / Current Order")}</p>
+                  <h2 className="section-title">${activeOrder.id}</h2>
+                </div>
+                <div className="item-badge">#${totals.itemCount} ${L("món / items")}</div>
+              </div>
+              <button className="ghost-btn" onClick=${cancelOrder}>${L("Xóa / Clear")}</button>
+            </div>
+
+            <div className="order-items">
+              ${activeOrder.items.length
+                ? activeOrder.items.map(function (item) {
+                    return html`
+                      <article key=${item.id} className="order-item">
+                        <div className="order-item-head">
+                          <div>
+                            <h3>${item.name}</h3>
+                            <p>${formatCurrency(item.price)} · ${L("mỗi món / per item")}</p>
+                          </div>
+                          <button className="ghost-btn danger-text" onClick=${function () {
+                            removeItem(item.id);
+                          }}>
+                            ${L("Xóa / Remove")}
+                          </button>
+                        </div>
+
+                        <div className="qty-row">
+                          <button className="qty-btn" onClick=${function () {
+                            adjustItemQty(item.id, -1);
+                          }}>-</button>
+                          <strong>${item.qty}</strong>
+                          <button className="qty-btn" onClick=${function () {
+                            adjustItemQty(item.id, 1);
+                          }}>+</button>
+                          <span className="line-total">${formatCurrency((item.price + getItemAddonTotal(item, addOns)) * item.qty)}</span>
+                        </div>
+
+                        <div className="addon-row">
+                          ${addOns.map(function (addOn) {
+                            var active = (item.addOnIds || []).indexOf(addOn.id) !== -1;
+                            return html`
+                              <button
+                                key=${addOn.id}
+                                className=${"addon-chip" + (active ? " is-active" : "")}
+                                type="button"
+                                onClick=${function () {
+                                  toggleAddon(item.id, addOn.id);
+                                }}
+                              >
+                                ${L(addOn.label)}${addOn.price ? " +" + formatCurrency(addOn.price) : ""}
+                              </button>
+                            `;
+                          })}
+                        </div>
+                      </article>
+                    `;
+                  })
+                : html`<div className="empty-state">${L("Chưa có sản phẩm trong giỏ. Quét mã vạch hoặc bấm Thêm. / No items in cart yet.")}</div>`}
+            </div>
+
+            <div className="payment-grid">
+              <label className="field">
+                <span>${L("Tên khách hàng / Customer Name")}</span>
+                <input
+                  value=${activeOrder.customerName === "Khách lẻ / Walk-in" ? L("Khách lẻ / Walk-in") : (activeOrder.customerName || "")}
+                  onInput=${function (event) {
+                    updateActiveOrder(function (order) {
+                      return Object.assign({}, order, { customerName: event.target.value });
+                    });
+                  }}
+                />
+              </label>
+
+              <label className="field">
+                <span>${L("Phương thức thanh toán / Payment Method")}</span>
+                <div
+                  className=${"payment-select-shell" + (paymentMenuOpen ? " is-open" : "")}
+                  onClick=${function (event) {
+                    event.stopPropagation();
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="payment-select-trigger"
+                    onClick=${function (event) {
+                      event.stopPropagation();
+                      setPaymentMenuOpen(!paymentMenuOpen);
+                    }}
+                  >
+                    <span>${L(activeOrder.paymentMethod || "Chuyển khoản / Bank Transfer")}</span>
+                    <span className="payment-select-icon">▾</span>
+                  </button>
+
+                  ${paymentMenuOpen ? html`
+                    <div className="payment-select-dropdown">
+                      ${PAYMENT_METHOD_OPTIONS.map(function (option) {
+                        var isActive = (activeOrder.paymentMethod || "Chuyển khoản / Bank Transfer") === option.value;
+                        return html`
+                          <button
+                            key=${option.value}
+                            type="button"
+                            className=${"payment-select-option" + (isActive ? " is-active" : "")}
+                            onClick=${function (event) {
+                              event.stopPropagation();
+                              updateActiveOrder(function (order) {
+                                return Object.assign({}, order, { paymentMethod: option.value });
+                              });
+                              setPaymentMenuOpen(false);
+                            }}
+                          >
+                            <span>${L(option.label)}</span>
+                            <span className="payment-select-check">${isActive ? "✓" : ""}</span>
+                          </button>
+                        `;
+                      })}
+                    </div>
+                  ` : null}
+                </div>
+              </label>
+            </div>
+
+            <div className="payment-grid payment-grid-single">
+              <label className="field">
+                <span>${L("Tiền khách đưa / Cash Received")}</span>
+                <input
+                  type="number"
+                  value=${activeOrder.cashReceived || 0}
+                  onInput=${function (event) {
+                    updateActiveOrder(function (order) {
+                      return Object.assign({}, order, { cashReceived: Number(event.target.value) || 0 });
+                    });
+                  }}
+                />
+              </label>
+              <label className="field discount-box">
+                <span>${L("Giảm giá / Discount (%)")}</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value=${activeOrder.discountPct || 0}
+                  onInput=${function (event) {
+                    var nextValue = Number(event.target.value) || 0;
+                    updateActiveOrder(function (order) {
+                      return Object.assign({}, order, { discountPct: nextValue });
+                    });
+                  }}
+                />
+              </label>
+            </div>
+
+            <div className="quick-cash-row">
+              ${quickCashOptions.map(function (amount) {
+                return html`
+                  <button
+                    key=${amount}
+                    className="cash-chip"
+                    onClick=${function () {
+                      updateActiveOrder(function (order) {
+                        return Object.assign({}, order, { cashReceived: amount });
+                      });
+                    }}
+                  >
+                    ${formatCurrency(amount)}
+                  </button>
+                `;
+              })}
+            </div>
+
+            <div className="summary-list">
+              <div><span>${L("Số món / Items")}</span><strong>${totals.itemCount}</strong></div>
+              <div><span>${L("Tạm tính / Subtotal")}</span><strong>${formatCurrency(totals.subtotal)}</strong></div>
+              <div><span>${L("Giảm giá / Discount")}</span><strong>${formatCurrency(totals.discount)}</strong></div>
+              <div><span>${L("Thuế / VAT")}</span><strong>${formatCurrency(totals.vat)}</strong></div>
+              <div className="summary-total"><span>${L("Tổng cộng / Total")}</span><strong>${formatCurrency(totals.total)}</strong></div>
+              <div><span>${L("Tiền thừa / Change")}</span><strong>${formatCurrency(changeDue)}</strong></div>
+            </div>
+
+            <div className="button-row button-row-main">
+              <button className="ghost-btn preview-btn" onClick=${previewInvoice}>${L("Xem trước hóa đơn / Preview Invoice")}</button>
+              <button className="primary-btn checkout-btn" onClick=${payNow}>${L("Hoàn tất bán hàng / Complete Sale")}</button>
+            </div>
+
+            <div className="button-row button-row-secondary">
+              <button className="ghost-btn" onClick=${holdOrder}>${L("Tạm giữ đơn / Hold Order")}</button>
+              <button className="ghost-btn" onClick=${function () { printWithTemplate("In hóa đơn / Print Bill"); }}>${L("In hóa đơn / Print Bill")}</button>
+              <button className="ghost-btn" onClick=${function () { printWithTemplate("Xuất hóa đơn VAT / Issue VAT Invoice"); }}>${L("Xuất hóa đơn VAT / Issue VAT Invoice")}</button>
+            </div>
+          </aside>
+        </section>
+      `;
+    }
+
+    function renderDashboardView() {
+      return html`
+        <section className="stack-view">
+          <div className="card-grid card-grid-4">
+            <article className="metric-card surface">
+              <span className="metric-label">${L("Doanh thu hôm nay / Revenue Today")}</span>
+              <strong>${formatCurrency(dashboardMetrics.revenueToday)}</strong>
+            </article>
+            <article className="metric-card surface">
+              <span className="metric-label">${L("Số đơn hôm nay / Orders Today")}</span>
+              <strong>${dashboardMetrics.ordersToday}</strong>
+            </article>
+            <article className="metric-card surface">
+              <span className="metric-label">${L("Sản phẩm / Products")}</span>
+              <strong>${products.length}</strong>
+            </article>
+            <article className="metric-card surface">
+              <span className="metric-label">${L("Sắp hết hàng / Low Stock")}</span>
+              <strong>${dashboardMetrics.lowStock.length}</strong>
+            </article>
+          </div>
+
+          <div className="split-grid">
+            <section className="surface section-card">
+              <div className="section-top">
+                <div>
+                  <p className="eyebrow">${L("Giao dịch gần đây / Recent Sales")}</p>
+                  <h2 className="section-title">${L("Lịch sử thanh toán / Sales History")}</h2>
+                </div>
+              </div>
+              <div className="list-stack">
+                ${dashboardMetrics.recentSales.length
+                  ? dashboardMetrics.recentSales.map(function (sale) {
+                      return html`
+                        <article key=${sale.id} className="list-row">
+                          <div>
+                            <strong>${sale.orderId}</strong>
+                            <p>${formatDateTime(sale.createdAt)}</p>
+                          </div>
+                          <strong>${formatCurrency(sale.total)}</strong>
+                        </article>
+                      `;
+                    })
+                  : html`<div className="empty-state">${L("Chưa có giao dịch nào được thanh toán. / No paid transactions yet.")}</div>`}
+              </div>
+            </section>
+
+            <section className="surface section-card">
+              <div className="section-top">
+                <div>
+                  <p className="eyebrow">${L("Kho hàng / Inventory")}</p>
+                  <h2 className="section-title">${L("Cảnh báo tồn kho / Stock Alerts")}</h2>
+                </div>
+              </div>
+              <div className="list-stack">
+                ${dashboardMetrics.lowStock.length
+                  ? dashboardMetrics.lowStock.map(function (product) {
+                      return html`
+                        <article key=${product.id} className="list-row">
+                          <div>
+                            <strong>${product.name}</strong>
+                            <p>${product.barcode}</p>
+                          </div>
+                          <span className="stock-badge">${product.stock} ${L("còn / left")}</span>
+                        </article>
+                      `;
+                    })
+                  : html`<div className="empty-state">${L("Tồn kho đang ổn, chưa có sản phẩm cần bổ sung gấp. / Stock levels look healthy.")}</div>`}
+              </div>
+            </section>
+          </div>
+
+          <section className="surface section-card export-section">
+            <div className="section-top">
+              <div>
+                <p className="eyebrow">${L("Báo cáo & sao lưu / Reports & Backup")}</p>
+                <h2 className="section-title">${L("Database Export / Database Export")}</h2>
+              </div>
+              <div className="row-actions">
+                <button className="primary-btn" onClick=${function () {
+                  exportDatabaseBackup(null);
+                }} disabled=${exportBusy}>${exportBusy ? L("Đang export... / Exporting...") : L("Export Full Database Backup")}</button>
+                <button className="ghost-btn" onClick=${function () {
+                  exportDatabaseBackup(selectedExportTables);
+                }} disabled=${exportBusy}>${L("Export Selected Tables")}</button>
+              </div>
+            </div>
+
+            <div className="split-grid">
+              <div className="form-card">
+                <div className="field-grid">
+                  <label className="field">
+                    <span>${L("Phạm vi dữ liệu / Data Scope")}</span>
+                    <select value=${exportFilterMode} onChange=${function (event) { setExportFilterMode(event.target.value); }}>
+                      <option value="all">${L("Export all data")}</option>
+                      <option value="date_range">${L("Export by date range")}</option>
+                    </select>
+                  </label>
+                  ${exportFilterMode === "date_range" ? html`
+                    <label className="field">
+                      <span>${L("Từ ngày / Start Date")}</span>
+                      <input type="date" value=${exportStartDate} onInput=${function (event) { setExportStartDate(event.target.value); }} />
+                    </label>
+                  ` : html`<div></div>`}
+                  ${exportFilterMode === "date_range" ? html`
+                    <label className="field">
+                      <span>${L("Đến ngày / End Date")}</span>
+                      <input type="date" value=${exportEndDate} onInput=${function (event) { setExportEndDate(event.target.value); }} />
+                    </label>
+                  ` : null}
+                </div>
+
+                <div className="toggle-grid">
+                  <label className="toggle-card">
+                    <input type="checkbox" checked=${exportActiveOnly} onChange=${function (event) { setExportActiveOnly(event.target.checked); }} />
+                    <span>${L("Export only active products and ingredients")}</span>
+                  </label>
+                  <label className="toggle-card">
+                    <input type="checkbox" checked=${exportCompletedOrdersOnly} onChange=${function (event) { setExportCompletedOrdersOnly(event.target.checked); }} />
+                    <span>${L("Export only completed orders")}</span>
+                  </label>
+                </div>
+
+                <div className="empty-state align-left">
+                  ${L("ZIP backup sẽ chứa toàn bộ CSV, schema.json và export_log.json theo cấu trúc chuẩn để dùng cho Google Sheets hoặc migrate sang database sau này. / The ZIP backup will contain all CSVs, schema.json, and export_log.json so you can use it in Google Sheets now and migrate to a database later.")}
+                </div>
+              </div>
+
+              <div className="form-card">
+                <div className="section-top">
+                  <div>
+                    <p className="eyebrow">${L("Bảng dữ liệu / Tables")}</p>
+                    <h3 className="template-preview-title">${selectedExportTables.length}/${EXPORT_TABLE_SCHEMAS.length} ${L("bảng được chọn / tables selected")}</h3>
+                  </div>
+                  <button className="ghost-btn" onClick=${toggleAllExportTables}>
+                    ${selectedExportTables.length === EXPORT_TABLE_SCHEMAS.length ? L("Bỏ chọn tất cả / Clear All") : L("Chọn tất cả / Select All")}
+                  </button>
+                </div>
+                <div className="export-table-grid">
+                  ${EXPORT_TABLE_SCHEMAS.map(function (tableSchema) {
+                    var checked = selectedExportTables.indexOf(tableSchema.tableName) !== -1;
+                    return html`
+                      <label key=${tableSchema.tableName} className=${"toggle-card export-table-card" + (checked ? " is-active" : "")}>
+                        <input
+                          type="checkbox"
+                          checked=${checked}
+                          onChange=${function () { toggleExportTable(tableSchema.tableName); }}
+                        />
+                        <span>${tableSchema.tableName}.csv</span>
+                      </label>
+                    `;
+                  })}
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+      `;
+    }
+
+    function renderInventoryView() {
+      var totalStock = products.reduce(function (sum, product) {
+        return sum + (Number(product.stock) || 0);
+      }, 0);
+      var lowStockProducts = products.filter(function (product) {
+        return Number(product.stock) <= 10;
+      });
+      var allProductsSelected = products.length > 0 && selectedProductIds.length === products.length;
+
+      return html`
+        <section className="settings-layout">
+          <aside className="surface settings-sidebar inventory-sidebar">
+            <div>
+              <p className="eyebrow">${L("Kho hàng / Inventory")}</p>
+              <h2 className="section-title">${L("Quản lý sản phẩm / Product Workspace")}</h2>
+            </div>
+            <div className="settings-nav">
+              ${inventoryTabs.map(function (tab) {
+                return html`
+                  <button
+                    key=${tab.id}
+                    className=${"settings-nav-btn" + (inventorySection === tab.id ? " is-active" : "")}
+                    onClick=${function () {
+                      setInventorySection(tab.id);
+                    }}
+                  >
+                    ${L(tab.label)}
+                  </button>
+                `;
+              })}
+            </div>
+          </aside>
+
+          <div className="settings-content">
+            ${inventorySection === "stock" ? html`
+              <div className="stack-view">
+                <div className="card-grid card-grid-4">
+                  <article className="metric-card surface">
+                    <span className="metric-label">${L("Sản phẩm / Products")}</span>
+                    <strong>${products.length}</strong>
+                  </article>
+                  <article className="metric-card surface">
+                    <span className="metric-label">${L("Tổng tồn kho / Total Stock")}</span>
+                    <strong>${totalStock}</strong>
+                  </article>
+                  <article className="metric-card surface">
+                    <span className="metric-label">${L("Sắp hết hàng / Low Stock")}</span>
+                    <strong>${lowStockProducts.length}</strong>
+                  </article>
+                  <article className="metric-card surface">
+                    <span className="metric-label">${L("Danh mục / Categories")}</span>
+                    <strong>${categories.length}</strong>
+                  </article>
+                </div>
+
+                <div className="split-grid">
+                  <section className="surface section-card">
+                    <div className="section-top">
+                      <div>
+                        <p className="eyebrow">${L("Cảnh báo / Alerts")}</p>
+                        <h2 className="section-title">${L("Kiểm hàng tồn kho / Stock Check")}</h2>
+                      </div>
+                    </div>
+                    <div className="list-stack">
+                      ${lowStockProducts.length
+                        ? lowStockProducts.map(function (product) {
+                            var category = categories.find(function (item) {
+                              return item.id === product.category;
+                            });
+                            return html`
+                              <article key=${product.id} className="list-row list-row-actions">
+                                <div>
+                                  <strong>${product.image} ${product.name}</strong>
+                                  <p>${category ? L(category.label) : product.category} · ${product.barcode}</p>
+                                </div>
+                                <div className="row-actions stock-editor">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value=${product.stock}
+                                    onInput=${function (event) {
+                                      updateProductStock(product.id, event.target.value);
+                                    }}
+                                  />
+                                  <button className="ghost-btn" onClick=${function () { startEditProduct(product); }}>${L("Sửa / Edit")}</button>
+                                </div>
+                              </article>
+                            `;
+                          })
+                        : html`<div className="empty-state">${L("Hiện chưa có sản phẩm nào sắp hết hàng. / No low stock items right now.")}</div>`}
+                    </div>
+                  </section>
+
+                  <section className="surface section-card">
+                    <div className="section-top">
+                      <div>
+                        <p className="eyebrow">${L("Tất cả sản phẩm / All Products")}</p>
+                        <h2 className="section-title">${L("Danh sách tồn kho / Inventory List")}</h2>
+                      </div>
+                      <div className="row-actions selection-toolbar">
+                        <span className="stock-badge">${selectedProductIds.length} ${L("đã chọn / selected")}</span>
+                        <button className="ghost-btn" onClick=${toggleSelectAllProducts}>
+                          ${allProductsSelected ? L("Bỏ chọn tất cả / Clear All") : L("Chọn tất cả / Select All")}
+                        </button>
+                        <button
+                          className="ghost-btn"
+                          onClick=${function () {
+                            var selectedProducts = products.filter(function (product) {
+                              return selectedProductIds.indexOf(product.id) !== -1;
+                            });
+                            var quantities = {};
+                            selectedProducts.forEach(function (product) {
+                              quantities[product.id] = getLabelQuantity(product.id);
+                            });
+                            printBarcodeLabels(selectedProducts, quantities);
+                          }}
+                        >
+                          ${L("In tem đã chọn / Print Selected Labels")}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="list-stack">
+                      ${products.map(function (product) {
+                        var category = categories.find(function (item) {
+                          return item.id === product.category;
+                        });
+                        var isSelected = selectedProductIds.indexOf(product.id) !== -1;
+                        return html`
+                          <article key=${product.id} className=${"list-row list-row-actions" + (isSelected ? " is-selected" : "")}>
+                            <div>
+                              <label className="select-row">
+                                <input
+                                  type="checkbox"
+                                  checked=${isSelected}
+                                  onChange=${function () {
+                                    toggleProductSelection(product.id);
+                                  }}
+                                />
+                                <span>${L("Chọn / Select")}</span>
+                              </label>
+                              <strong>${product.image} ${product.name}</strong>
+                              <p>${product.barcode} · ${category ? L(category.label) : product.category}</p>
+                              <div className="barcode-inline-card">
+                                <${BarcodeGraphic}
+                                  value=${product.barcode}
+                                  className="barcode-inline"
+                                  options=${{
+                                    width: 1.2,
+                                    height: 30,
+                                    lineColor: "#2f2116"
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <div className="row-actions">
+                              <span className="stock-badge">${product.stock}</span>
+                              <label className="label-qty-field">
+                                <span>${L("Số tem / Qty")}</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value=${getLabelQuantity(product.id)}
+                                  onInput=${function (event) {
+                                    updateLabelQuantity(product.id, event.target.value);
+                                  }}
+                                />
+                              </label>
+                              <button className="ghost-btn" onClick=${function () { startEditProduct(product); }}>${L("Sửa / Edit")}</button>
+                              <button className="ghost-btn danger-text" onClick=${function () { removeProduct(product.id); }}>${L("Xóa / Remove")}</button>
+                            </div>
+                          </article>
+                        `;
+                      })}
+                    </div>
+                  </section>
+                </div>
+              </div>
+            ` : null}
+
+            ${inventorySection === "product" ? html`
+              <div className="split-grid">
+                <form className="surface section-card form-card" onSubmit=${submitProduct}>
+                  <div className="section-top">
+                    <div>
+                      <p className="eyebrow">${L("Sản phẩm / Product")}</p>
+                      <h2 className="section-title">${productDraft.id ? L("Cập nhật sản phẩm / Update Product") : L("Thêm sản phẩm mới / Add Product")}</h2>
+                    </div>
+                    ${productDraft.id
+                      ? html`<button type="button" className="ghost-btn" onClick=${resetProductDraft}>${L("Hủy / Cancel")}</button>`
+                      : null}
+                  </div>
+
+                  <div className="field-grid">
+                    <label className="field">
+                      <span>${L("Tên sản phẩm / Product Name")}</span>
+                      <input value=${productDraft.name} onInput=${function (event) { updateProductDraft("name", event.target.value); }} />
+                    </label>
+                    <label className="field">
+                      <span>${L("Danh mục / Category")}</span>
+                      <select value=${productDraft.category} onChange=${function (event) { updateProductDraft("category", event.target.value); }}>
+                        ${categories.map(function (item) {
+                          return html`<option key=${item.id} value=${item.id}>${L(item.label)}</option>`;
+                        })}
+                      </select>
+                    </label>
+                    <label className="field">
+                      <span>${L("Giá bán / Price")}</span>
+                      <input type="number" value=${productDraft.price} onInput=${function (event) { updateProductDraft("price", event.target.value); }} />
+                    </label>
+                    <label className="field">
+                      <span>${L("Tồn kho / Stock")}</span>
+                      <input type="number" value=${productDraft.stock} onInput=${function (event) { updateProductDraft("stock", event.target.value); }} />
+                    </label>
+                    <label className="field">
+                      <span>${L("Mã vạch / Barcode")}</span>
+                      <input value=${productDraft.barcode} onInput=${function (event) { updateProductDraft("barcode", event.target.value); }} />
+                    </label>
+                    <label className="field">
+                      <span>${L("Biểu tượng / Icon")}</span>
+                      <input value=${productDraft.image} onInput=${function (event) { updateProductDraft("image", event.target.value); }} />
+                    </label>
+                  </div>
+
+                  <label className="field">
+                    <span>${L("Mô tả ngắn / Short Description")}</span>
+                    <textarea rows="4" value=${productDraft.description} onInput=${function (event) { updateProductDraft("description", event.target.value); }}></textarea>
+                  </label>
+
+                  <div className="field">
+                    <span>${L("Thành phần sản phẩm / Product Components")}</span>
+                    <div className="addon-row">
+                      ${components.map(function (component) {
+                        var isActive = (productDraft.componentIds || []).indexOf(component.id) !== -1;
+                        return html`
+                          <button
+                            key=${component.id}
+                            type="button"
+                            className=${"addon-chip" + (isActive ? " is-active" : "")}
+                            onClick=${function () {
+                              toggleProductDraftComponent(component.id);
+                            }}
+                          >
+                            ${L(component.label)}
+                          </button>
+                        `;
+                      })}
+                    </div>
+                  </div>
+
+                  <button type="submit" className="primary-btn">${productDraft.id ? L("Lưu thay đổi / Save Changes") : L("Thêm vào kho / Add to Inventory")}</button>
+                </form>
+
+                <section className="surface section-card">
+                  <div className="section-top">
+                    <div>
+                      <p className="eyebrow">${L("Thông tin tham chiếu / Reference")}</p>
+                      <h2 className="section-title">${L("Sản phẩm và thành phần / Product Components")}</h2>
+                    </div>
+                  </div>
+                  <div className="list-stack">
+                    ${products.map(function (product) {
+                      var productComponents = (product.componentIds || []).map(function (componentId) {
+                        var component = components.find(function (item) { return item.id === componentId; });
+                        return component ? L(component.label) : "";
+                      }).filter(Boolean);
+                      return html`
+                        <article key=${product.id} className="list-row list-row-actions">
+                          <div>
+                            <strong>${product.image} ${product.name}</strong>
+                            <p>${productComponents.length ? productComponents.join(", ") : L("Chưa gắn thành phần / No components assigned")}</p>
+                          </div>
+                          <div className="row-actions">
+                            <button className="ghost-btn" onClick=${function () { startEditProduct(product); }}>${L("Sửa / Edit")}</button>
+                          </div>
+                        </article>
+                      `;
+                    })}
+                  </div>
+                </section>
+              </div>
+            ` : null}
+
+            ${inventorySection === "catalog" ? html`
+              <div className="stack-view">
+                <div className="split-grid">
+                  <section className="surface section-card form-card">
+                    <div className="section-top">
+                      <div>
+                        <p className="eyebrow">${L("Danh mục / Categories")}</p>
+                        <h2 className="section-title">${L("Thêm hoặc sửa danh mục / Add or Edit Categories")}</h2>
+                      </div>
+                      ${categoryDraft.id ? html`<button type="button" className="ghost-btn" onClick=${resetCategoryDraft}>${L("Hủy / Cancel")}</button>` : null}
+                    </div>
+                    <form className="form-card" onSubmit=${submitCategory}>
+                      <div className="field-grid">
+                        <label className="field"><span>${L("Tên tiếng Việt / Vietnamese Name")}</span><input value=${categoryDraft.labelVi} onInput=${function (event) { updateCategoryDraft("labelVi", event.target.value); }} /></label>
+                        <label className="field"><span>${L("Tên tiếng Anh / English Name")}</span><input value=${categoryDraft.labelEn} onInput=${function (event) { updateCategoryDraft("labelEn", event.target.value); }} /></label>
+                        <label className="field"><span>${L("Icon / Icon")}</span><input value=${categoryDraft.icon} onInput=${function (event) { updateCategoryDraft("icon", event.target.value); }} /></label>
+                      </div>
+                      <button type="submit" className="primary-btn">${categoryDraft.id ? L("Lưu danh mục / Save Category") : L("Thêm danh mục / Add Category")}</button>
+                    </form>
+                    <div className="management-list">
+                      ${categories.map(function (category) {
+                        return html`
+                          <article key=${category.id} className="list-row list-row-actions">
+                            <div>
+                              <strong>${category.icon} ${L(category.label)}</strong>
+                              <p>${category.id}</p>
+                            </div>
+                            <div className="row-actions">
+                              <button className="ghost-btn" onClick=${function () { startEditCategory(category); }}>${L("Sửa / Edit")}</button>
+                              <button className="ghost-btn danger-text" onClick=${function () { removeCategory(category.id); }}>${L("Xóa / Remove")}</button>
+                            </div>
+                          </article>
+                        `;
+                      })}
+                    </div>
+                  </section>
+
+                  <section className="surface section-card form-card">
+                    <div className="section-top">
+                      <div>
+                        <p className="eyebrow">${L("Add-ons")}</p>
+                        <h2 className="section-title">${L("Điều chỉnh add-ons / Edit Add-ons")}</h2>
+                      </div>
+                      ${addOnDraft.id ? html`<button type="button" className="ghost-btn" onClick=${resetAddOnDraft}>${L("Hủy / Cancel")}</button>` : null}
+                    </div>
+                    <form className="form-card" onSubmit=${submitAddOn}>
+                      <div className="field-grid">
+                        <label className="field"><span>${L("Tên tiếng Việt / Vietnamese Name")}</span><input value=${addOnDraft.labelVi} onInput=${function (event) { updateAddOnDraft("labelVi", event.target.value); }} /></label>
+                        <label className="field"><span>${L("Tên tiếng Anh / English Name")}</span><input value=${addOnDraft.labelEn} onInput=${function (event) { updateAddOnDraft("labelEn", event.target.value); }} /></label>
+                        <label className="field"><span>${L("Giá cộng thêm / Extra Price")}</span><input type="number" value=${addOnDraft.price} onInput=${function (event) { updateAddOnDraft("price", event.target.value); }} /></label>
+                        <label className="field">
+                          <span>${L("Nhóm / Group")}</span>
+                          <select value=${addOnDraft.group} onChange=${function (event) { updateAddOnDraft("group", event.target.value); }}>
+                            ${Object.keys(addOnGroupLabels).map(function (groupKey) {
+                              return html`<option key=${groupKey} value=${groupKey}>${L(addOnGroupLabels[groupKey])}</option>`;
+                            })}
+                          </select>
+                        </label>
+                      </div>
+                      <button type="submit" className="primary-btn">${addOnDraft.id ? L("Lưu add-on / Save Add-on") : L("Thêm add-on / Add Add-on")}</button>
+                    </form>
+                    <div className="management-list">
+                      ${addOns.map(function (addOn) {
+                        return html`
+                          <article key=${addOn.id} className="list-row list-row-actions">
+                            <div>
+                              <strong>${L(addOn.label)}</strong>
+                              <p>${L(addOnGroupLabels[addOn.group] || "Khác / Other")} · ${addOn.price ? "+" + formatCurrency(addOn.price) : L("Không phụ phí / No extra fee")}</p>
+                            </div>
+                            <div className="row-actions">
+                              <button className="ghost-btn" onClick=${function () { startEditAddOn(addOn); }}>${L("Sửa / Edit")}</button>
+                              <button className="ghost-btn danger-text" onClick=${function () { removeAddOn(addOn.id); }}>${L("Xóa / Remove")}</button>
+                            </div>
+                          </article>
+                        `;
+                      })}
+                    </div>
+                  </section>
+                </div>
+
+                <section className="surface section-card form-card">
+                  <div className="section-top">
+                    <div>
+                      <p className="eyebrow">${L("Thành phần sản phẩm / Product Components")}</p>
+                      <h2 className="section-title">${L("Thêm, sửa, xóa thành phần / Add, Edit, Remove Components")}</h2>
+                    </div>
+                    ${componentDraft.id ? html`<button type="button" className="ghost-btn" onClick=${resetComponentDraft}>${L("Hủy / Cancel")}</button>` : null}
+                  </div>
+                  <form className="form-card" onSubmit=${submitComponent}>
+                    <div className="field-grid">
+                      <label className="field"><span>${L("Tên tiếng Việt / Vietnamese Name")}</span><input value=${componentDraft.labelVi} onInput=${function (event) { updateComponentDraft("labelVi", event.target.value); }} /></label>
+                      <label className="field"><span>${L("Tên tiếng Anh / English Name")}</span><input value=${componentDraft.labelEn} onInput=${function (event) { updateComponentDraft("labelEn", event.target.value); }} /></label>
+                      <label className="field"><span>${L("Đơn vị / Unit")}</span><input value=${componentDraft.unit} onInput=${function (event) { updateComponentDraft("unit", event.target.value); }} /></label>
+                      <label className="field"><span>${L("Ghi chú / Note")}</span><input value=${componentDraft.note} onInput=${function (event) { updateComponentDraft("note", event.target.value); }} /></label>
+                    </div>
+                    <button type="submit" className="primary-btn">${componentDraft.id ? L("Lưu thành phần / Save Component") : L("Thêm thành phần / Add Component")}</button>
+                  </form>
+                  <div className="management-list">
+                    ${components.map(function (component) {
+                      return html`
+                        <article key=${component.id} className="list-row list-row-actions">
+                          <div>
+                            <strong>${L(component.label)}</strong>
+                            <p>${component.unit || L("Chưa có đơn vị / No unit")} · ${component.note || L("Chưa có ghi chú / No note")}</p>
+                          </div>
+                          <div className="row-actions">
+                            <button className="ghost-btn" onClick=${function () { startEditComponent(component); }}>${L("Sửa / Edit")}</button>
+                            <button className="ghost-btn danger-text" onClick=${function () { removeComponent(component.id); }}>${L("Xóa / Remove")}</button>
+                          </div>
+                        </article>
+                      `;
+                    })}
+                  </div>
+                </section>
+              </div>
+            ` : null}
+          </div>
+        </section>
+      `;
+    }
+
+    function renderSettingsView() {
+      var settingsTabs = [
+        { id: "general", label: "Chung / General" },
+        { id: "invoice", label: "Hóa đơn / Invoice" },
+        { id: "product", label: "Điều chỉnh sản phẩm / Product Adjustments" }
+      ];
+      var totalStock = products.reduce(function (sum, product) {
+        return sum + (Number(product.stock) || 0);
+      }, 0);
+      var lowStockCount = products.filter(function (product) {
+        return Number(product.stock) <= 10;
+      }).length;
+
+      return html`
+        <section className="settings-layout">
+          <aside className="surface settings-sidebar">
+            <div>
+              <p className="eyebrow">${L("Cài đặt / Settings")}</p>
+              <h2 className="section-title">${L("Quản lý cửa hàng / Control Center")}</h2>
+            </div>
+            <div className="settings-nav">
+              ${settingsTabs.map(function (tab) {
+                return html`
+                  <button
+                    key=${tab.id}
+                    className=${"settings-nav-btn" + (settingsSection === tab.id ? " is-active" : "")}
+                    onClick=${function () {
+                      setSettingsSection(tab.id);
+                    }}
+                  >
+                    ${L(tab.label)}
+                  </button>
+                `;
+              })}
+            </div>
+          </aside>
+
+          <div className="settings-content">
+            ${settingsSection === "general" ? html`
+              <section className="surface section-card form-card settings-pane">
+                <div className="section-top">
+                  <div>
+                    <p className="eyebrow">${L("Cài đặt cửa hàng / Shop Settings")}</p>
+                    <h2 className="section-title">${L("Thông tin chung / General Details")}</h2>
+                  </div>
+                </div>
+                <div className="field-grid">
+                  <label className="field"><span>${L("Dòng thương hiệu / Brand Line")}</span><input value=${settings.brandLine || ""} onInput=${function (event) { patchSettings("brandLine", event.target.value); }} /></label>
+                  <label className="field"><span>${L("Tên thương hiệu hiển thị / Display Brand Name")}</span><input value=${settings.brandDisplayName || ""} onInput=${function (event) { patchSettings("brandDisplayName", event.target.value); }} /></label>
+                  <label className="field"><span>${L("Tên cửa hàng trên hóa đơn / Store Name on Invoice")}</span><input value=${settings.storeName} onInput=${function (event) { patchSettings("storeName", event.target.value); }} /></label>
+                  <label className="field"><span>${L("Chi nhánh / Branch")}</span><input value=${settings.branchName} onInput=${function (event) { patchSettings("branchName", event.target.value); }} /></label>
+                  <label className="field"><span>${L("Thu ngân / Cashier")}</span><input value=${settings.cashierName} onInput=${function (event) { patchSettings("cashierName", event.target.value); }} /></label>
+                  <label className="field"><span>${L("Điện thoại / Phone")}</span><input value=${settings.phone} onInput=${function (event) { patchSettings("phone", event.target.value); }} /></label>
+                  <label className="field"><span>${L("Mã số thuế / Tax ID")}</span><input value=${settings.taxId} onInput=${function (event) { patchSettings("taxId", event.target.value); }} /></label>
+                  <label className="field"><span>${L("Giờ mở cửa / Open Hours")}</span><input value=${settings.openHours} onInput=${function (event) { patchSettings("openHours", event.target.value); }} /></label>
+                </div>
+                <label className="field"><span>${L("Địa chỉ / Address")}</span><textarea rows="3" value=${settings.address} onInput=${function (event) { patchSettings("address", event.target.value); }}></textarea></label>
+                <label className="field"><span>${L("Chân hóa đơn / Receipt Footer")}</span><textarea rows="3" value=${settings.receiptFooter} onInput=${function (event) { patchSettings("receiptFooter", event.target.value); }}></textarea></label>
+                <div className="template-preview brand-preview">
+                  <p className="eyebrow">${settings.brandLine || settings.storeName}</p>
+                  <h3>${settings.brandDisplayName || settings.storeName}</h3>
+                  <small>${settings.branchName} · ${settings.phone}</small>
+                </div>
+                <div className="list-stack">
+                  <div className="empty-state align-left">
+                    ${L("Mọi thay đổi đang được lưu tự động trong trình duyệt hiện tại. / Changes are saved automatically in this browser.")}
+                  </div>
+                  <div className="empty-state align-left">
+                    ${L("Muốn đồng bộ desktop và mobile thì cần thêm backend hoặc database online. / To sync desktop and mobile, connect a backend or online database.")}
+                  </div>
+                </div>
+              </section>
+            ` : null}
+
+            ${settingsSection === "invoice" ? html`
+              <div className="stack-view settings-pane">
+                <section className="surface section-card">
+                  <div className="section-top">
+                    <div>
+                      <p className="eyebrow">${L("Mẫu hóa đơn / Invoice Templates")}</p>
+                      <h2 className="section-title">${L("Chỉnh mẫu hóa đơn / Edit Invoice Templates")}</h2>
+                    </div>
+                    <button className="ghost-btn" onClick=${addInvoiceTemplate}>${L("Thêm mẫu / Add Template")}</button>
+                  </div>
+
+                  <label className="field">
+                    <span>${L("Mẫu đang dùng / Active Template")}</span>
+                    <select value=${selectedInvoiceTemplateId} onChange=${function (event) { setSelectedInvoiceTemplateId(event.target.value); }}>
+                      ${invoiceTemplates.map(function (template) {
+                        return html`<option key=${template.id} value=${template.id}>${template.name}</option>`;
+                      })}
+                    </select>
+                  </label>
+
+                  ${activeInvoiceTemplate ? html`
+                    <div className="field-grid">
+                      <label className="field"><span>${L("Tên mẫu / Template Name")}</span><input value=${activeInvoiceTemplate.name} onInput=${function (event) { patchInvoiceTemplate(activeInvoiceTemplate.id, "name", event.target.value); }} /></label>
+                      <label className="field"><span>${L("Tiêu đề / Title")}</span><input value=${activeInvoiceTemplate.title} onInput=${function (event) { patchInvoiceTemplate(activeInvoiceTemplate.id, "title", event.target.value); }} /></label>
+                    </div>
+                    <label className="field"><span>${L("Phụ đề / Subtitle")}</span><input value=${activeInvoiceTemplate.subtitle} onInput=${function (event) { patchInvoiceTemplate(activeInvoiceTemplate.id, "subtitle", event.target.value); }} /></label>
+                    <label className="field"><span>${L("Chân trang / Footer")}</span><textarea rows="3" value=${activeInvoiceTemplate.footer} onInput=${function (event) { patchInvoiceTemplate(activeInvoiceTemplate.id, "footer", event.target.value); }}></textarea></label>
+                    <div className="toggle-grid">
+                      ${[
+                        ["showSubtitle", "Hiện phụ đề / Show subtitle"],
+                        ["showAddress", "Hiện địa chỉ / Show address"],
+                        ["showBranch", "Hiện chi nhánh / Show branch"],
+                        ["showPhone", "Hiện số điện thoại / Show phone"],
+                        ["showTaxId", "Hiện mã số thuế / Show tax ID"],
+                        ["showCashier", "Hiện thu ngân / Show cashier"],
+                        ["showCustomerName", "Hiện khách hàng / Show customer"],
+                        ["showPaymentMethod", "Hiện thanh toán / Show payment"],
+                        ["showCashReceived", "Hiện tiền khách đưa / Show cash received"],
+                        ["showChangeDue", "Hiện tiền thừa / Show change"],
+                        ["showOrderMeta", "Hiện mã đơn & thời gian / Show order meta"]
+                      ].map(function (item) {
+                        return html`
+                          <label key=${item[0]} className="toggle-card">
+                            <input
+                              type="checkbox"
+                              checked=${activeInvoiceTemplate[item[0]]}
+                              onChange=${function (event) {
+                                patchInvoiceTemplate(activeInvoiceTemplate.id, item[0], event.target.checked);
+                              }}
+                            />
+                            <span>${L(item[1])}</span>
+                          </label>
+                        `;
+                      })}
+                    </div>
+                    <div className="template-preview">
+                      <p className="eyebrow">${settings.brandLine || settings.storeName}</p>
+                      <h3>${settings.brandDisplayName || settings.storeName}</h3>
+                      <small>${L(activeInvoiceTemplate.title)}</small>
+                      <p>${L(activeInvoiceTemplate.subtitle)}</p>
+                      <small>${settings.storeName} · ${settings.phone}</small>
+                    </div>
+                    <div className="button-row button-row-secondary">
+                      <button className="ghost-btn" onClick=${previewInvoiceTemplate}>${L("Xem trước mẫu / Preview Template")}</button>
+                      <button className="ghost-btn danger-text" onClick=${function () { removeInvoiceTemplate(activeInvoiceTemplate.id); }}>${L("Xóa mẫu này / Remove Template")}</button>
+                    </div>
+                  ` : null}
+                </section>
+
+                <section className="surface section-card">
+                  <div className="section-top">
+                    <div>
+                      <p className="eyebrow">${L("Mẫu mã vạch / Barcode Templates")}</p>
+                      <h2 className="section-title">${L("Điều chỉnh tem mã vạch / Edit Barcode Templates")}</h2>
+                    </div>
+                    <button className="ghost-btn" onClick=${addBarcodeTemplate}>${L("Thêm mẫu / Add Template")}</button>
+                  </div>
+
+                  <label className="field">
+                    <span>${L("Mẫu đang dùng / Active Template")}</span>
+                    <select value=${selectedBarcodeTemplateId} onChange=${function (event) { setSelectedBarcodeTemplateId(event.target.value); }}>
+                      ${barcodeTemplates.map(function (template) {
+                        return html`<option key=${template.id} value=${template.id}>${template.name}</option>`;
+                      })}
+                    </select>
+                  </label>
+
+                  ${activeBarcodeTemplate ? html`
+                    <div className="field-grid">
+                      <label className="field"><span>${L("Tên mẫu / Template Name")}</span><input value=${activeBarcodeTemplate.name} onInput=${function (event) { patchBarcodeTemplate(activeBarcodeTemplate.id, "name", event.target.value); }} /></label>
+                      <label className="field"><span>${L("Màu nhấn / Accent Color")}</span><input value=${activeBarcodeTemplate.accent} onInput=${function (event) { patchBarcodeTemplate(activeBarcodeTemplate.id, "accent", event.target.value); }} /></label>
+                      <label className="field"><span>${L("Tiêu đề / Title")}</span><input value=${activeBarcodeTemplate.title || ""} onInput=${function (event) { patchBarcodeTemplate(activeBarcodeTemplate.id, "title", event.target.value); }} /></label>
+                      <label className="field"><span>${L("Phụ đề / Subtitle")}</span><input value=${activeBarcodeTemplate.subtitle || ""} onInput=${function (event) { patchBarcodeTemplate(activeBarcodeTemplate.id, "subtitle", event.target.value); }} /></label>
+                      <label className="field"><span>Prefix</span><input value=${activeBarcodeTemplate.prefix} onInput=${function (event) { patchBarcodeTemplate(activeBarcodeTemplate.id, "prefix", event.target.value); }} /></label>
+                      <label className="field"><span>Suffix</span><input value=${activeBarcodeTemplate.suffix} onInput=${function (event) { patchBarcodeTemplate(activeBarcodeTemplate.id, "suffix", event.target.value); }} /></label>
+                      <label className="field"><span>Width</span><input type="number" value=${activeBarcodeTemplate.width} onInput=${function (event) { patchBarcodeTemplate(activeBarcodeTemplate.id, "width", Number(event.target.value) || 0); }} /></label>
+                      <label className="field"><span>Height</span><input type="number" value=${activeBarcodeTemplate.height} onInput=${function (event) { patchBarcodeTemplate(activeBarcodeTemplate.id, "height", Number(event.target.value) || 0); }} /></label>
+                    </div>
+                    <div className="toggle-grid">
+                      ${[
+                        ["showStoreName", "Hiện tên cửa hàng / Show store name"],
+                        ["showName", "Hiện tên sản phẩm / Show product name"],
+                        ["showPrice", "Hiện giá bán / Show price"],
+                        ["showCategory", "Hiện danh mục / Show category"],
+                        ["showBarcodeValue", "Hiện mã barcode / Show barcode value"]
+                      ].map(function (item) {
+                        return html`
+                          <label key=${item[0]} className="toggle-card">
+                            <input
+                              type="checkbox"
+                              checked=${activeBarcodeTemplate[item[0]]}
+                              onChange=${function (event) {
+                                patchBarcodeTemplate(activeBarcodeTemplate.id, item[0], event.target.checked);
+                              }}
+                            />
+                            <span>${L(item[1])}</span>
+                          </label>
+                        `;
+                      })}
+                    </div>
+
+                    <label className="field">
+                      <span>${L("Sản phẩm xem trước / Preview Product")}</span>
+                      <select value=${selectedBarcodeProductId} onChange=${function (event) { setSelectedBarcodeProductId(event.target.value); }}>
+                        ${products.map(function (product) {
+                          return html`<option key=${product.id} value=${product.id}>${product.name}</option>`;
+                        })}
+                      </select>
+                    </label>
+
+                    <label className="field">
+                      <span>${L("Số lượng tem / Label Quantity")}</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value=${previewLabelQuantity}
+                        onInput=${function (event) {
+                          setPreviewLabelQuantity(Math.max(1, Number(event.target.value) || 1));
+                        }}
+                      />
+                    </label>
+
+                    ${barcodePreviewProduct ? html`
+                      <div className="barcode-preview" style=${{
+                        "--barcode-accent": activeBarcodeTemplate.accent,
+                        width: "100%",
+                        minHeight: "auto"
+                      }}>
+                        <div className="barcode-sample-card">
+                          <div className="barcode-sample-top">
+                            <div>
+                              ${activeBarcodeTemplate.showStoreName ? html`<div className="barcode-sample-store">${settings.brandDisplayName || settings.storeName}</div>` : null}
+                              ${activeBarcodeTemplate.showName ? html`<div className="barcode-sample-name">${barcodePreviewProduct.name}</div>` : null}
+                            </div>
+                            ${activeBarcodeTemplate.showPrice ? html`<div className="barcode-sample-price">${formatCurrency(barcodePreviewProduct.price)}</div>` : null}
+                          </div>
+                          <div className="barcode-sample-art">
+                            <${BarcodeGraphic}
+                              value=${barcodePreviewProduct.barcode}
+                              className="barcode-live-preview"
+                              options=${{
+                                width: 1.9,
+                                height: 64,
+                                lineColor: "#1f1b18"
+                              }}
+                            />
+                          </div>
+                          ${activeBarcodeTemplate.showBarcodeValue ? html`<div className="barcode-sample-code">${normalizeBarcode(barcodePreviewProduct.barcode)}</div>` : null}
+                          ${activeBarcodeTemplate.showCategory ? html`<div className="barcode-sample-category">${L("Danh mục / Category")}: ${getProductCategoryLabel(barcodePreviewProduct)}</div>` : null}
+                        </div>
+                      </div>
+                    ` : null}
+
+                    <div className="button-row button-row-secondary">
+                      <button className="ghost-btn" onClick=${previewBarcodeTemplate}>${L("Xem trước tem / Preview Label")}</button>
+                      <button className="ghost-btn" onClick=${function () {
+                        if (!barcodePreviewProduct) {
+                          return;
+                        }
+                        var quantities = {};
+                        quantities[barcodePreviewProduct.id] = Math.max(1, Number(previewLabelQuantity) || 1);
+                        printBarcodeLabels([barcodePreviewProduct], quantities);
+                      }}>${L("In tem / Print Labels")}</button>
+                      <button className="ghost-btn danger-text" onClick=${function () { removeBarcodeTemplate(activeBarcodeTemplate.id); }}>${L("Xóa mẫu này / Remove Template")}</button>
+                    </div>
+                  ` : null}
+                </section>
+              </div>
+            ` : null}
+
+            ${settingsSection === "product" ? html`
+              <div className="stack-view settings-pane">
+                <div className="card-grid card-grid-4">
+                  <article className="metric-card surface">
+                    <span className="metric-label">${L("Danh mục / Categories")}</span>
+                    <strong>${categories.length}</strong>
+                  </article>
+                  <article className="metric-card surface">
+                    <span className="metric-label">${L("Add-ons")}</span>
+                    <strong>${addOns.length}</strong>
+                  </article>
+                  <article className="metric-card surface">
+                    <span className="metric-label">${L("Tổng tồn kho / Total Stock")}</span>
+                    <strong>${totalStock}</strong>
+                  </article>
+                  <article className="metric-card surface">
+                    <span className="metric-label">${L("Sắp hết hàng / Low Stock")}</span>
+                    <strong>${lowStockCount}</strong>
+                  </article>
+                </div>
+
+                <div className="split-grid">
+                  <section className="surface section-card form-card">
+                    <div className="section-top">
+                      <div>
+                        <p className="eyebrow">${L("Danh mục / Categories")}</p>
+                        <h2 className="section-title">${L("Thêm hoặc sửa danh mục / Add or Edit Categories")}</h2>
+                      </div>
+                      ${categoryDraft.id ? html`<button type="button" className="ghost-btn" onClick=${resetCategoryDraft}>${L("Hủy / Cancel")}</button>` : null}
+                    </div>
+                    <form className="form-card" onSubmit=${submitCategory}>
+                      <div className="field-grid">
+                        <label className="field"><span>${L("Tên tiếng Việt / Vietnamese Name")}</span><input value=${categoryDraft.labelVi} onInput=${function (event) { updateCategoryDraft("labelVi", event.target.value); }} /></label>
+                        <label className="field"><span>${L("Tên tiếng Anh / English Name")}</span><input value=${categoryDraft.labelEn} onInput=${function (event) { updateCategoryDraft("labelEn", event.target.value); }} /></label>
+                        <label className="field"><span>${L("Icon / Icon")}</span><input value=${categoryDraft.icon} onInput=${function (event) { updateCategoryDraft("icon", event.target.value); }} /></label>
+                      </div>
+                      <button type="submit" className="primary-btn">${categoryDraft.id ? L("Lưu danh mục / Save Category") : L("Thêm danh mục / Add Category")}</button>
+                    </form>
+                    <div className="management-list">
+                      ${categories.map(function (category) {
+                        return html`
+                          <article key=${category.id} className="list-row list-row-actions">
+                            <div>
+                              <strong>${category.icon} ${L(category.label)}</strong>
+                              <p>${category.id}</p>
+                            </div>
+                            <div className="row-actions">
+                              <button className="ghost-btn" onClick=${function () { startEditCategory(category); }}>${L("Sửa / Edit")}</button>
+                              <button className="ghost-btn danger-text" onClick=${function () { removeCategory(category.id); }}>${L("Xóa / Remove")}</button>
+                            </div>
+                          </article>
+                        `;
+                      })}
+                    </div>
+                  </section>
+
+                  <section className="surface section-card form-card">
+                    <div className="section-top">
+                      <div>
+                        <p className="eyebrow">${L("Add-ons")}</p>
+                        <h2 className="section-title">${L("Điều chỉnh add-ons / Edit Add-ons")}</h2>
+                      </div>
+                      ${addOnDraft.id ? html`<button type="button" className="ghost-btn" onClick=${resetAddOnDraft}>${L("Hủy / Cancel")}</button>` : null}
+                    </div>
+                    <form className="form-card" onSubmit=${submitAddOn}>
+                      <div className="field-grid">
+                        <label className="field"><span>${L("Tên tiếng Việt / Vietnamese Name")}</span><input value=${addOnDraft.labelVi} onInput=${function (event) { updateAddOnDraft("labelVi", event.target.value); }} /></label>
+                        <label className="field"><span>${L("Tên tiếng Anh / English Name")}</span><input value=${addOnDraft.labelEn} onInput=${function (event) { updateAddOnDraft("labelEn", event.target.value); }} /></label>
+                        <label className="field"><span>${L("Giá cộng thêm / Extra Price")}</span><input type="number" value=${addOnDraft.price} onInput=${function (event) { updateAddOnDraft("price", event.target.value); }} /></label>
+                        <label className="field">
+                          <span>${L("Nhóm / Group")}</span>
+                          <select value=${addOnDraft.group} onChange=${function (event) { updateAddOnDraft("group", event.target.value); }}>
+                            ${Object.keys(addOnGroupLabels).map(function (groupKey) {
+                              return html`<option key=${groupKey} value=${groupKey}>${L(addOnGroupLabels[groupKey])}</option>`;
+                            })}
+                          </select>
+                        </label>
+                      </div>
+                      <button type="submit" className="primary-btn">${addOnDraft.id ? L("Lưu add-on / Save Add-on") : L("Thêm add-on / Add Add-on")}</button>
+                    </form>
+                    <div className="management-list">
+                      ${addOns.map(function (addOn) {
+                        return html`
+                          <article key=${addOn.id} className="list-row list-row-actions">
+                            <div>
+                              <strong>${L(addOn.label)}</strong>
+                              <p>${L(addOnGroupLabels[addOn.group] || "Khác / Other")} · ${addOn.price ? "+" + formatCurrency(addOn.price) : L("Không phụ phí / No extra fee")}</p>
+                            </div>
+                            <div className="row-actions">
+                              <button className="ghost-btn" onClick=${function () { startEditAddOn(addOn); }}>${L("Sửa / Edit")}</button>
+                              <button className="ghost-btn danger-text" onClick=${function () { removeAddOn(addOn.id); }}>${L("Xóa / Remove")}</button>
+                            </div>
+                          </article>
+                        `;
+                      })}
+                    </div>
+                  </section>
+                </div>
+
+                <section className="surface section-card">
+                  <div className="section-top">
+                    <div>
+                      <p className="eyebrow">${L("Tồn kho / Inventory")}</p>
+                      <h2 className="section-title">${L("Điều chỉnh nhanh tồn kho / Quick Inventory Adjustments")}</h2>
+                    </div>
+                  </div>
+                  <div className="management-list">
+                    ${products.map(function (product) {
+                      var category = categories.find(function (item) {
+                        return item.id === product.category;
+                      });
+                      return html`
+                        <article key=${product.id} className="list-row list-row-actions">
+                          <div>
+                            <strong>${product.image} ${product.name}</strong>
+                            <p>${category ? L(category.label) : product.category}</p>
+                          </div>
+                          <div className="row-actions stock-editor">
+                            <input
+                              type="number"
+                              min="0"
+                              value=${product.stock}
+                              onInput=${function (event) {
+                                updateProductStock(product.id, event.target.value);
+                              }}
+                            />
+                            <button className="ghost-btn" onClick=${function () { startEditProduct(product); }}>${L("Sửa chi tiết / Edit Details")}</button>
+                          </div>
+                        </article>
+                      `;
+                    })}
+                  </div>
+                </section>
+              </div>
+            ` : null}
+          </div>
+        </section>
+      `;
+    }
+
+    return html`
+      <div className="app-shell">
+        <${MenuDrawer}
+          open=${menuOpen}
+          activeView=${activeView}
+          storeName=${settings.storeName}
+          language=${language}
+          onClose=${function () { setMenuOpen(false); }}
+          onSelect=${function (viewId) {
+            setActiveView(viewId);
+            setMenuOpen(false);
+          }}
+        />
+
+        <header className="topbar surface">
+          <div className="topbar-main">
+            <button className="menu-btn" onClick=${function () { setMenuOpen(true); }} aria-label=${L("Mở menu / Open menu")}>
+              <span></span>
+              <span></span>
+              <span></span>
+            </button>
+            <div className="brand-block">
+              <div>
+                <p className="eyebrow">${settings.brandLine || settings.storeName}</p>
+                <h1 className="brand-name">${settings.brandDisplayName || settings.storeName}</h1>
+              </div>
+            </div>
+          </div>
+
+          <div className="search-box">
+            <input
+              placeholder=${L("Tìm theo tên sản phẩm hoặc loại / Search by product or type")}
+              value=${searchTerm}
+              onInput=${function (event) { setSearchTerm(event.target.value); }}
+            />
+          </div>
+
+          <div className="lang-switch surface">
+            ${LANGUAGE_OPTIONS.map(function (item) {
+              return html`
+                <button
+                  key=${item.id}
+                  className=${"lang-btn" + (language === item.id ? " is-active" : "")}
+                  onClick=${function () { setLanguage(item.id); }}
+                >
+                  ${item.label}
+                </button>
+              `;
+            })}
+          </div>
+        </header>
+
+        <main className="page-body">
+          ${activeView === "pos" ? renderPosView() : null}
+          ${activeView === "dashboard" ? renderDashboardView() : null}
+          ${activeView === "inventory" ? renderInventoryView() : null}
+          ${activeView === "settings" ? renderSettingsView() : null}
+        </main>
+      </div>
+    `;
+  }
+
+  var appElement = html`<${App} />`;
+
+  if (window.ReactDOM.createRoot) {
+    window.ReactDOM.createRoot(root).render(appElement);
+  } else {
+    window.ReactDOM.render(appElement, root);
+  }
+})();
