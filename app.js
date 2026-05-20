@@ -220,10 +220,10 @@
   var DEFAULT_INVOICE_TEMPLATES = [
     {
       id: "invoice-classic",
-      name: "Classic Receipt",
-      title: "PHIẾU THANH TOÁN / RECEIPT",
-      subtitle: "Nhanh gọn cho đơn mang đi / Fast takeaway format",
-      footer: "Hẹn gặp lại quý khách / See you again.",
+      name: "FnB Counter Receipt",
+      title: "HÓA ĐƠN BÁN HÀNG / SALES RECEIPT",
+      subtitle: "Mẫu sẵn sàng cho quầy nước và đồ ăn nhanh / Ready for juice, smoothie, and quick-service FnB",
+      footer: "Cảm ơn quý khách. Hẹn gặp lại tại OriaFarm. / Thank you and see you again at OriaFarm.",
       showSubtitle: true,
       showAddress: true,
       showBranch: true,
@@ -232,16 +232,17 @@
       showCashier: true,
       showCustomerName: true,
       showPaymentMethod: true,
+      showUnitPrice: true,
       showCashReceived: true,
       showChangeDue: true,
       showOrderMeta: true
     },
     {
       id: "invoice-vat",
-      name: "VAT Invoice",
+      name: "FnB VAT Invoice",
       title: "HÓA ĐƠN VAT / VAT INVOICE",
-      subtitle: "Thông tin cho doanh nghiệp / Business details",
-      footer: "Vui lòng đối chiếu mã số thuế trước khi xuất / Please verify tax details before issuing.",
+      subtitle: "Dùng cho khách doanh nghiệp và xuất VAT / For business customers and VAT requests",
+      footer: "Vui lòng đối chiếu thông tin doanh nghiệp trước khi xuất hóa đơn VAT. / Please verify business details before issuing the VAT invoice.",
       showSubtitle: true,
       showAddress: true,
       showBranch: true,
@@ -250,6 +251,7 @@
       showCashier: true,
       showCustomerName: true,
       showPaymentMethod: true,
+      showUnitPrice: true,
       showCashReceived: true,
       showChangeDue: true,
       showOrderMeta: true
@@ -1313,6 +1315,7 @@
   function buildPrintMarkup(order, totals, settings, template, type, language, addOnOptions) {
     var cashReceived = Number(order.cashReceived) || 0;
     var changeDue = Math.max(0, cashReceived - (Number(totals.total) || 0));
+    var showUnitPrice = template.showUnitPrice !== false;
     var lineItems = (order.items || [])
       .map(function (item) {
         var addons = (item.addOnIds || [])
@@ -1322,50 +1325,84 @@
           })
           .filter(Boolean)
           .join(", ");
+        var unitPrice = item.price + getItemAddonTotal(item, addOnOptions);
+        var lineTotal = unitPrice * item.qty;
 
         return (
           "<tr>" +
-          "<td style='padding:8px 0;border-bottom:1px dashed #d8cdbf'>" +
+          "<td style='padding:12px 0;border-bottom:1px dashed #e5d5c7;vertical-align:top'>" +
           "<div style='font-weight:600'>" + item.name + "</div>" +
-          (addons ? "<div style='font-size:12px;color:#7b6b5d'>" + addons + "</div>" : "") +
+          (addons ? "<div style='margin-top:4px;font-size:12px;color:#7b6b5d'>" + addons + "</div>" : "") +
           "</td>" +
-          "<td style='padding:8px 0;border-bottom:1px dashed #d8cdbf;text-align:center'>" + item.qty + "</td>" +
-          "<td style='padding:8px 0;border-bottom:1px dashed #d8cdbf;text-align:right'>" + formatCurrency((item.price + getItemAddonTotal(item, addOnOptions)) * item.qty) + "</td>" +
+          "<td style='padding:12px 0;border-bottom:1px dashed #e5d5c7;text-align:center;vertical-align:top'>" + item.qty + "</td>" +
+          (showUnitPrice ? "<td style='padding:12px 0;border-bottom:1px dashed #e5d5c7;text-align:right;vertical-align:top'>" + formatCurrency(unitPrice) + "</td>" : "") +
+          "<td style='padding:12px 0;border-bottom:1px dashed #e5d5c7;text-align:right;vertical-align:top;font-weight:600'>" + formatCurrency(lineTotal) + "</td>" +
           "</tr>"
         );
       })
       .join("");
 
+    var orderMetaRow = [];
+    if (template.showOrderMeta) {
+      orderMetaRow.push(
+        "<span style='display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:#fff3e6;border:1px solid #f2dcc6;font-size:12px;color:#8a5d34'>" +
+        pickLanguage("Mã đơn / Order ID", language) + ": " + order.id +
+        "</span>"
+      );
+      orderMetaRow.push(
+        "<span style='display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;background:#fff3e6;border:1px solid #f2dcc6;font-size:12px;color:#8a5d34'>" +
+        pickLanguage("Thời gian / Time", language) + ": " + formatDateTime(order.createdAt || Date.now()) +
+        "</span>"
+      );
+    }
+
+    var detailRows = [
+      template.showBranch ? "<div>" + pickLanguage("Chi nhánh / Branch", language) + ": " + settings.branchName + "</div>" : "",
+      template.showAddress ? "<div>" + settings.address + "</div>" : "",
+      template.showPhone ? "<div>" + pickLanguage("Điện thoại / Phone", language) + ": " + settings.phone + "</div>" : "",
+      template.showTaxId ? "<div>" + pickLanguage("Mã số thuế / Tax ID", language) + ": " + settings.taxId + "</div>" : "",
+      template.showCashier ? "<div>" + pickLanguage("Thu ngân / Cashier", language) + ": " + settings.cashierName + "</div>" : "",
+      template.showCustomerName ? "<div>" + pickLanguage("Khách hàng / Customer", language) + ": " + (order.customerName || pickLanguage("Khách lẻ / Walk-in", language)) + "</div>" : "",
+      template.showPaymentMethod ? "<div>" + pickLanguage("Thanh toán / Payment", language) + ": " + pickLanguage(order.paymentMethod || "Chuyển khoản / Bank Transfer", language) + "</div>" : ""
+    ].filter(Boolean).join("");
+
     return (
       "<!DOCTYPE html><html><head><meta charset='utf-8'><title>" + template.title + "</title></head>" +
-      "<body style='font-family:Arial,sans-serif;padding:24px;color:#2d2117'>" +
-      "<div style='margin-bottom:18px'>" +
+      "<body style='margin:0;background:#fffaf4;font-family:Arial,sans-serif;color:#2d2117'>" +
+      "<div style='max-width:860px;margin:0 auto;padding:28px'>" +
+      "<section style='background:#fff;border:1px solid #f0dfcf;border-radius:28px;padding:28px 30px;box-shadow:0 18px 40px rgba(93,58,20,0.08)'>" +
+      "<div style='display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:22px'>" +
+      "<div>" +
       "<div style='font-size:12px;letter-spacing:0.24em;color:#8f7f71;text-transform:uppercase'>" + (settings.brandLine || settings.storeName) + "</div>" +
-      "<h2 style='margin:6px 0 8px'>" + (settings.brandDisplayName || settings.storeName) + "</h2>" +
-      "<div style='color:#6c5b4d'>" + pickLanguage(template.title, language) + " - " + pickLanguage(type, language) + "</div>" +
+      "<h2 style='margin:8px 0 6px;font-size:34px;line-height:1.02'>" + (settings.brandDisplayName || settings.storeName) + "</h2>" +
+      "<div style='color:#6c5b4d;font-weight:600'>" + pickLanguage(template.title, language) + "</div>" +
       (template.showSubtitle ? "<div style='margin-top:6px;color:#8f7f71'>" + pickLanguage(template.subtitle || "", language) + "</div>" : "") +
       "</div>" +
-      (template.showBranch ? "<div>" + pickLanguage("Chi nhánh / Branch", language) + ": " + settings.branchName + "</div>" : "") +
-      (template.showAddress ? "<div>" + settings.address + "</div>" : "") +
-      (template.showPhone ? "<div>" + pickLanguage("Điện thoại / Phone", language) + ": " + settings.phone + "</div>" : "") +
-      (template.showTaxId ? "<div>" + pickLanguage("Mã số thuế / Tax ID", language) + ": " + settings.taxId + "</div>" : "") +
-      (template.showCashier ? "<div>" + pickLanguage("Thu ngân / Cashier", language) + ": " + settings.cashierName + "</div>" : "") +
-      (template.showCustomerName ? "<div>" + pickLanguage("Khách hàng / Customer", language) + ": " + (order.customerName || pickLanguage("Khách lẻ / Walk-in", language)) + "</div>" : "") +
-      (template.showPaymentMethod ? "<div>" + pickLanguage("Thanh toán / Payment", language) + ": " + pickLanguage(order.paymentMethod || "Chuyển khoản / Bank Transfer", language) + "</div>" : "") +
-      (template.showOrderMeta ? "<div style='margin:12px 0'>" + pickLanguage("Mã đơn / Order ID", language) + ": " + order.id + "<br/>" + pickLanguage("Thời gian / Time", language) + ": " + formatDateTime(order.createdAt || Date.now()) + "</div>" : "") +
-      "<table style='width:100%;border-collapse:collapse'>" +
-      "<thead><tr><th align='left'>" + pickLanguage("Món / Item", language) + "</th><th align='center'>" + pickLanguage("SL / Qty", language) + "</th><th align='right'>" + pickLanguage("Thành tiền / Amount", language) + "</th></tr></thead>" +
-      "<tbody>" + lineItems + "</tbody></table>" +
-      "<div style='margin-top:16px;line-height:1.8'>" +
-      "<div>" + pickLanguage("Tạm tính / Subtotal", language) + ": " + formatCurrency(totals.subtotal) + "</div>" +
-      "<div>" + pickLanguage("Giảm giá / Discount", language) + ": " + formatCurrency(totals.discount) + "</div>" +
-      "<div>VAT 8%: " + formatCurrency(totals.vat) + "</div>" +
-      "<div style='font-size:18px;font-weight:700'>" + pickLanguage("Tổng cộng / Total", language) + ": " + formatCurrency(totals.total) + "</div>" +
-      (template.showCashReceived ? "<div>" + pickLanguage("Tiền khách đưa / Cash Received", language) + ": " + formatCurrency(cashReceived) + "</div>" : "") +
-      (template.showChangeDue ? "<div>" + pickLanguage("Tiền thừa / Change", language) + ": " + formatCurrency(changeDue) + "</div>" : "") +
+      "<div style='text-align:right'>" +
+      "<div style='display:inline-block;padding:10px 16px;border-radius:999px;background:#fff3e6;border:1px solid #f2dcc6;color:#a45318;font-weight:700'>" + pickLanguage(type, language) + "</div>" +
       "</div>" +
-      "<p style='margin-top:18px;color:#6c5b4d'>" + pickLanguage(template.footer, language) + "</p>" +
-      "</body></html>"
+      "</div>" +
+      (detailRows ? "<div style='display:grid;gap:6px;padding:16px 18px;border-radius:20px;background:#fff8f1;color:#6c5b4d;margin-bottom:16px'>" + detailRows + "</div>" : "") +
+      (orderMetaRow.length ? "<div style='display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px'>" + orderMetaRow.join("") + "</div>" : "") +
+      "<table style='width:100%;border-collapse:collapse;border-spacing:0'>" +
+      "<thead><tr>" +
+      "<th align='left' style='padding:0 0 10px;color:#8f7f71;font-size:12px;text-transform:uppercase;letter-spacing:0.14em'>" + pickLanguage("Món / Item", language) + "</th>" +
+      "<th align='center' style='padding:0 0 10px;color:#8f7f71;font-size:12px;text-transform:uppercase;letter-spacing:0.14em'>" + pickLanguage("SL / Qty", language) + "</th>" +
+      (showUnitPrice ? "<th align='right' style='padding:0 0 10px;color:#8f7f71;font-size:12px;text-transform:uppercase;letter-spacing:0.14em'>" + pickLanguage("Đơn giá / Unit Price", language) + "</th>" : "") +
+      "<th align='right' style='padding:0 0 10px;color:#8f7f71;font-size:12px;text-transform:uppercase;letter-spacing:0.14em'>" + pickLanguage("Thành tiền / Amount", language) + "</th>" +
+      "</tr></thead>" +
+      "<tbody>" + lineItems + "</tbody></table>" +
+      "<div style='margin-top:18px;padding:18px;border-radius:22px;background:#fff8f1;line-height:1.9'>" +
+      "<div style='display:flex;justify-content:space-between;gap:16px'><span>" + pickLanguage("Tạm tính / Subtotal", language) + "</span><strong>" + formatCurrency(totals.subtotal) + "</strong></div>" +
+      "<div style='display:flex;justify-content:space-between;gap:16px'><span>" + pickLanguage("Giảm giá / Discount", language) + "</span><strong>" + formatCurrency(totals.discount) + "</strong></div>" +
+      "<div style='display:flex;justify-content:space-between;gap:16px'><span>VAT 8%</span><strong>" + formatCurrency(totals.vat) + "</strong></div>" +
+      "<div style='display:flex;justify-content:space-between;gap:16px;margin-top:8px;padding-top:10px;border-top:1px dashed #d7c2af;font-size:20px;font-weight:700'><span>" + pickLanguage("Tổng cộng / Total", language) + "</span><span>" + formatCurrency(totals.total) + "</span></div>" +
+      (template.showCashReceived ? "<div style='display:flex;justify-content:space-between;gap:16px'><span>" + pickLanguage("Tiền khách đưa / Cash Received", language) + "</span><strong>" + formatCurrency(cashReceived) + "</strong></div>" : "") +
+      (template.showChangeDue ? "<div style='display:flex;justify-content:space-between;gap:16px'><span>" + pickLanguage("Tiền thừa / Change", language) + "</span><strong>" + formatCurrency(changeDue) + "</strong></div>" : "") +
+      "</div>" +
+      "<p style='margin:18px 0 0;color:#6c5b4d'>" + pickLanguage(template.footer, language) + "</p>" +
+      "</section>" +
+      "</div></body></html>"
     );
   }
 
@@ -3687,10 +3724,10 @@
     function addInvoiceTemplate() {
       var newTemplate = {
         id: uid("invoice"),
-        name: "New Invoice",
-        title: "PHIEU THANH TOAN",
-        subtitle: "Tuy chinh moi",
-        footer: "Cam on quy khach.",
+        name: "FnB Custom Invoice",
+        title: "HÓA ĐƠN BÁN HÀNG / SALES RECEIPT",
+        subtitle: "Mẫu hóa đơn FnB mới / New FnB invoice template",
+        footer: "Cảm ơn quý khách đã dùng sản phẩm tại OriaFarm. / Thank you for enjoying OriaFarm.",
         showSubtitle: true,
         showAddress: true,
         showBranch: true,
@@ -3699,6 +3736,7 @@
         showCashier: true,
         showCustomerName: true,
         showPaymentMethod: true,
+        showUnitPrice: true,
         showCashReceived: true,
         showChangeDue: true,
         showOrderMeta: true
@@ -4757,19 +4795,30 @@
                   <div className="section-top">
                     <div>
                       <p className="eyebrow">${L("Mẫu hóa đơn / Invoice Templates")}</p>
-                      <h2 className="section-title">${L("Chỉnh mẫu hóa đơn / Edit Invoice Templates")}</h2>
+                      <h2 className="section-title">${L("Mẫu hóa đơn FnB sẵn sàng bán hàng / Ready-to-sell FnB Invoices")}</h2>
                     </div>
                     <button className="ghost-btn" onClick=${addInvoiceTemplate}>${L("Thêm mẫu / Add Template")}</button>
                   </div>
 
-                  <label className="field">
-                    <span>${L("Mẫu đang dùng / Active Template")}</span>
-                    <select value=${selectedInvoiceTemplateId} onChange=${function (event) { setSelectedInvoiceTemplateId(event.target.value); }}>
-                      ${invoiceTemplates.map(function (template) {
-                        return html`<option key=${template.id} value=${template.id}>${template.name}</option>`;
-                      })}
-                    </select>
-                  </label>
+                  <div className="invoice-template-grid">
+                    ${invoiceTemplates.map(function (template) {
+                      return html`
+                        <button
+                          key=${template.id}
+                          className=${"invoice-template-card" + (selectedInvoiceTemplateId === template.id ? " is-active" : "")}
+                          onClick=${function () {
+                            setSelectedInvoiceTemplateId(template.id);
+                          }}
+                        >
+                          <div>
+                            <strong>${template.name}</strong>
+                            <small>${L(template.title)}</small>
+                          </div>
+                          <span>${template.showTaxId ? L("Có VAT / VAT Ready") : L("Bán lẻ / Retail")}</span>
+                        </button>
+                      `;
+                    })}
+                  </div>
 
                   ${activeInvoiceTemplate ? html`
                     <div className="field-grid">
@@ -4788,6 +4837,7 @@
                         ["showCashier", "Hiện thu ngân / Show cashier"],
                         ["showCustomerName", "Hiện khách hàng / Show customer"],
                         ["showPaymentMethod", "Hiện thanh toán / Show payment"],
+                        ["showUnitPrice", "Hiện đơn giá / Show unit price"],
                         ["showCashReceived", "Hiện tiền khách đưa / Show cash received"],
                         ["showChangeDue", "Hiện tiền thừa / Show change"],
                         ["showOrderMeta", "Hiện mã đơn & thời gian / Show order meta"]
@@ -4811,9 +4861,22 @@
                       <h3>${settings.brandDisplayName || settings.storeName}</h3>
                       <small>${L(activeInvoiceTemplate.title)}</small>
                       <p>${L(activeInvoiceTemplate.subtitle)}</p>
+                      <div className="invoice-preview-line">
+                        <span>${L("Sinh tố bơ x2 / Avocado Smoothie x2")}</span>
+                        <strong>${activeInvoiceTemplate.showUnitPrice ? "55.000 đ × 2" : "110.000 đ"}</strong>
+                      </div>
+                      <div className="invoice-preview-line">
+                        <span>${L("Topping hạt chia / Chia topping")}</span>
+                        <strong>8.000 đ</strong>
+                      </div>
+                      <div className="invoice-preview-total">
+                        <span>${L("Tổng cộng / Total")}</span>
+                        <strong>118.000 đ</strong>
+                      </div>
                       <small>${settings.storeName} · ${settings.phone}</small>
                     </div>
                     <div className="button-row button-row-secondary">
+                      <button className="ghost-btn" onClick=${function () { setSelectedInvoiceTemplateId(activeInvoiceTemplate.id); }}>${L("Dùng mẫu này / Use This Template")}</button>
                       <button className="ghost-btn" onClick=${previewInvoiceTemplate}>${L("Xem trước mẫu / Preview Template")}</button>
                       <button className="ghost-btn danger-text" onClick=${function () { removeInvoiceTemplate(activeInvoiceTemplate.id); }}>${L("Xóa mẫu này / Remove Template")}</button>
                     </div>
