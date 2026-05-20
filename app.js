@@ -695,6 +695,8 @@
     return dateKey + "-" + padNumber(sequenceNumber, 3);
   }
 
+  var BARCODE_DETECT_FORMATS = ["code_128", "code_39", "ean_13", "ean_8", "upc_a", "upc_e", "itf", "qr_code"];
+
   function normalizeBarcode(value) {
     return String(value || "").trim().toUpperCase();
   }
@@ -783,7 +785,7 @@
       window.JsBarcode(svg, safeValue, Object.assign({
         format: getBarcodeFormat(safeValue),
         displayValue: false,
-        margin: 0,
+        margin: 8,
         background: "transparent",
         lineColor: "#2f2116",
         width: 1.6,
@@ -807,7 +809,7 @@
         window.JsBarcode(svgRef.current, normalizeBarcode(props.value), Object.assign({
           format: getBarcodeFormat(props.value),
           displayValue: false,
-          margin: 0,
+          margin: 8,
           background: "transparent",
           lineColor: "#2f2116",
           width: 1.6,
@@ -918,8 +920,9 @@
     var widthPx = Math.max(900, Math.round(printSize.widthMm * 14));
     var heightPx = Math.max(260, Math.round(printSize.heightMm * 7));
     var barcodeMarkup = renderBarcodeMarkup(barcodeValue, {
-      width: printSize.widthMm >= 90 ? 2.1 : 1.9,
-      height: Math.max(110, Math.round(printSize.heightMm * 4)),
+      width: printSize.widthMm >= 90 ? 2.45 : 2.2,
+      height: Math.max(130, Math.round(printSize.heightMm * 4.4)),
+      margin: Math.max(18, Math.round(widthPx * 0.02)),
       lineColor: "#1f1b18"
     });
 
@@ -1634,6 +1637,26 @@
     }, [activeView, cameraActive]);
 
     useEffect(function () {
+      if (activeView !== "pos" || !barcodeInputRef.current || cameraActive) {
+        return undefined;
+      }
+
+      if (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(pointer: coarse)").matches) {
+        return undefined;
+      }
+
+      var focusTimer = window.setTimeout(function () {
+        if (barcodeInputRef.current) {
+          barcodeInputRef.current.focus();
+        }
+      }, 120);
+
+      return function () {
+        window.clearTimeout(focusTimer);
+      };
+    }, [activeView, cameraActive]);
+
+    useEffect(function () {
       if (activeView !== "pos") {
         return undefined;
       }
@@ -1890,7 +1913,7 @@
     function decodeBarcodeFromImageElement(imageElement) {
       if (window.BarcodeDetector) {
         var detector = new window.BarcodeDetector({
-          formats: ["code_128", "code_39", "ean_13", "ean_8", "upc_a", "upc_e", "qr_code"]
+          formats: BARCODE_DETECT_FORMATS
         });
 
         return detector.detect(imageElement).then(function (codes) {
@@ -1918,6 +1941,58 @@
       return Promise.resolve("");
     }
 
+    function decodeBarcodeFromImageFile(file) {
+      if (!file) {
+        return Promise.resolve("");
+      }
+
+      if (window.BarcodeDetector && window.createImageBitmap) {
+        return window.createImageBitmap(file).then(function (bitmap) {
+          var detector = new window.BarcodeDetector({
+            formats: BARCODE_DETECT_FORMATS
+          });
+
+          return detector.detect(bitmap).then(function (codes) {
+            if (bitmap && typeof bitmap.close === "function") {
+              bitmap.close();
+            }
+
+            if (!codes || !codes.length) {
+              return "";
+            }
+
+            return codes[0].rawValue || "";
+          }).catch(function () {
+            if (bitmap && typeof bitmap.close === "function") {
+              bitmap.close();
+            }
+            return "";
+          });
+        }).catch(function () {
+          return "";
+        });
+      }
+
+      var objectUrl = window.URL.createObjectURL(file);
+      if (window.ZXingBrowser && window.ZXingBrowser.BrowserMultiFormatReader) {
+        var imageReader = new window.ZXingBrowser.BrowserMultiFormatReader();
+        return imageReader.decodeFromImageUrl(objectUrl).then(function (result) {
+          window.URL.revokeObjectURL(objectUrl);
+          if (!result) {
+            return "";
+          }
+
+          return result.getText ? result.getText() : result.text || "";
+        }).catch(function () {
+          window.URL.revokeObjectURL(objectUrl);
+          return "";
+        });
+      }
+
+      window.URL.revokeObjectURL(objectUrl);
+      return Promise.resolve("");
+    }
+
     function handleBarcodeImageCapture(event) {
       var file = event.target && event.target.files ? event.target.files[0] : null;
       if (!file) {
@@ -1925,35 +2000,28 @@
       }
 
       setScanMessage(L("Đang đọc ảnh barcode... / Reading barcode image..."));
-      var objectUrl = window.URL.createObjectURL(file);
-      var image = new Image();
-      image.onload = function () {
-        decodeBarcodeFromImageElement(image).then(function (rawCode) {
-          window.URL.revokeObjectURL(objectUrl);
-          if (!rawCode) {
-            setScanMessage(L("Không đọc được mã từ ảnh. Hãy chụp lại rõ hơn. / Could not read a barcode from the image. Please capture it more clearly."));
-            return;
-          }
+      decodeBarcodeFromImageFile(file).then(function (rawCode) {
+        if (!rawCode) {
+          setScanMessage(L("Không đọc được mã từ ảnh. Hãy chụp lại rõ hơn, đủ sáng và lấy trọn mã vạch. / Could not read a barcode from the image. Please capture it more clearly with good lighting and the full barcode in frame."));
+          return;
+        }
 
-          var normalizedCode = normalizeBarcode(rawCode);
-          setBarcodeInput(normalizedCode);
-          handleScannedBarcode(normalizedCode);
-        }).catch(function () {
-          window.URL.revokeObjectURL(objectUrl);
-          setScanMessage(L("Không đọc được mã từ ảnh. Hãy chụp lại rõ hơn. / Could not read a barcode from the image. Please capture it more clearly."));
-        });
-      };
-      image.onerror = function () {
-        window.URL.revokeObjectURL(objectUrl);
-        setScanMessage(L("Ảnh barcode không hợp lệ. / The barcode image is invalid."));
-      };
-      image.src = objectUrl;
+        var normalizedCode = normalizeBarcode(rawCode);
+        setBarcodeInput(normalizedCode);
+        handleScannedBarcode(normalizedCode);
+      }).catch(function () {
+        setScanMessage(L("Không đọc được mã từ ảnh. Hãy chụp lại rõ hơn, đủ sáng và lấy trọn mã vạch. / Could not read a barcode from the image. Please capture it more clearly with good lighting and the full barcode in frame."));
+      });
     }
 
     function startBarcodeDetectorScan(stream) {
       cameraStreamRef.current = stream;
 
       if (videoRef.current) {
+        videoRef.current.setAttribute("playsinline", "true");
+        videoRef.current.setAttribute("webkit-playsinline", "true");
+        videoRef.current.muted = true;
+        videoRef.current.autoplay = true;
         videoRef.current.srcObject = stream;
         videoRef.current.play().catch(function () {
           return undefined;
@@ -1961,7 +2029,7 @@
       }
 
       var detector = new window.BarcodeDetector({
-        formats: ["code_128", "code_39", "ean_13", "ean_8", "upc_a", "upc_e", "qr_code"]
+        formats: BARCODE_DETECT_FORMATS
       });
 
       setCameraActive(true);
@@ -2005,7 +2073,9 @@
       return zxingReaderRef.current.decodeFromConstraints({
         audio: false,
         video: {
-          facingMode: { ideal: "environment" }
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
         }
       }, videoRef.current, function (result) {
         if (!result) {
@@ -2042,7 +2112,9 @@
 
       navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: "environment" }
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
         },
         audio: false
       }).then(function (stream) {
@@ -2317,8 +2389,9 @@
       var categoryLabel = getProductCategoryLabel(product);
       var printSize = getBarcodePrintSize(template);
       var barcodeSvg = renderBarcodeMarkup(product.barcode, {
-        width: printSize.widthMm >= 90 ? 1.8 : 1.6,
-        height: Math.max(56, Math.round(printSize.heightMm * 2.2)),
+        width: printSize.widthMm >= 90 ? 2.2 : 1.95,
+        height: Math.max(72, Math.round(printSize.heightMm * 2.55)),
+        margin: 18,
         lineColor: "#1f1b18"
       });
 
@@ -3755,6 +3828,7 @@
                   ${cameraActive
                     ? html`<button type="button" className="ghost-btn" onClick=${stopCameraScan}>${L("Dừng camera / Stop Camera")}</button>`
                     : html`<button type="button" className="ghost-btn" onClick=${startCameraScan}>${isAppleMobileScannerFallback ? L("Chụp barcode / Capture Barcode") : L("Mở camera / Open Camera")}</button>`}
+                  ${!cameraActive ? html`<button type="button" className="ghost-btn" onClick=${openBarcodeCaptureFallback}>${L("Chọn ảnh barcode / Use Barcode Photo")}</button>` : null}
                 </div>
 
                 <input
