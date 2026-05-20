@@ -965,7 +965,7 @@
       canvas.width = widthPx;
       canvas.height = heightPx;
       var context = canvas.getContext("2d");
-      var outerPadding = Math.round(widthPx * 0.028);
+      var outerPadding = Math.round(widthPx * 0.026);
       var cardX = outerPadding;
       var cardY = outerPadding;
       var cardWidth = widthPx - outerPadding * 2;
@@ -974,13 +974,21 @@
       var categoryLabel = getProductCategoryLabel(product);
       var accentColor = String(template.accent || "#db5d17");
       var priceText = formatCurrency(product.price);
-      var priceFontSize = Math.max(34, Math.round(heightPx * 0.094));
-      var brandFontSize = Math.max(26, Math.round(heightPx * 0.07));
-      var nameFontSize = Math.max(40, Math.round(heightPx * 0.108));
-      var metaFontSize = Math.max(26, Math.round(heightPx * 0.062));
-      var leftPadding = Math.round(cardWidth * 0.05);
+      var priceFontSize = Math.max(32, Math.round(heightPx * 0.086));
+      var brandFontSize = Math.max(24, Math.round(heightPx * 0.06));
+      var nameFontSize = Math.max(34, Math.round(heightPx * 0.09));
+      var metaFontSize = Math.max(22, Math.round(heightPx * 0.05));
+      var leftPadding = Math.round(cardWidth * 0.043);
       var rightPadding = leftPadding;
-      var topPadding = Math.round(cardHeight * 0.1);
+      var topPadding = Math.round(cardHeight * 0.072);
+      var headerY = cardY + topPadding;
+      var nameY = cardY + Math.round(cardHeight * 0.17);
+      var barcodeBoxX = cardX + leftPadding;
+      var barcodeBoxWidth = cardWidth - leftPadding - rightPadding;
+      var barcodeBoxY = cardY + Math.round(cardHeight * 0.29);
+      var barcodeBoxHeight = Math.round(cardHeight * 0.48);
+      var codeY = cardY + Math.round(cardHeight * 0.81);
+      var categoryY = cardY + Math.round(cardHeight * 0.91);
 
       context.fillStyle = "#fffdf7";
       context.fillRect(0, 0, widthPx, heightPx);
@@ -995,13 +1003,11 @@
       context.fill();
       context.stroke();
 
-      var currentY = cardY + topPadding;
-
       if (template.showStoreName) {
         context.fillStyle = "#73685d";
         context.textBaseline = "top";
         context.font = "500 " + brandFontSize + "px 'Be Vietnam Pro', Arial, sans-serif";
-        context.fillText(brandName, cardX + leftPadding, currentY);
+        context.fillText(brandName, cardX + leftPadding, headerY);
       }
 
       if (template.showPrice) {
@@ -1009,26 +1015,19 @@
         context.textBaseline = "top";
         context.textAlign = "right";
         context.font = "700 " + priceFontSize + "px 'Space Grotesk', 'Be Vietnam Pro', Arial, sans-serif";
-        context.fillText(priceText, cardX + cardWidth - rightPadding, currentY);
+        context.fillText(priceText, cardX + cardWidth - rightPadding, headerY - Math.round(cardHeight * 0.01));
         context.textAlign = "left";
       }
 
       if (template.showName) {
-        currentY += Math.round(brandFontSize * 1.18);
         context.fillStyle = "#231a14";
         context.textBaseline = "top";
         context.font = "700 " + nameFontSize + "px 'Space Grotesk', 'Be Vietnam Pro', Arial, sans-serif";
-        var nameLines = wrapCanvasText(context, product.name || "", cardWidth - leftPadding - rightPadding - Math.round(cardWidth * 0.24), 2);
+        var nameLines = wrapCanvasText(context, product.name || "", cardWidth - leftPadding - rightPadding - Math.round(cardWidth * 0.22), 2);
         nameLines.forEach(function (line, index) {
-          context.fillText(line, cardX + leftPadding, currentY + index * Math.round(nameFontSize * 1.08));
+          context.fillText(line, cardX + leftPadding, nameY + index * Math.round(nameFontSize * 1.02));
         });
-        currentY += Math.max(1, nameLines.length) * Math.round(nameFontSize * 1.08);
       }
-
-      var barcodeBoxX = cardX + leftPadding;
-      var barcodeBoxWidth = cardWidth - leftPadding - rightPadding;
-      var barcodeBoxY = currentY + Math.round(cardHeight * 0.045);
-      var barcodeBoxHeight = Math.round(cardHeight * 0.44);
       context.fillStyle = "#ffffff";
       context.fillRect(barcodeBoxX, barcodeBoxY, barcodeBoxWidth, barcodeBoxHeight);
 
@@ -1036,20 +1035,18 @@
         return loadImageFromUrl(barcodeImageUrl).then(function (barcodeImage) {
           context.drawImage(
             barcodeImage,
-            barcodeBoxX + Math.round(barcodeBoxWidth * 0.035),
-            barcodeBoxY + Math.round(barcodeBoxHeight * 0.08),
-            barcodeBoxWidth - Math.round(barcodeBoxWidth * 0.07),
-            barcodeBoxHeight - Math.round(barcodeBoxHeight * 0.16)
+            barcodeBoxX + Math.round(barcodeBoxWidth * 0.05),
+            barcodeBoxY + Math.round(barcodeBoxHeight * 0.07),
+            barcodeBoxWidth - Math.round(barcodeBoxWidth * 0.1),
+            barcodeBoxHeight - Math.round(barcodeBoxHeight * 0.14)
           );
 
-          var textCursorY = barcodeBoxY + barcodeBoxHeight + Math.round(cardHeight * 0.045);
           if (template.showBarcodeValue) {
             context.fillStyle = "#74695d";
             context.textAlign = "center";
             context.textBaseline = "top";
             context.font = "500 " + metaFontSize + "px 'Be Vietnam Pro', Arial, sans-serif";
-            context.fillText(normalizeBarcode(product.barcode), cardX + cardWidth / 2, textCursorY);
-            textCursorY += Math.round(metaFontSize * 1.45);
+            context.fillText(normalizeBarcode(product.barcode), cardX + cardWidth / 2, codeY);
             context.textAlign = "left";
           }
 
@@ -1057,7 +1054,7 @@
             context.fillStyle = "#74695d";
             context.textBaseline = "top";
             context.font = "500 " + metaFontSize + "px 'Be Vietnam Pro', Arial, sans-serif";
-            context.fillText(pickLanguage("Danh mục / Category", language) + ": " + categoryLabel, cardX + leftPadding, textCursorY);
+            context.fillText(pickLanguage("Danh mục / Category", language) + ": " + categoryLabel, cardX + leftPadding, categoryY);
           }
 
           return canvas.toDataURL("image/png");
@@ -1066,6 +1063,18 @@
 
       return canvas.toDataURL("image/png");
     });
+  }
+
+  function buildLabelPdfPageConfig(printSize) {
+    var isLandscape = printSize.widthMm >= printSize.heightMm;
+    return {
+      orientation: isLandscape ? "landscape" : "portrait",
+      unit: "mm",
+      format: isLandscape
+        ? [printSize.heightMm, printSize.widthMm]
+        : [printSize.widthMm, printSize.heightMm],
+      compress: true
+    };
   }
 
   function pickLanguage(text, language) {
@@ -2090,7 +2099,8 @@
 
     function startCameraScan() {
       if (!cameraScanSupported) {
-        setScanMessage(L("Trình duyệt này chưa hỗ trợ quét camera. Hãy dùng máy scan hoặc nhập mã barcode. / This browser does not support camera scanning yet. Use a barcode scanner or type the code."));
+        openBarcodeCaptureFallback();
+        setScanMessage(L("Thiết bị này sẽ dùng camera chụp hoặc ảnh barcode thay cho live scan. / This device will use captured barcode photos instead of live scanning."));
         return;
       }
 
@@ -2124,7 +2134,8 @@
         }
         return undefined;
       }).catch(function () {
-        setScanMessage(L("Không thể mở camera. Hãy kiểm tra quyền truy cập camera. / Unable to open the camera. Please check camera permissions."));
+        openBarcodeCaptureFallback();
+        setScanMessage(L("Không mở được live camera. Đã chuyển sang chụp hoặc chọn ảnh barcode. / Live camera could not be opened. Switched to capturing or choosing a barcode image."));
         stopCameraScan();
       });
     }
@@ -2489,15 +2500,12 @@
 
       var printSize = getBarcodePrintSize(template);
       var jsPDF = window.jspdf.jsPDF;
-      var pdf = new jsPDF({
-        unit: "mm",
-        format: [printSize.widthMm, printSize.heightMm],
-        compress: true
-      });
+      var pdfPageConfig = buildLabelPdfPageConfig(printSize);
+      var pdf = new jsPDF(pdfPageConfig);
 
       function drawLabelPage(product, pageIndex) {
         if (pageIndex > 0) {
-          pdf.addPage([printSize.widthMm, printSize.heightMm]);
+          pdf.addPage(pdfPageConfig.format, pdfPageConfig.orientation);
         }
 
         return renderLabelCardToPngDataUrl(product, template, printSize, settings, language).then(function (labelImage) {
@@ -3828,8 +3836,7 @@
                   <button type="submit" className="primary-btn">${L("Thêm bằng barcode / Add by Barcode")}</button>
                   ${cameraActive
                     ? html`<button type="button" className="ghost-btn" onClick=${stopCameraScan}>${L("Dừng camera / Stop Camera")}</button>`
-                    : html`<button type="button" className="ghost-btn" onClick=${startCameraScan}>${isAppleMobileScannerFallback ? L("Chụp barcode / Capture Barcode") : L("Mở camera / Open Camera")}</button>`}
-                  ${!cameraActive ? html`<button type="button" className="ghost-btn" onClick=${openBarcodeCaptureFallback}>${L("Chọn ảnh barcode / Use Barcode Photo")}</button>` : null}
+                    : html`<button type="button" className="ghost-btn" onClick=${startCameraScan}>${L("Mở camera / Open Camera")}</button>`}
                 </div>
 
                 <input
@@ -3848,10 +3855,8 @@
                 </div>
                 <div className="empty-state align-left">
                   ${cameraScanSupported
-                    ? (isAppleMobileScannerFallback
-                      ? L("Mobile Safari/iPhone: bấm Chụp barcode để mở camera chụp mã, hệ thống sẽ đọc từ ảnh. / Mobile Safari/iPhone: tap Capture Barcode to open the camera and read the barcode from the captured image.")
-                      : L("Mobile: bấm Mở camera để quét mã bằng camera điện thoại. / Mobile: tap Open Camera to scan using the phone camera."))
-                    : L("Mobile camera scan phụ thuộc trình duyệt. Nếu camera không hỗ trợ, hãy nhập mã barcode thủ công. / Mobile camera scanning depends on browser support. If unavailable, enter the barcode manually.")}
+                    ? L("Nút Mở camera sẽ tự quét live nếu thiết bị hỗ trợ, hoặc tự chuyển sang chụp/chọn ảnh barcode khi cần. / The Open Camera button will use live scanning when supported, or switch to capturing/choosing a barcode image when needed.")
+                    : L("Nếu live camera không hỗ trợ, nút Mở camera sẽ chuyển sang chụp hoặc chọn ảnh barcode. / If live camera is unavailable, the Open Camera button will switch to capturing or choosing a barcode image.")}
                 </div>
                 ${scanMessage ? html`<div className="scanner-status">${scanMessage}</div>` : null}
               </div>
@@ -4307,8 +4312,8 @@
                               return item.id === product.category;
                             });
                             return html`
-                              <article key=${product.id} className="list-row list-row-actions">
-                                <div>
+                              <article key=${product.id} className="list-row list-row-actions stock-check-row">
+                                <div className="stock-check-meta">
                                   <strong>${product.image} ${product.name}</strong>
                                   <p>${category ? L(category.label) : product.category} · ${product.barcode}</p>
                                 </div>

@@ -1067,6 +1067,34 @@ textarea:focus {
   padding-block: 12px;
 }
 
+.stock-check-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+}
+
+.stock-check-meta {
+  min-width: 0;
+}
+
+.stock-check-meta p {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stock-check-row .stock-editor {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 14px;
+}
+
+.stock-check-row .stock-editor .ghost-btn {
+  white-space: nowrap;
+  min-width: 112px;
+}
+
 .empty-state {
   color: var(--muted);
   text-align: center;
@@ -1269,6 +1297,19 @@ textarea:focus {
   .stock-editor input {
     width: 100%;
     min-width: 0;
+  }
+
+  .stock-check-row {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-check-meta p {
+    white-space: normal;
+  }
+
+  .stock-check-row .stock-editor {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 
