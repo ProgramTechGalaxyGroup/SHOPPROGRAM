@@ -1066,13 +1066,13 @@
   }
 
   function buildLabelPdfPageConfig(printSize) {
-    var isLandscape = printSize.widthMm >= printSize.heightMm;
+    var mmToPt = 72 / 25.4;
     return {
-      orientation: isLandscape ? "landscape" : "portrait",
-      unit: "mm",
-      format: isLandscape
-        ? [printSize.heightMm, printSize.widthMm]
-        : [printSize.widthMm, printSize.heightMm],
+      unit: "pt",
+      format: [
+        Math.round(printSize.widthMm * mmToPt * 1000) / 1000,
+        Math.round(printSize.heightMm * mmToPt * 1000) / 1000
+      ],
       compress: true
     };
   }
@@ -2505,7 +2505,7 @@
 
       function drawLabelPage(product, pageIndex) {
         if (pageIndex > 0) {
-          pdf.addPage(pdfPageConfig.format, pdfPageConfig.orientation);
+          pdf.addPage(pdfPageConfig.format);
         }
 
         return renderLabelCardToPngDataUrl(product, template, printSize, settings, language).then(function (labelImage) {
