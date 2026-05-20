@@ -821,6 +821,76 @@
     return html`<svg ref=${svgRef} className=${props.className || ""}></svg>`;
   }
 
+  function buildLabelPdfFileName() {
+    var now = new Date();
+    return "barcode_labels_" + [
+      now.getFullYear(),
+      padNumber(now.getMonth() + 1, 2),
+      padNumber(now.getDate(), 2)
+    ].join("-") + "_" + [
+      padNumber(now.getHours(), 2),
+      padNumber(now.getMinutes(), 2)
+    ].join("-") + ".pdf";
+  }
+
+  function escapeSvgText(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function loadImageFromUrl(url) {
+    return new Promise(function (resolve, reject) {
+      var image = new Image();
+      image.onload = function () {
+        resolve(image);
+      };
+      image.onerror = reject;
+      image.src = url;
+    });
+  }
+
+  function barcodeSvgToPngDataUrl(barcodeValue, template, printSize) {
+    var widthPx = Math.max(900, Math.round(printSize.widthMm * 14));
+    var heightPx = Math.max(260, Math.round(printSize.heightMm * 7));
+    var barcodeMarkup = renderBarcodeMarkup(barcodeValue, {
+      width: printSize.widthMm >= 90 ? 2.1 : 1.9,
+      height: Math.max(110, Math.round(printSize.heightMm * 4)),
+      lineColor: "#1f1b18"
+    });
+
+    if (!barcodeMarkup) {
+      return Promise.resolve("");
+    }
+
+    var svgDocument =
+      "<svg xmlns='http://www.w3.org/2000/svg' width='" + widthPx + "' height='" + heightPx + "' viewBox='0 0 " + widthPx + " " + heightPx + "'>" +
+      "<rect width='100%' height='100%' fill='white'/>" +
+      "<g transform='translate(20 12)'>" + barcodeMarkup + "</g>" +
+      "</svg>";
+
+    var blob = new Blob([svgDocument], { type: "image/svg+xml;charset=utf-8" });
+    var blobUrl = window.URL.createObjectURL(blob);
+
+    return loadImageFromUrl(blobUrl).then(function (image) {
+      var canvas = document.createElement("canvas");
+      canvas.width = widthPx;
+      canvas.height = heightPx;
+      var context = canvas.getContext("2d");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, widthPx, heightPx);
+      context.drawImage(image, 0, 0, widthPx, heightPx);
+      window.URL.revokeObjectURL(blobUrl);
+      return canvas.toDataURL("image/png");
+    }).catch(function () {
+      window.URL.revokeObjectURL(blobUrl);
+      return "";
+    });
+  }
+
   function pickLanguage(text, language) {
     if (typeof text !== "string") {
       return text;
@@ -1250,6 +1320,8 @@
     var videoRef = useRef(null);
     var cameraStreamRef = useRef(null);
     var scanIntervalRef = useRef(null);
+    var zxingReaderRef = useRef(null);
+    var zxingControlsRef = useRef(null);
     var lastScannedCodeRef = useRef("");
 
     useEffect(function () {
@@ -1418,8 +1490,8 @@
     }) || products[0] || null;
 
     var cameraScanSupported = typeof window !== "undefined"
-      && !!window.BarcodeDetector
-      && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+      && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+      && (!!window.BarcodeDetector || !!window.ZXingBrowser);
 
     var dashboardMetrics = useMemo(function () {
       var todayKey = new Date().toDateString();
@@ -1515,6 +1587,15 @@
         scanIntervalRef.current = null;
       }
 
+      if (zxingControlsRef.current && typeof zxingControlsRef.current.stop === "function") {
+        zxingControlsRef.current.stop();
+        zxingControlsRef.current = null;
+      }
+
+      if (zxingReaderRef.current && typeof zxingReaderRef.current.reset === "function") {
+        zxingReaderRef.current.reset();
+      }
+
       if (cameraStreamRef.current) {
         cameraStreamRef.current.getTracks().forEach(function (track) {
           track.stop();
@@ -1530,6 +1611,90 @@
       setCameraActive(false);
     }
 
+    function handleDetectedCameraCode(rawValue) {
+      var safeCode = normalizeBarcode(rawValue);
+      if (!safeCode || lastScannedCodeRef.current === safeCode) {
+        return;
+      }
+
+      lastScannedCodeRef.current = safeCode;
+      setBarcodeInput(safeCode);
+      handleScannedBarcode(safeCode);
+      window.setTimeout(function () {
+        if (lastScannedCodeRef.current === safeCode) {
+          lastScannedCodeRef.current = "";
+        }
+      }, 1500);
+    }
+
+    function startBarcodeDetectorScan(stream) {
+      cameraStreamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(function () {
+          return undefined;
+        });
+      }
+
+      var detector = new window.BarcodeDetector({
+        formats: ["code_128", "code_39", "ean_13", "ean_8", "upc_a", "upc_e", "qr_code"]
+      });
+
+      setCameraActive(true);
+      setScanMessage(L("Camera đã sẵn sàng. Đưa mã vào khung hình. / Camera is ready. Place the barcode in view."));
+
+      scanIntervalRef.current = window.setInterval(function () {
+        if (!videoRef.current || videoRef.current.readyState < 2) {
+          return;
+        }
+
+        detector.detect(videoRef.current).then(function (codes) {
+          if (!codes || !codes.length) {
+            return;
+          }
+
+          handleDetectedCameraCode(codes[0].rawValue || "");
+        }).catch(function () {
+          return undefined;
+        });
+      }, 450);
+    }
+
+    function startZxingFallbackScan() {
+      if (!window.ZXingBrowser || !window.ZXingBrowser.BrowserMultiFormatReader) {
+        throw new Error("ZXing fallback unavailable");
+      }
+
+      if (!videoRef.current) {
+        throw new Error("Video element unavailable");
+      }
+
+      videoRef.current.setAttribute("playsinline", "true");
+      videoRef.current.setAttribute("webkit-playsinline", "true");
+      videoRef.current.muted = true;
+      videoRef.current.autoplay = true;
+
+      zxingReaderRef.current = new window.ZXingBrowser.BrowserMultiFormatReader();
+      setCameraActive(true);
+      setScanMessage(L("Camera đã sẵn sàng. Đưa mã vào khung hình. / Camera is ready. Place the barcode in view."));
+
+      return zxingReaderRef.current.decodeFromConstraints({
+        audio: false,
+        video: {
+          facingMode: { ideal: "environment" }
+        }
+      }, videoRef.current, function (result) {
+        if (!result) {
+          return;
+        }
+
+        handleDetectedCameraCode(result.getText ? result.getText() : result.text || "");
+      }).then(function (controls) {
+        zxingControlsRef.current = controls;
+      });
+    }
+
     function startCameraScan() {
       if (!cameraScanSupported) {
         setScanMessage(L("Trình duyệt này chưa hỗ trợ quét camera. Hãy dùng máy scan hoặc nhập mã barcode. / This browser does not support camera scanning yet. Use a barcode scanner or type the code."));
@@ -1538,56 +1703,25 @@
 
       stopCameraScan();
 
+      if (!window.BarcodeDetector && window.ZXingBrowser) {
+        startZxingFallbackScan().catch(function () {
+          setScanMessage(L("Không thể mở camera. Hãy kiểm tra quyền camera hoặc thử mở bản HTTPS live. / Unable to open the camera. Check camera permission or try the live HTTPS site."));
+          stopCameraScan();
+        });
+        return;
+      }
+
       navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "environment" }
         },
         audio: false
       }).then(function (stream) {
-        cameraStreamRef.current = stream;
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play().catch(function () {
-            return undefined;
-          });
+        if (window.BarcodeDetector) {
+          startBarcodeDetectorScan(stream);
+          return undefined;
         }
-
-        var detector = new window.BarcodeDetector({
-          formats: ["code_128", "code_39", "ean_13", "ean_8", "upc_a", "upc_e", "qr_code"]
-        });
-
-        setCameraActive(true);
-        setScanMessage(L("Camera đã sẵn sàng. Đưa mã vào khung hình. / Camera is ready. Place the barcode in view."));
-
-        scanIntervalRef.current = window.setInterval(function () {
-          if (!videoRef.current || videoRef.current.readyState < 2) {
-            return;
-          }
-
-          detector.detect(videoRef.current).then(function (codes) {
-            if (!codes || !codes.length) {
-              return;
-            }
-
-            var rawValue = codes[0].rawValue || "";
-            var safeCode = normalizeBarcode(rawValue);
-            if (!safeCode || lastScannedCodeRef.current === safeCode) {
-              return;
-            }
-
-            lastScannedCodeRef.current = safeCode;
-            setBarcodeInput(safeCode);
-            handleScannedBarcode(safeCode);
-            window.setTimeout(function () {
-              if (lastScannedCodeRef.current === safeCode) {
-                lastScannedCodeRef.current = "";
-              }
-            }, 1500);
-          }).catch(function () {
-            return undefined;
-          });
-        }, 500);
+        return undefined;
       }).catch(function () {
         setScanMessage(L("Không thể mở camera. Hãy kiểm tra quyền truy cập camera. / Unable to open the camera. Please check camera permissions."));
         stopCameraScan();
@@ -1909,6 +2043,151 @@
       );
     }
 
+    function buildLabelPageList(productsToPrint, quantities) {
+      return (productsToPrint || []).reduce(function (allPages, product) {
+        var repeatCount = Math.max(1, Number(quantities[product.id]) || 1);
+        Array.from({ length: repeatCount }).forEach(function () {
+          allPages.push(product);
+        });
+        return allPages;
+      }, []);
+    }
+
+    function openBlobInNewTab(blob, fallbackName, existingWindow) {
+      var blobUrl = window.URL.createObjectURL(blob);
+      var popup = existingWindow || window.open("", "_blank");
+      if (!popup) {
+        downloadBlob(blob, fallbackName);
+        window.setTimeout(function () {
+          window.URL.revokeObjectURL(blobUrl);
+        }, 5000);
+        return;
+      }
+
+      try {
+        popup.location.href = blobUrl;
+      } catch (error) {
+        downloadBlob(blob, fallbackName);
+      }
+
+      window.setTimeout(function () {
+        window.URL.revokeObjectURL(blobUrl);
+      }, 60000);
+    }
+
+    function exportBarcodeLabelsPdf(productsToPrint, template, quantities, existingWindow) {
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        return Promise.resolve(false);
+      }
+
+      var pages = buildLabelPageList(productsToPrint, quantities || {});
+      if (!pages.length) {
+        return Promise.resolve(false);
+      }
+
+      var printSize = getBarcodePrintSize(template);
+      var jsPDF = window.jspdf.jsPDF;
+      var pdf = new jsPDF({
+        orientation: printSize.widthMm >= printSize.heightMm ? "landscape" : "portrait",
+        unit: "mm",
+        format: [printSize.widthMm, printSize.heightMm],
+        compress: true
+      });
+
+      function drawLabelPage(product, pageIndex) {
+        if (pageIndex > 0) {
+          pdf.addPage([printSize.widthMm, printSize.heightMm], printSize.widthMm >= printSize.heightMm ? "landscape" : "portrait");
+        }
+
+        return barcodeSvgToPngDataUrl(product.barcode, template, printSize).then(function (barcodeImage) {
+          var padding = 2.5;
+          var cardX = padding;
+          var cardY = padding;
+          var cardWidth = printSize.widthMm - padding * 2;
+          var cardHeight = printSize.heightMm - padding * 2;
+          var categoryLabel = getProductCategoryLabel(product);
+          var brandName = settings.brandDisplayName || settings.storeName || "";
+          var accentColor = String(template.accent || "#db5d17").replace("#", "");
+          if (accentColor.length !== 6) {
+            accentColor = "db5d17";
+          }
+          var accentR = parseInt(accentColor.slice(0, 2), 16);
+          var accentG = parseInt(accentColor.slice(2, 4), 16);
+          var accentB = parseInt(accentColor.slice(4, 6), 16);
+
+          pdf.setFillColor(255, 249, 241);
+          pdf.setDrawColor(231, 194, 164);
+          pdf.roundedRect(cardX, cardY, cardWidth, cardHeight, 4.5, 4.5, "FD");
+
+          pdf.setFont("helvetica", "normal");
+          pdf.setTextColor(115, 104, 93);
+          if (template.showStoreName) {
+            pdf.setFontSize(10.5);
+            pdf.text(brandName, cardX + 4, cardY + 7);
+          }
+
+          if (template.showPrice) {
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(13.5);
+            pdf.setTextColor(accentR, accentG, accentB);
+            pdf.text(formatCurrency(product.price), cardX + cardWidth - 4, cardY + 7, { align: "right" });
+          }
+
+          if (template.showName) {
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(16);
+            pdf.setTextColor(35, 26, 20);
+            var productNameLines = pdf.splitTextToSize(product.name || "", cardWidth - 8);
+            pdf.text(productNameLines.slice(0, 2), cardX + 4, cardY + 13);
+          }
+
+          var barcodeY = cardY + 17;
+          var barcodeHeight = cardHeight - 27;
+          if (template.showBarcodeValue) {
+            barcodeHeight -= 4.5;
+          }
+          if (template.showCategory) {
+            barcodeHeight -= 4.5;
+          }
+          barcodeHeight = Math.max(16, barcodeHeight);
+
+          pdf.setFillColor(255, 255, 255);
+          pdf.rect(cardX + 4, barcodeY, cardWidth - 8, barcodeHeight, "F");
+
+          if (barcodeImage) {
+            pdf.addImage(barcodeImage, "PNG", cardX + 5, barcodeY + 1.2, cardWidth - 10, barcodeHeight - 2.4, undefined, "FAST");
+          }
+
+          var textCursorY = barcodeY + barcodeHeight + 3.8;
+          if (template.showBarcodeValue) {
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(10);
+            pdf.setTextColor(116, 105, 93);
+            pdf.text(normalizeBarcode(product.barcode), cardX + cardWidth / 2, textCursorY, { align: "center" });
+            textCursorY += 5.2;
+          }
+
+          if (template.showCategory) {
+            pdf.setFont("helvetica", "normal");
+            pdf.setFontSize(9.6);
+            pdf.setTextColor(116, 105, 93);
+            pdf.text(pickLanguage("Danh mục / Category", language) + ": " + categoryLabel, cardX + 4, Math.min(textCursorY, cardY + cardHeight - 3));
+          }
+        });
+      }
+
+      return pages.reduce(function (chain, product, index) {
+        return chain.then(function () {
+          return drawLabelPage(product, index);
+        });
+      }, Promise.resolve()).then(function () {
+        openBlobInNewTab(pdf.output("blob"), buildLabelPdfFileName(), existingWindow);
+        return true;
+      }).catch(function () {
+        return false;
+      });
+    }
+
     function previewBarcodeTemplate() {
       if (!barcodePreviewProduct) {
         return;
@@ -1935,16 +2214,24 @@
         return;
       }
 
-      var popup = window.open("", "_blank", "width=760,height=560");
-      if (!popup) {
-        window.alert(L("Trình duyệt đang chặn cửa sổ in tem. / Your browser blocked the label print window."));
-        return;
-      }
+      var exportWindow = window.open("", "_blank");
+      exportBarcodeLabelsPdf(productsToPrint, activeBarcodeTemplate, quantities || {}, exportWindow).then(function (exportedPdf) {
+        if (exportedPdf) {
+          setScanMessage(L("Đã mở file PDF tem theo đúng khổ in. Hãy in ở chế độ Actual Size / Scale 100%. / Opened an exact-size label PDF. Print it using Actual Size / 100% scale."));
+          return;
+        }
 
-      popup.document.write(buildBarcodeLabelDocument(productsToPrint, activeBarcodeTemplate, quantities || {}));
-      popup.document.close();
-      popup.focus();
-      popup.print();
+        var popup = exportWindow || window.open("", "_blank", "width=760,height=560");
+        if (!popup) {
+          window.alert(L("Trình duyệt đang chặn cửa sổ in tem. / Your browser blocked the label print window."));
+          return;
+        }
+
+        popup.document.write(buildBarcodeLabelDocument(productsToPrint, activeBarcodeTemplate, quantities || {}));
+        popup.document.close();
+        popup.focus();
+        popup.print();
+      });
     }
 
     function toggleExportTable(tableName) {
