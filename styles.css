@@ -271,6 +271,14 @@ textarea:focus {
   background: #22170f;
 }
 
+.scanner-capture-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
 .order-panel {
   padding: 22px;
   position: sticky;
