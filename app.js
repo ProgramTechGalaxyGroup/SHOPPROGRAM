@@ -18,7 +18,7 @@
   var html = window.htm.bind(window.React.createElement);
 
   var STORAGE_KEY = "fruit-house-pos-suite-v3";
-  var APP_VERSION = "3.4.0";
+  var APP_VERSION = "3.5.0";
   var VAT_RATE = 0.08;
   var LANGUAGE_OPTIONS = [
     { id: "vi", label: "VI" },
@@ -1087,6 +1087,39 @@
     return {
       vi: (parts[0] || "").trim(),
       en: (parts.slice(1).join(" / ") || "").trim()
+    };
+  }
+
+  function mapDocsById(docs) {
+    return (docs || []).reduce(function (result, doc) {
+      result[doc.id] = doc.data;
+      return result;
+    }, {});
+  }
+
+  function normalizeFirebaseValue(value) {
+    if (value === undefined) {
+      return null;
+    }
+
+    if (Array.isArray(value)) {
+      return value.map(normalizeFirebaseValue);
+    }
+
+    if (value && typeof value === "object") {
+      return Object.keys(value).reduce(function (result, key) {
+        result[key] = normalizeFirebaseValue(value[key]);
+        return result;
+      }, {});
+    }
+
+    return value;
+  }
+
+  function buildFirebaseDoc(id, data) {
+    return {
+      id: String(id || ""),
+      data: normalizeFirebaseValue(data || {})
     };
   }
 
@@ -3129,6 +3162,293 @@
       };
     }
 
+    function parseFirebaseFieldValue(value, fieldType) {
+      if (value === undefined || value === null || value === "") {
+        return fieldType === "boolean" ? false : null;
+      }
+
+      if (fieldType === "integer" || fieldType === "decimal") {
+        return Number(value) || 0;
+      }
+
+      if (fieldType === "boolean") {
+        if (typeof value === "boolean") {
+          return value;
+        }
+
+        if (typeof value === "string") {
+          return value.toUpperCase() === "TRUE";
+        }
+
+        return !!value;
+      }
+
+      return value;
+    }
+
+    function buildFirestoreDocsFromRows(tableSchema, rows) {
+      var primaryKeyColumn = tableSchema.columns.find(function (column) {
+        return column.primaryKey;
+      });
+      var fallbackPrefix = tableSchema.tableName + "-row";
+
+      return (rows || []).map(function (row, index) {
+        var documentId = primaryKeyColumn && row[primaryKeyColumn.name]
+          ? String(row[primaryKeyColumn.name])
+          : fallbackPrefix + "-" + padNumber(index + 1, 4);
+
+        var documentData = tableSchema.columns.reduce(function (result, column) {
+          result[column.name] = parseFirebaseFieldValue(row[column.name], column.type);
+          return result;
+        }, {});
+
+        return buildFirebaseDoc(documentId, documentData);
+      });
+    }
+
+    function buildFirebaseSeedPayload(tableNames) {
+      var now = Date.now();
+      var exportPayload = buildExportPayload(tableNames);
+      var categoryLookup = {};
+      var addOnLookup = {};
+      var componentLookup = {};
+      var productLookup = {};
+
+      categories.forEach(function (category) {
+        categoryLookup[category.id] = category;
+      });
+      addOns.forEach(function (addOn) {
+        addOnLookup[addOn.id] = addOn;
+      });
+      components.forEach(function (component) {
+        componentLookup[component.id] = component;
+      });
+      products.forEach(function (product) {
+        productLookup[product.id] = product;
+      });
+
+      function getCategoryDoc(category) {
+        var labelParts = splitBilingualLabel(category.label);
+        return buildFirebaseDoc(category.id, {
+          category_id: category.id,
+          label: category.label,
+          label_vi: labelParts.vi,
+          label_en: labelParts.en,
+          icon: category.icon || "",
+          active: true
+        });
+      }
+
+      function getAddOnDoc(addOn) {
+        var labelParts = splitBilingualLabel(addOn.label);
+        return buildFirebaseDoc(addOn.id, {
+          add_on_id: addOn.id,
+          label: addOn.label,
+          label_vi: labelParts.vi,
+          label_en: labelParts.en,
+          price: Number(addOn.price) || 0,
+          group: addOn.group || "extras",
+          active: addOn.active !== false
+        });
+      }
+
+      function getComponentDoc(component) {
+        var labelParts = splitBilingualLabel(component.label);
+        return buildFirebaseDoc(component.id, {
+          component_id: component.id,
+          label: component.label,
+          label_vi: labelParts.vi,
+          label_en: labelParts.en,
+          unit: component.unit || "",
+          note: component.note || "",
+          active: component.active !== false
+        });
+      }
+
+      function getProductDoc(product) {
+        var category = categoryLookup[product.category] || {};
+        var categoryLabelParts = splitBilingualLabel(category.label || "");
+        return buildFirebaseDoc(product.id, {
+          product_id: product.id,
+          name: product.name || "",
+          category_id: product.category || "",
+          category_label: category.label || "",
+          category_label_vi: categoryLabelParts.vi,
+          category_label_en: categoryLabelParts.en,
+          price: Number(product.price) || 0,
+          stock: Number(product.stock) || 0,
+          barcode: normalizeBarcode(product.barcode || ""),
+          image: product.image || "",
+          description: product.description || "",
+          component_ids: Array.isArray(product.componentIds) ? product.componentIds.slice() : [],
+          active: product.active !== false,
+          created_at: null,
+          updated_at: null
+        });
+      }
+
+      function getInvoiceTemplateDoc(template) {
+        return buildFirebaseDoc(template.id, Object.assign({}, template, {
+          selected: template.id === selectedInvoiceTemplateId
+        }));
+      }
+
+      function getBarcodeTemplateDoc(template) {
+        return buildFirebaseDoc(template.id, Object.assign({}, template, {
+          selected: template.id === selectedBarcodeTemplateId
+        }));
+      }
+
+      function serializeOrderItem(item) {
+        var product = productLookup[item.productId] || {};
+        return {
+          id: item.id || "",
+          product_id: item.productId || "",
+          product_name: item.name || product.name || "",
+          barcode: normalizeBarcode(item.barcode || product.barcode || ""),
+          quantity: Number(item.qty) || 0,
+          unit_price: Number(item.price) || 0,
+          add_on_ids: Array.isArray(item.addOnIds) ? item.addOnIds.slice() : [],
+          add_ons: (item.addOnIds || []).map(function (addOnId) {
+            var addOn = addOnLookup[addOnId] || {};
+            var labelParts = splitBilingualLabel(addOn.label || "");
+            return {
+              id: addOnId,
+              label: addOn.label || "",
+              label_vi: labelParts.vi,
+              label_en: labelParts.en,
+              price: Number(addOn.price) || 0,
+              group: addOn.group || ""
+            };
+          }),
+          note: item.note || ""
+        };
+      }
+
+      function getOpenOrderDoc(order) {
+        var totals = calculateOrder(order, addOns);
+        return buildFirebaseDoc(order.id, {
+          order_id: order.id,
+          customer_name: order.customerName || "",
+          payment_method: order.paymentMethod || "",
+          cash_received: Number(order.cashReceived) || 0,
+          status: order.status || "open",
+          created_at: formatExportDateTime(order.createdAt),
+          subtotal: Number(totals.subtotal) || 0,
+          discount_amount: Number(totals.discount) || 0,
+          vat_amount: Number(totals.vat) || 0,
+          total_amount: Number(totals.total) || 0,
+          items: (order.items || []).map(serializeOrderItem)
+        });
+      }
+
+      function getCompletedSaleDoc(sale, index) {
+        return buildFirebaseDoc(sale.orderId || "sale-" + padNumber(index + 1, 4), {
+          sale_id: sale.orderId || "sale-" + padNumber(index + 1, 4),
+          order_id: sale.orderId || "",
+          customer_name: sale.customerName || "",
+          payment_method: sale.paymentMethod || "",
+          cash_received: Number(sale.cashReceived) || 0,
+          cashier_name: sale.cashierName || "",
+          subtotal: Number(sale.subtotal) || 0,
+          discount_amount: Number(sale.discount) || 0,
+          vat_amount: Number(sale.vat) || 0,
+          total_amount: Number(sale.total) || 0,
+          payment_status: sale.paymentStatus || "paid",
+          order_status: sale.orderStatus || "completed",
+          created_at: formatExportDateTime(sale.createdAt),
+          items: (sale.items || []).map(serializeOrderItem)
+        });
+      }
+
+      var appCollections = {
+        app_config: [
+          buildFirebaseDoc("store", Object.assign({}, settings, {
+            selected_invoice_template_id: selectedInvoiceTemplateId,
+            selected_barcode_template_id: selectedBarcodeTemplateId,
+            default_language: language,
+            app_version: APP_VERSION
+          })),
+          buildFirebaseDoc("runtime", {
+            active_order_id: activeOrderId || "",
+            order_sequence_by_date: Object.assign({}, orderSequenceByDate || {}),
+            exported_at: formatExportDateTime(now),
+            source_storage_key: STORAGE_KEY
+          })
+        ],
+        categories: categories.map(getCategoryDoc),
+        add_ons: addOns.map(getAddOnDoc),
+        components: components
+          .filter(function (component) {
+            return !exportActiveOnly || component.active !== false;
+          })
+          .map(getComponentDoc),
+        products: products
+          .filter(function (product) {
+            return !exportActiveOnly || product.active !== false;
+          })
+          .map(getProductDoc),
+        invoice_templates: invoiceTemplates.map(getInvoiceTemplateDoc),
+        barcode_templates: barcodeTemplates.map(getBarcodeTemplateDoc),
+        open_orders: exportCompletedOrdersOnly
+          ? []
+          : orders.filter(function (order) {
+              return matchesExportDateRange(order.createdAt, exportFilterMode === "date_range" ? exportStartDate : "", exportFilterMode === "date_range" ? exportEndDate : "");
+            }).map(getOpenOrderDoc),
+        completed_sales: sales.filter(function (sale) {
+          return matchesExportDateRange(sale.createdAt, exportFilterMode === "date_range" ? exportStartDate : "", exportFilterMode === "date_range" ? exportEndDate : "");
+        }).map(getCompletedSaleDoc)
+      };
+
+      var relationalCollections = {};
+      var relationalTables = {};
+      var relationalSchema = [];
+      EXPORT_TABLE_SCHEMAS.forEach(function (tableSchema) {
+        if (tableNames && tableNames.length && tableNames.indexOf(tableSchema.tableName) === -1) {
+          return;
+        }
+
+        relationalTables[tableSchema.tableName] = exportPayload.rowsByTable[tableSchema.tableName] || [];
+        relationalSchema.push((exportPayload.schema || []).find(function (schemaItem) {
+          return schemaItem.table_name === tableSchema.tableName;
+        }));
+        relationalCollections[tableSchema.tableName] = buildFirestoreDocsFromRows(
+          tableSchema,
+          exportPayload.rowsByTable[tableSchema.tableName] || []
+        );
+      });
+
+      var firestoreCollections = Object.assign({}, appCollections, relationalCollections);
+      var realtimeDatabase = Object.keys(firestoreCollections).reduce(function (result, collectionName) {
+        result[collectionName] = mapDocsById(firestoreCollections[collectionName]);
+        return result;
+      }, {});
+
+      return {
+        meta: {
+          format: "firebase-seed-v1",
+          exported_at: formatExportDateTime(now),
+          app_version: APP_VERSION,
+          source_storage_key: STORAGE_KEY,
+          export_filters: {
+            filter_mode: exportFilterMode,
+            start_date: exportFilterMode === "date_range" ? (exportStartDate || null) : null,
+            end_date: exportFilterMode === "date_range" ? (exportEndDate || null) : null,
+            active_only: exportActiveOnly,
+            completed_orders_only: exportCompletedOrdersOnly,
+            selected_relational_tables: tableNames && tableNames.length ? tableNames.slice() : getExportTableNames()
+          }
+        },
+        firestore: {
+          collections: firestoreCollections
+        },
+        realtimeDatabase: realtimeDatabase,
+        relationalTables: relationalTables,
+        relationalSchema: relationalSchema.filter(Boolean),
+        exportLog: exportPayload.exportLog
+      };
+    }
+
     function downloadBlob(blob, fileName) {
       var url = window.URL.createObjectURL(blob);
       var link = document.createElement("a");
@@ -3152,6 +3472,18 @@
         padNumber(now.getHours(), 2),
         padNumber(now.getMinutes(), 2)
       ].join("-") + ".zip";
+    }
+
+    function buildFirebaseSeedFileName() {
+      var now = new Date();
+      return "firebase_seed_" + [
+        now.getFullYear(),
+        padNumber(now.getMonth() + 1, 2),
+        padNumber(now.getDate(), 2)
+      ].join("-") + "_" + [
+        padNumber(now.getHours(), 2),
+        padNumber(now.getMinutes(), 2)
+      ].join("-") + ".json";
     }
 
     function exportDatabaseBackup(tableNames) {
@@ -3204,6 +3536,29 @@
       }).finally(function () {
         setExportBusy(false);
       });
+    }
+
+    function exportFirebaseSeed(tableNames) {
+      if (exportFilterMode === "date_range" && exportStartDate && exportEndDate && exportStartDate > exportEndDate) {
+        window.alert(L("Khoảng ngày export chưa hợp lệ. / The export date range is invalid."));
+        return;
+      }
+
+      setExportBusy(true);
+
+      window.setTimeout(function () {
+        try {
+          var payload = buildFirebaseSeedPayload(tableNames);
+          var jsonBlob = new window.Blob([
+            JSON.stringify(payload, null, 2)
+          ], { type: "application/json;charset=utf-8" });
+          downloadBlob(jsonBlob, buildFirebaseSeedFileName());
+        } catch (error) {
+          window.alert(L("Không thể tạo file Firebase seed. / Failed to create the Firebase seed file."));
+        } finally {
+          setExportBusy(false);
+        }
+      }, 0);
     }
 
     function updateProductDraft(field, value) {
@@ -4242,6 +4597,9 @@
                 <button className="ghost-btn" onClick=${function () {
                   exportDatabaseBackup(selectedExportTables);
                 }} disabled=${exportBusy}>${L("Export Selected Tables")}</button>
+                <button className="ghost-btn" onClick=${function () {
+                  exportFirebaseSeed(selectedExportTables);
+                }} disabled=${exportBusy}>${L("Export Firebase Seed JSON")}</button>
               </div>
             </div>
 
@@ -4282,6 +4640,9 @@
 
                 <div className="empty-state align-left">
                   ${L("ZIP backup sẽ chứa toàn bộ CSV, schema.json và export_log.json theo cấu trúc chuẩn để dùng cho Google Sheets hoặc migrate sang database sau này. / The ZIP backup will contain all CSVs, schema.json, and export_log.json so you can use it in Google Sheets now and migrate to a database later.")}
+                </div>
+                <div className="empty-state align-left">
+                  ${L("Firebase Seed JSON sẽ xuất dữ liệu hiện tại theo dạng collections để bạn dễ nhập vào Firestore hoặc Realtime Database, đồng thời vẫn kèm relational tables để migrate tiếp sang database thật sau này. / Firebase Seed JSON exports your current data as collections for Firestore or Realtime Database, while still keeping relational tables for a later move to a full database.")}
                 </div>
               </div>
 
