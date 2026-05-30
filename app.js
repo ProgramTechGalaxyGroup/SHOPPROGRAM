@@ -1767,6 +1767,8 @@
     // POS category sidebar: which parent categories are currently expanded.
     // Object map { [parentId]: true }. Starts empty (all collapsed).
     var [expandedCategories, setExpandedCategories] = useState({});
+    // Quick-add category form toggle on POS sidebar
+    var [showQuickCategoryForm, setShowQuickCategoryForm] = useState(false);
     function toggleCategoryExpanded(id) {
       setExpandedCategories(function (cur) {
         var next = Object.assign({}, cur);
@@ -5538,6 +5540,74 @@
                   `;
                 });
               })()}
+
+              ${html`
+                <button
+                  className="category-pill category-pill-toolbar"
+                  onClick=${function () {
+                    setShowQuickCategoryForm(function (v) { return !v; });
+                    if (!showQuickCategoryForm) resetCategoryDraft();
+                  }}
+                  style=${{ justifyContent: "center", opacity: 0.7, borderStyle: "dashed" }}
+                >
+                  <span>${showQuickCategoryForm ? "✕" : "+"}</span>
+                  <span style=${{ flex: 1, textAlign: "left" }}>
+                    ${showQuickCategoryForm ? L("Đóng / Close") : L("Thêm danh mục / Add Category")}
+                  </span>
+                </button>
+              `}
+
+              ${showQuickCategoryForm ? html`
+                <form
+                  className="quick-cat-form"
+                  onSubmit=${function (e) {
+                    e.preventDefault();
+                    var label = buildBilingualLabel(categoryDraft.labelVi, categoryDraft.labelEn);
+                    if (!label.trim()) {
+                      window.alert(L("Nhập tên danh mục trước khi lưu. / Enter a category name before saving."));
+                      return;
+                    }
+                    submitCategory(e);
+                    setShowQuickCategoryForm(false);
+                  }}
+                  style=${{
+                    display: "grid",
+                    gap: "10px",
+                    padding: "14px",
+                    borderRadius: "18px",
+                    background: "rgba(255, 248, 240, 0.95)",
+                    border: "1px solid rgba(111, 84, 41, 0.12)"
+                  }}
+                >
+                  <input
+                    placeholder=${L("Tên tiếng Việt / Vietnamese Name")}
+                    value=${categoryDraft.labelVi}
+                    onInput=${function (e) { updateCategoryDraft("labelVi", e.target.value); }}
+                    style=${{ padding: "10px 14px", borderRadius: "12px", fontSize: "0.9rem" }}
+                  />
+                  <input
+                    placeholder=${L("Tên tiếng Anh / English Name")}
+                    value=${categoryDraft.labelEn}
+                    onInput=${function (e) { updateCategoryDraft("labelEn", e.target.value); }}
+                    style=${{ padding: "10px 14px", borderRadius: "12px", fontSize: "0.9rem" }}
+                  />
+                  <div style=${{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <input
+                      placeholder=${L("Icon")}
+                      value=${categoryDraft.icon}
+                      onInput=${function (e) { updateCategoryDraft("icon", e.target.value); }}
+                      style=${{ width: "60px", padding: "10px", borderRadius: "12px", fontSize: "1.1rem", textAlign: "center", flex: "0 0 auto" }}
+                    />
+                    <button
+                      type="submit"
+                      className="primary-btn"
+                      style=${{ flex: 1, padding: "10px 14px", borderRadius: "12px", fontSize: "0.9rem" }}
+                    >
+                      ${L("Thêm / Add")}
+                    </button>
+                  </div>
+                </form>
+              ` : null}
             </div>
           </aside>
 
