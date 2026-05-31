@@ -1,0 +1,14 @@
+# Cloudflare Pages custom headers
+# Prevent browser from caching local JS/CSS so deploys take effect immediately.
+
+/app.js
+  Cache-Control: no-cache, must-revalidate
+  
+/sync.js
+  Cache-Control: no-cache, must-revalidate
+
+/styles.css
+  Cache-Control: no-cache, must-revalidate
+
+/index.html
+  Cache-Control: no-cache, must-revalidate
