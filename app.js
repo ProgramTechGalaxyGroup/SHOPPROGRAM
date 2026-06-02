@@ -17,6 +17,13 @@
   var useState = window.React.useState;
   var html = window.htm.bind(window.React.createElement);
 
+  // Bump this version to force a full re-sync for all clients when data structure changes
+  var CACHE_VERSION = 2;
+  if (window.localStorage && window.localStorage.getItem("shopflow-cache-version") !== String(CACHE_VERSION)) {
+    window.localStorage.removeItem("shopflow-last-sync-at");
+    window.localStorage.removeItem("shopflow-categories");
+    window.localStorage.setItem("shopflow-cache-version", String(CACHE_VERSION));
+  }
   var STORAGE_KEY = "fruit-house-pos-suite-v3";
   var APP_VERSION = "3.5.0";
   var VAT_RATE = 0.08;
@@ -1645,6 +1652,8 @@
     `;
   }
 
+
+
   // -----------------------------------------------------------------
   // Cloudflare D1 sync bridge.
   // window.ShopFlowSync is provided by sync.js (loaded before app.js).
@@ -1723,7 +1732,47 @@
     var [categories, setCategories] = useState(initialState.categories);
     var [addOns, setAddOns] = useState(initialState.addOns);
     var [components, setComponents] = useState(initialState.components);
-    var [products, setProducts] = useState(initialState.products);
+    var [rawProducts, setProducts] = useState(initialState.products);
+    var products = useMemo(function () {
+      return rawProducts.map(function(product) {
+        var cat = categories.find(function(c) { return c.id === product.categoryId; });
+        var catCode = cat ? parseInt(cat.code || "0", 10) : 0;
+        
+        var isMixedDrink = (catCode >= 10000 && catCode <= 50000);
+        var effectiveStock = Number(product.stock) || 0;
+        
+        if (isMixedDrink) {
+          if (!product.componentIds || product.componentIds.length === 0) {
+            effectiveStock = Number(product.stock) || 0;
+          } else {
+            var minPossible = Infinity;
+            for (var i = 0; i < product.componentIds.length; i++) {
+              var req = product.componentIds[i];
+              var reqId = typeof req === "string" ? req : req.id;
+              var reqQty = typeof req === "string" ? 1 : (Number(req.qty) || 1);
+              
+              var compProduct = rawProducts.find(function(p) { return p.id === reqId; });
+              if (!compProduct) {
+                minPossible = 0;
+                break;
+              }
+              var compStock = Number(compProduct.stock) || 0;
+              var possible = Math.floor(compStock / reqQty);
+              if (possible < minPossible) {
+                minPossible = possible;
+              }
+            }
+            effectiveStock = minPossible === Infinity ? 0 : Math.max(0, minPossible);
+          }
+        }
+        
+        return Object.assign({}, product, {
+          isMixedDrink: isMixedDrink,
+          rawStock: Number(product.stock) || 0,
+          stock: isMixedDrink ? effectiveStock : product.stock
+        });
+      });
+    }, [rawProducts, categories]);
     var [sales, setSales] = useState(initialState.sales);
     var [orders, setOrders] = useState(initialState.orders);
     var [activeOrderId, setActiveOrderId] = useState(initialState.activeOrderId || initialState.orders[0].id);
@@ -3061,14 +3110,27 @@
     }
 
     function getOrderProductQuantities(items) {
-      return (items || []).reduce(function (quantitiesByProduct, item) {
-        if (!item || !item.productId) {
-          return quantitiesByProduct;
+      var quantitiesByProduct = {};
+      (items || []).forEach(function (item) {
+        if (!item || !item.productId) return;
+        var qty = Number(item.qty) || 0;
+        if (qty <= 0) return;
+        
+        var product = products.find(function(p) { return p.id === item.productId; });
+        if (product && product.isMixedDrink) {
+          var components = product.componentIds || [];
+          if (components.length > 0) {
+            components.forEach(function(comp) {
+              var compId = typeof comp === "string" ? comp : comp.id;
+              var compQty = typeof comp === "string" ? 1 : (Number(comp.qty) || 1);
+              quantitiesByProduct[compId] = (quantitiesByProduct[compId] || 0) + (compQty * qty);
+            });
+          }
+        } else {
+          quantitiesByProduct[item.productId] = (quantitiesByProduct[item.productId] || 0) + qty;
         }
-
-        quantitiesByProduct[item.productId] = (quantitiesByProduct[item.productId] || 0) + (Number(item.qty) || 0);
-        return quantitiesByProduct;
-      }, {});
+      });
+      return quantitiesByProduct;
     }
 
     function holdOrder() {
@@ -6369,14 +6431,14 @@
                                   <p>${category ? L(category.label) : product.category} · ${product.barcode}</p>
                                 </div>
                                 <div className="row-actions stock-editor">
-                                  <${LocalNumberInput}
+                                  ${product.isMixedDrink ? html`<span className="stock-badge" title="Tồn ảo / Virtual stock" style=${{ background: "#f0f0f0", color: "#555" }}>${product.stock}</span>` : html`<${LocalNumberInput}
                                     min="0"
                                     value=${product.stock}
                                     onChange=${function (val) {
                                       updateProductStock(product.id, val);
                                     }}
                                     onBlur=${function () { flushPendingStockEdit(product.id); }}
-                                  />
+                                  />`}
                                   <button className="ghost-btn" onClick=${function () { startEditProduct(product); }}>${L("Sửa / Edit")}</button>
                                 </div>
                               </article>
@@ -8049,11 +8111,12 @@
             />
           </div>
 
-          <div
-            className="lang-switch surface"
-            title=${syncStatus.lastError ? syncStatus.lastError : (syncStatus.online ? "D1 online" : "Offline")}
-            style=${{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px", marginRight: 8 }}
-          >
+          <div className="topbar-actions" style=${{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <div
+              className="lang-switch surface"
+              title=${syncStatus.lastError ? syncStatus.lastError : (syncStatus.online ? "D1 online" : "Offline")}
+              style=${{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px" }}
+            >
             <span style=${{ fontSize: 14 }}>${syncStatus.online ? "🟢" : "🔴"}</span>
             <small style=${{ color: "#7b6b5d" }}>
               ${syncStatus.online ? "D1" : L("Ngoại tuyến / Offline")}
@@ -8070,7 +8133,7 @@
               }).join("\n")}
               style=${{
                 display: "inline-flex", alignItems: "center", gap: 8,
-                padding: "6px 12px", marginRight: 8,
+                padding: "6px 12px",
                 background: "#fff1eb", border: "1px solid #f5b893",
                 color: "#a4451a", cursor: "pointer", fontWeight: 600
               }}
@@ -8096,6 +8159,7 @@
                 </button>
               `;
             })}
+          </div>
           </div>
         </header>
 

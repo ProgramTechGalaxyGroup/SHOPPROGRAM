@@ -74,17 +74,61 @@ export const onRequestPost = async ({ env, request }) => {
     if (dup) return json({ ok: true, duplicate: true, id: dup });
   }
 
-  // -------- B1: Server-side stock guard --------
-  // Aggregate required qty per product, then load current on-hand and reject
-  // when not enough (unless explicitly allowed for stocktake/admin flows).
+  // -------- B1: Server-side stock guard & BOM Expansion --------
+  // Expand mixed drinks (category code 10000-50000) into their components.
+  const productIds = [...new Set(body.items.map((it) => it.productId).filter(Boolean))];
+  let productInfoMap = new Map();
+  if (productIds.length > 0) {
+    const placeholders = productIds.map(() => "?").join(",");
+    const sql = `
+      SELECT p.id, p.component_ids, c.code as category_code
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      WHERE p.id IN (${placeholders})
+    `;
+    const { results } = await env.DB.prepare(sql).bind(...productIds).all();
+    if (results) {
+      results.forEach((r) => productInfoMap.set(r.id, r));
+    }
+  }
+
   const requiredByProduct = new Map();
+  const qtyByProduct = new Map();
+
   for (const it of body.items) {
     if (!it.productId) continue;
-    requiredByProduct.set(
-      it.productId,
-      (requiredByProduct.get(it.productId) || 0) + (Number(it.qty) || 0)
-    );
+    const qty = Number(it.qty) || 0;
+    if (qty <= 0) continue;
+
+    const info = productInfoMap.get(it.productId);
+    let isMixedDrink = false;
+    if (info && info.category_code) {
+      const codeNum = parseInt(info.category_code, 10);
+      if (codeNum >= 10000 && codeNum <= 50000) {
+        isMixedDrink = true;
+      }
+    }
+
+    if (isMixedDrink) {
+      let components = [];
+      try {
+        components = JSON.parse(info.component_ids || "[]");
+      } catch (e) {}
+      if (Array.isArray(components) && components.length > 0) {
+        for (const comp of components) {
+          const compId = typeof comp === "string" ? comp : comp.id;
+          const compQty = typeof comp === "string" ? 1 : (Number(comp.qty) || 1);
+          const totalCompQty = compQty * qty;
+          requiredByProduct.set(compId, (requiredByProduct.get(compId) || 0) + totalCompQty);
+          qtyByProduct.set(compId, (qtyByProduct.get(compId) || 0) + totalCompQty);
+        }
+      }
+    } else {
+      requiredByProduct.set(it.productId, (requiredByProduct.get(it.productId) || 0) + qty);
+      qtyByProduct.set(it.productId, (qtyByProduct.get(it.productId) || 0) + qty);
+    }
   }
+
   if (!body.allowNegativeStock) {
     const checks = await Promise.all(
       [...requiredByProduct.keys()].map((pid) =>
@@ -188,13 +232,8 @@ export const onRequestPost = async ({ env, request }) => {
     )
   );
 
-  // Aggregate qty per product for inventory updates (a product may appear twice
-  // with different addons but stock decrements by total qty).
-  const qtyByProduct = new Map();
-
   enriched.forEach((it) => {
     const qty = Number(it.qty) || 0;
-    qtyByProduct.set(it.productId, (qtyByProduct.get(it.productId) || 0) + qty);
 
     stmts.push(
       env.DB.prepare(
