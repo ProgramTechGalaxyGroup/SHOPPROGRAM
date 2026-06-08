@@ -1,8 +1,9 @@
-import { json } from "../_lib.js";
+import { json, ensureProductsInventoryModeColumn } from "../_lib.js";
 
 // GET /api/inventory
 // Returns current on-hand for every product plus min_stock + low-stock flag.
 export const onRequestGet = async ({ env, request }) => {
+  await ensureProductsInventoryModeColumn(env.DB);
   const url = new URL(request.url);
   const lowOnly = url.searchParams.get("low") === "1";
   const sql = `

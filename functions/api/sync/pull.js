@@ -1,13 +1,19 @@
-import { json } from "../_lib.js";
+import {
+  json,
+  ensureProductsInventoryModeColumn,
+  ensureComponentsInventoryColumns,
+} from "../_lib.js";
 
 // GET /api/sync/pull?since=<ts>
 // Returns a delta of everything updated after `since`. Client uses it for
 // background sync. Without `since` it returns the full snapshot.
 export const onRequestGet = async ({ env, request }) => {
+  await ensureProductsInventoryModeColumn(env.DB);
+  await ensureComponentsInventoryColumns(env.DB);
   const url = new URL(request.url);
   const since = Number(url.searchParams.get("since")) || 0;
 
-  const [categories, addOns, products, inventory, settings, recentSales] =
+  const [categories, addOns, components, products, inventory, settings, recentSales] =
     await Promise.all([
       env.DB.prepare(
         `SELECT id, label, icon, sort_order, is_active, updated_at,
@@ -26,8 +32,14 @@ export const onRequestGet = async ({ env, request }) => {
       // When `since=0` (first pull) we return EVERYTHING; otherwise only
       // rows touched after `since`.
       env.DB.prepare(
+        `SELECT id, label, unit, note, stock_qty, min_stock, is_active, updated_at
+         FROM components WHERE updated_at > ? OR is_active = 0`
+      ).bind(since).all(),
+
+      env.DB.prepare(
         `SELECT p.id, p.name, p.category_id, p.price, p.cost_price, p.barcode,
                 p.image, p.description, p.component_ids, p.min_stock, p.is_active,
+                p.inventory_mode,
                 p.unit, p.sku_code, p.updated_at,
                 COALESCE(i.qty_on_hand, 0) AS stock
          FROM products p
@@ -50,8 +62,9 @@ export const onRequestGet = async ({ env, request }) => {
 
       env.DB.prepare(
         `SELECT 
-           s.id, s.created_at, s.total, s.payment_method, s.customer_name,
-           s.subtotal, s.vat_amount, s.discount, s.paid, s.change_amount, s.note,
+           s.id, s.order_id, s.created_at, s.total, s.payment_method, s.customer_name,
+           s.subtotal, s.vat_amount, s.discount, s.paid, s.change_amount,
+           s.cashier_name, s.payment_status, s.order_status, s.note,
            (
              SELECT json_group_array(
                json_object(
@@ -79,6 +92,7 @@ export const onRequestGet = async ({ env, request }) => {
     since,
     categories: categories.results || [],
     addOns:     addOns.results || [],
+    components: components.results || [],
     products:   products.results || [],
     inventory:  inventory.results || [],
     settings:   settings.results || [],

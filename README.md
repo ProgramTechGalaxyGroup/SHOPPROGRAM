@@ -57,6 +57,21 @@ npx wrangler d1 execute shopflow-db --remote --file=./migrations/0002_seed.sql
 npx wrangler pages deploy .
 ```
 
+## Chuẩn bị cho Vercel + Supabase
+
+Repo này hiện đã có sẵn bộ dữ liệu và schema để chuẩn bị migrate sang `Vercel + Supabase`.
+
+- Hướng dẫn: [VERCEL_SUPABASE_SETUP.md](./VERCEL_SUPABASE_SETUP.md)
+- Schema: [supabase/schema.sql](./supabase/schema.sql)
+- Seed SQL: [supabase/seed.sql](./supabase/seed.sql)
+- Seed JSON: [supabase/seed.json](./supabase/seed.json)
+
+Để build lại bundle seed từ dữ liệu hiện có:
+
+```bash
+node scripts/build_supabase_bundle.js
+```
+
 ## API tóm tắt
 
 | Endpoint | Mô tả |

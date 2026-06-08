@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-06-08T09:18:15.358Z",
+  "files": [
+    "supabase/schema.sql",
+    "supabase/seed.sql",
+    "supabase/seed.json"
+  ],
+  "table_counts": {
+    "categories": 12,
+    "add_ons": 8,
+    "components": 6,
+    "products": 150,
+    "inventory": 150,
+    "stock_movements": 0,
+    "suppliers": 0,
+    "purchase_orders": 0,
+    "purchase_order_items": 0,
+    "stock_issues": 0,
+    "stock_issue_items": 0,
+    "sales": 0,
+    "sale_items": 0,
+    "settings": 5,
+    "sync_log": 0,
+    "doc_sequences": 0
+  }
+}

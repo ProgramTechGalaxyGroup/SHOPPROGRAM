@@ -1,7 +1,7 @@
 import {
   json, readJson, badRequest, now, uid,
   isDuplicateOp, recordOpStmt, runIdempotentBatch, nextDocId,
-  inventoryDeltaStmt, movementStmt, getProductName,
+  inventoryDeltaStmt, movementStmt, getProductName, normalizePaymentMethod,
 } from "../_lib.js";
 
 // GET /api/purchases?from=&to=&limit=
@@ -101,6 +101,7 @@ export const onRequestPost = async ({ env, request }) => {
   );
 
   const stmts = [];
+  const paymentMethod = normalizePaymentMethod(body.paymentMethod || "cash");
   stmts.push(
     env.DB.prepare(
       `INSERT INTO purchase_orders
@@ -113,7 +114,7 @@ export const onRequestPost = async ({ env, request }) => {
       body.supplierName || null,
       total,
       Number(body.paidAmount) || total,
-      body.paymentMethod || null,
+      paymentMethod,
       body.note || null,
       ts
     )

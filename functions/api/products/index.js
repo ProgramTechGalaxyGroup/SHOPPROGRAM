@@ -1,16 +1,18 @@
 import {
   json, badRequest, readJson, now, isDuplicateOp, recordOpStmt, runIdempotentBatch,
+  ensureProductsInventoryModeColumn,
 } from "../_lib.js";
 
 // GET /api/products
 // Returns active products joined with current inventory.
 export const onRequestGet = async ({ env, request }) => {
+  await ensureProductsInventoryModeColumn(env.DB);
   const url = new URL(request.url);
   const includeInactive = url.searchParams.get("all") === "1";
   const sql = `
     SELECT p.id, p.name, p.category_id, p.price, p.cost_price, p.barcode,
            p.image, p.description, p.component_ids, p.min_stock, p.is_active,
-           p.unit, p.sku_code, p.updated_at,
+           p.unit, p.sku_code, p.inventory_mode, p.updated_at,
            COALESCE(i.qty_on_hand, 0) AS stock,
            i.updated_at AS inventory_updated_at
     FROM products p
@@ -33,6 +35,7 @@ export const onRequestGet = async ({ env, request }) => {
     isActive: !!r.is_active,
     stock: Number(r.stock) || 0,
     unit: r.unit || "",
+    inventoryMode: r.inventory_mode || "stock",
     skuCode: r.sku_code || r.id,
     updatedAt: Number(r.updated_at) || 0,
   }));
@@ -43,6 +46,7 @@ export const onRequestGet = async ({ env, request }) => {
 // Upsert (create or update). Body: { id?, name, category, price, costPrice?,
 //   barcode?, image?, description?, componentIds?, minStock?, clientOpId? }
 export const onRequestPost = async ({ env, request }) => {
+  await ensureProductsInventoryModeColumn(env.DB);
   const body = await readJson(request);
   if (!body || !body.name) return badRequest("name is required");
 
@@ -61,8 +65,8 @@ export const onRequestPost = async ({ env, request }) => {
     env.DB.prepare(
       `INSERT INTO products
          (id, name, category_id, price, cost_price, barcode, image, description,
-          component_ids, min_stock, is_active, updated_at, unit, sku_code)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+          component_ids, min_stock, is_active, updated_at, unit, sku_code, inventory_mode)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          name=excluded.name,
          category_id=excluded.category_id,
@@ -76,6 +80,7 @@ export const onRequestPost = async ({ env, request }) => {
          is_active=1,
          unit=excluded.unit,
          sku_code=excluded.sku_code,
+         inventory_mode=excluded.inventory_mode,
          updated_at=excluded.updated_at`
     ).bind(
       id,
@@ -90,7 +95,8 @@ export const onRequestPost = async ({ env, request }) => {
       Number(body.minStock) || 0,
       ts,
       body.unit || null,
-      body.skuCode || id
+      body.skuCode || id,
+      body.inventoryMode === "recipe" ? "recipe" : "stock"
     ),
     // Ensure an inventory row exists even if 0.
     env.DB.prepare(

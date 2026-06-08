@@ -430,6 +430,13 @@ textarea:focus {
   color: var(--text);
 }
 
+.ghost-btn.active-toggle {
+  background: linear-gradient(135deg, rgba(244, 186, 128, 0.34), rgba(255, 245, 235, 0.92));
+  border-color: rgba(219, 93, 23, 0.35);
+  color: var(--brand);
+  font-weight: 700;
+}
+
 .danger-text {
   color: var(--danger);
 }

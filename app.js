@@ -18,25 +18,90 @@
   var html = window.htm.bind(window.React.createElement);
 
   // Bump this version to force a full re-sync for all clients when data structure changes
-  var CACHE_VERSION = 2;
+  var CACHE_VERSION = 4;
   if (window.localStorage && window.localStorage.getItem("shopflow-cache-version") !== String(CACHE_VERSION)) {
     window.localStorage.removeItem("shopflow-last-sync-at");
     window.localStorage.removeItem("shopflow-categories");
     window.localStorage.setItem("shopflow-cache-version", String(CACHE_VERSION));
   }
   var STORAGE_KEY = "fruit-house-pos-suite-v3";
-  var APP_VERSION = "3.5.0";
+  var APP_VERSION = "3.5.1";
   var VAT_RATE = 0.08;
   var LANGUAGE_OPTIONS = [
     { id: "vi", label: "VI" },
     { id: "en", label: "EN" }
   ];
+  var PAYMENT_METHOD_DEFAULT = "bank_transfer";
   var PAYMENT_METHOD_OPTIONS = [
-    { value: "Tiền mặt / Cash", label: "Tiền mặt / Cash" },
-    { value: "Thẻ / Card", label: "Thẻ / Card" },
-    { value: "Chuyển khoản / Bank Transfer", label: "Chuyển khoản / Bank Transfer" },
-    { value: "Ví điện tử / E-wallet", label: "Ví điện tử / E-wallet" }
+    { value: "cash", label: "Tiền mặt / Cash" },
+    { value: "card", label: "Thẻ / Card" },
+    { value: "bank_transfer", label: "Chuyển khoản / Bank Transfer" },
+    { value: "ewallet", label: "Ví điện tử / E-wallet" }
   ];
+  var PAYMENT_METHOD_OTHER = { value: "other", label: "Khác / Other" };
+
+  function stripVietnameseAccents(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D")
+      .toLowerCase();
+  }
+
+  function normalizePaymentMethod(value) {
+    if (!value) {
+      return PAYMENT_METHOD_DEFAULT;
+    }
+
+    var raw = String(value).trim();
+    var key = raw.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    var text = stripVietnameseAccents(raw);
+
+    if (key === "cash" || /\bcash\b/.test(text) || text.indexOf("tien mat") !== -1) {
+      return "cash";
+    }
+    if (key === "card" || /\bcard\b/.test(text) || /\bthe\b/.test(text)) {
+      return "card";
+    }
+    if (
+      key === "bank_transfer" ||
+      key === "banktransfer" ||
+      key === "transfer" ||
+      text.indexOf("bank transfer") !== -1 ||
+      text.indexOf("chuyen khoan") !== -1
+    ) {
+      return "bank_transfer";
+    }
+    if (
+      key === "ewallet" ||
+      key === "e_wallet" ||
+      key === "wallet" ||
+      text.indexOf("e-wallet") !== -1 ||
+      text.indexOf("e wallet") !== -1 ||
+      text.indexOf("vi dien tu") !== -1 ||
+      text.indexOf("wallet") !== -1
+    ) {
+      return "ewallet";
+    }
+
+    return "other";
+  }
+
+  function getPaymentMethodOption(value) {
+    var method = normalizePaymentMethod(value);
+    return PAYMENT_METHOD_OPTIONS.find(function (option) {
+      return option.value === method;
+    }) || PAYMENT_METHOD_OTHER;
+  }
+
+  function getPaymentMethodLabel(value) {
+    return getPaymentMethodOption(value).label;
+  }
+
+  function isCashPaymentMethod(value) {
+    return normalizePaymentMethod(value) === "cash";
+  }
 
   var FILTER_ALL_CATEGORY = { id: "all", label: "Tất cả / All", icon: "🛒" };
   // Master category list — matches migrations/0004_oria_master.sql.
@@ -71,12 +136,12 @@
   ];
 
   var DEFAULT_COMPONENT_OPTIONS = [
-    { id: "orange", label: "Cam / Orange", unit: "trái / fruits", note: "Nguyên liệu nước ép cam / Juice base" },
-    { id: "watermelon", label: "Dưa hấu / Watermelon", unit: "gram", note: "Nguyên liệu lạnh / Chilled prep" },
-    { id: "mint", label: "Lá bạc hà / Mint", unit: "lá / leaves", note: "Trang trí và tạo mùi / Garnish" },
-    { id: "honey", label: "Mật ong / Honey", unit: "ml", note: "Tăng vị ngọt / Sweetener" },
-    { id: "yogurt-base", label: "Sữa chua / Yogurt", unit: "gram", note: "Base cho smoothie / Smoothie base" },
-    { id: "chia-base", label: "Hạt chia / Chia Seeds", unit: "gram", note: "Topping mặc định / Default topping" }
+    { id: "orange", label: "Cam / Orange", unit: "trái / fruits", note: "Nguyên liệu nước ép cam / Juice base", stockQty: 0, minStock: 0, active: true },
+    { id: "watermelon", label: "Dưa hấu / Watermelon", unit: "gram", note: "Nguyên liệu lạnh / Chilled prep", stockQty: 0, minStock: 0, active: true },
+    { id: "mint", label: "Lá bạc hà / Mint", unit: "lá / leaves", note: "Trang trí và tạo mùi / Garnish", stockQty: 0, minStock: 0, active: true },
+    { id: "honey", label: "Mật ong / Honey", unit: "ml", note: "Tăng vị ngọt / Sweetener", stockQty: 0, minStock: 0, active: true },
+    { id: "yogurt-base", label: "Sữa chua / Yogurt", unit: "gram", note: "Base cho smoothie / Smoothie base", stockQty: 0, minStock: 0, active: true },
+    { id: "chia-base", label: "Hạt chia / Chia Seeds", unit: "gram", note: "Topping mặc định / Default topping", stockQty: 0, minStock: 0, active: true }
   ];
 
   // Demo/seed product list — only used the very first time the app loads on
@@ -1270,9 +1335,33 @@
       status: baseOrder.status || "open",
       createdAt: baseOrder.createdAt || Date.now(),
       customerName: baseOrder.customerName || "Khách lẻ / Walk-in",
-      paymentMethod: baseOrder.paymentMethod || "Chuyển khoản / Bank Transfer",
+      paymentMethod: normalizePaymentMethod(baseOrder.paymentMethod),
       cashReceived: Number(baseOrder.cashReceived) || 0
     };
+  }
+
+  function normalizeSaleRecord(sale) {
+    var baseSale = sale || {};
+    return Object.assign({}, baseSale, {
+      id: baseSale.id || uid("sale"),
+      orderId: baseSale.orderId || baseSale.order_id || "",
+      createdAt: Number(baseSale.createdAt || baseSale.created_at) || Date.now(),
+      total: Number(baseSale.total) || 0,
+      subtotal: Number(baseSale.subtotal) || 0,
+      discount: Number(baseSale.discount) || 0,
+      vat: Number(baseSale.vat || baseSale.vatAmount || baseSale.vat_amount) || 0,
+      vatAmount: Number(baseSale.vatAmount || baseSale.vat_amount || baseSale.vat) || 0,
+      paid: Number(baseSale.paid) || 0,
+      changeAmount: Number(baseSale.changeAmount || baseSale.change_amount) || 0,
+      paymentMethod: normalizePaymentMethod(baseSale.paymentMethod || baseSale.payment_method),
+      customerName: baseSale.customerName || baseSale.customer_name || "",
+      cashReceived: Number(baseSale.cashReceived || baseSale.paid) || 0,
+      cashierName: baseSale.cashierName || baseSale.cashier_name || "",
+      paymentStatus: baseSale.paymentStatus || baseSale.payment_status || "paid",
+      orderStatus: baseSale.orderStatus || baseSale.order_status || "completed",
+      note: baseSale.note || "",
+      items: Array.isArray(baseSale.items) ? baseSale.items : []
+    });
   }
 
   function getAddonById(addOnId, addOnOptions) {
@@ -1394,9 +1483,9 @@
     return {
       categories: Array.isArray(safeStored.categories) && safeStored.categories.length ? safeStored.categories : clone(DEFAULT_CATEGORY_OPTIONS),
       addOns: Array.isArray(safeStored.addOns) && safeStored.addOns.length ? safeStored.addOns : clone(DEFAULT_ADD_ON_OPTIONS),
-      components: Array.isArray(safeStored.components) && safeStored.components.length ? safeStored.components : clone(DEFAULT_COMPONENT_OPTIONS),
+      components: Array.isArray(safeStored.components) && safeStored.components.length ? safeStored.components.map(normalizeComponent) : clone(DEFAULT_COMPONENT_OPTIONS).map(normalizeComponent),
       products: Array.isArray(safeStored.products) && safeStored.products.length ? safeStored.products.map(normalizeProduct) : clone(DEFAULT_PRODUCTS).map(normalizeProduct),
-      sales: Array.isArray(safeStored.sales) ? safeStored.sales : [],
+      sales: Array.isArray(safeStored.sales) ? safeStored.sales.map(normalizeSaleRecord) : [],
       orders: normalizedOrders,
       activeOrderId: safeStored.activeOrderId || null,
       language: safeStored.language || "vi",
@@ -1431,7 +1520,7 @@
     return {
       categories: clone(DEFAULT_CATEGORY_OPTIONS),
       addOns: clone(DEFAULT_ADD_ON_OPTIONS),
-      components: clone(DEFAULT_COMPONENT_OPTIONS),
+      components: clone(DEFAULT_COMPONENT_OPTIONS).map(normalizeComponent),
       products: clone(DEFAULT_PRODUCTS).map(normalizeProduct),
       sales: [],
       orders: [firstOrder],
@@ -1455,9 +1544,72 @@
     return Object.assign({}, baseProduct, {
       barcode: normalizedBarcode,
       componentIds: Array.isArray(baseProduct.componentIds) ? baseProduct.componentIds : [],
+      inventoryMode: baseProduct.inventoryMode === "recipe" ? "recipe" : "stock",
       unit: baseProduct.unit || "",
       skuCode: baseProduct.skuCode || baseProduct.sku_code || baseProduct.id
     });
+  }
+
+  function normalizeComponent(component) {
+    var baseComponent = component || {};
+    return Object.assign({}, baseComponent, {
+      stockQty: Math.max(0, Number(baseComponent.stockQty != null ? baseComponent.stockQty : baseComponent.stock_qty) || 0),
+      minStock: Math.max(0, Number(baseComponent.minStock != null ? baseComponent.minStock : baseComponent.min_stock) || 0),
+      active: baseComponent.active !== false && baseComponent.is_active !== 0
+    });
+  }
+
+  function getCategoryCode(categoryId, categoryList) {
+    var category = (categoryList || []).find(function (item) { return item.id === categoryId; });
+    return parseInt((category && category.code) || "0", 10) || 0;
+  }
+
+  function isRecipeCategory(categoryId, categoryList) {
+    var code = getCategoryCode(categoryId, categoryList);
+    return code >= 10000 && code <= 50000;
+  }
+
+  function isRecipeProductId(productId) {
+    return /^ORIA(10|20|30|40|50)\d+$/i.test(String(productId || ""));
+  }
+
+  function getEffectiveInventoryMode(product, categoryList) {
+    if (product && product.inventoryMode === "recipe") return "recipe";
+    if (product && isRecipeProductId(product.id)) return "recipe";
+    if (isRecipeCategory(product && product.category, categoryList)) return "recipe";
+    return "stock";
+  }
+
+  function isRecipeTrackedProduct(product, categoryList) {
+    return getEffectiveInventoryMode(product, categoryList) === "recipe";
+  }
+
+  function getRecipeEntries(product) {
+    if (!product || !Array.isArray(product.componentIds)) return [];
+    return product.componentIds.map(function (entry) {
+      if (typeof entry === "string") {
+        return { id: entry, qty: 1, unit: "", note: "" };
+      }
+      return Object.assign({ qty: 1, unit: "", note: "" }, entry || {});
+    }).filter(function (entry) {
+      return !!entry.id;
+    });
+  }
+
+  function calculateRecipeStock(product, componentList) {
+    var recipeEntries = getRecipeEntries(product);
+    if (!recipeEntries.length) return 0;
+    var minPossible = Infinity;
+    for (var i = 0; i < recipeEntries.length; i += 1) {
+      var entry = recipeEntries[i];
+      var sourceComponent = (componentList || []).find(function (component) { return component.id === entry.id; });
+      if (!sourceComponent) return 0;
+      var qtyNeeded = Math.max(0.0001, Number(entry.qty) || 1);
+      var available = Math.max(0, Number(sourceComponent.stockQty) || 0);
+      var possible = Math.floor(available / qtyNeeded);
+      if (possible < minPossible) minPossible = possible;
+    }
+    return minPossible === Infinity ? 0 : Math.max(0, minPossible);
   }
 
   function normalizeInvoiceTemplate(template, fallbackTemplate) {
@@ -1575,7 +1727,7 @@
     if (template.showCustomerName !== false)
       metaRows.push("<div class='meta-row'><span>" + esc(pickLanguage("Khách / Cust", language)) + ":</span><span>" + esc(order.customerName || pickLanguage("Khách lẻ / Walk-in", language)) + "</span></div>");
     if (template.showPaymentMethod !== false && order.paymentMethod)
-      metaRows.push("<div class='meta-row'><span>" + esc(pickLanguage("TT / Pay", language)) + ":</span><span>" + esc(pickLanguage(order.paymentMethod, language)) + "</span></div>");
+      metaRows.push("<div class='meta-row'><span>" + esc(pickLanguage("TT / Pay", language)) + ":</span><span>" + esc(pickLanguage(getPaymentMethodLabel(order.paymentMethod), language)) + "</span></div>");
     var metaHtml = metaRows.join("");
 
     // CSS: screen preview wraps the 80mm sheet in a soft background; print
@@ -1787,44 +1939,20 @@
     var [rawProducts, setProducts] = useState(initialState.products);
     var products = useMemo(function () {
       return rawProducts.map(function(product) {
-        var cat = categories.find(function(c) { return c.id === product.categoryId; });
-        var catCode = cat ? parseInt(cat.code || "0", 10) : 0;
-        
-        var isMixedDrink = (catCode >= 10000 && catCode <= 50000);
-        var effectiveStock = Number(product.stock) || 0;
-        
-        if (isMixedDrink) {
-          if (!product.componentIds || product.componentIds.length === 0) {
-            effectiveStock = Number(product.stock) || 0;
-          } else {
-            var minPossible = Infinity;
-            for (var i = 0; i < product.componentIds.length; i++) {
-              var req = product.componentIds[i];
-              var reqId = typeof req === "string" ? req : req.id;
-              var reqQty = typeof req === "string" ? 1 : (Number(req.qty) || 1);
-              
-              var compProduct = rawProducts.find(function(p) { return p.id === reqId; });
-              if (!compProduct) {
-                minPossible = 0;
-                break;
-              }
-              var compStock = Number(compProduct.stock) || 0;
-              var possible = Math.floor(compStock / reqQty);
-              if (possible < minPossible) {
-                minPossible = possible;
-              }
-            }
-            effectiveStock = minPossible === Infinity ? 0 : Math.max(0, minPossible);
-          }
-        }
-        
+        var inventoryMode = getEffectiveInventoryMode(product, categories);
+        var isMixedDrink = inventoryMode === "recipe";
+        var effectiveStock = isMixedDrink
+          ? calculateRecipeStock(product, components)
+          : (Number(product.stock) || 0);
+
         return Object.assign({}, product, {
+          inventoryMode: inventoryMode,
           isMixedDrink: isMixedDrink,
           rawStock: Number(product.stock) || 0,
           stock: isMixedDrink ? effectiveStock : product.stock
         });
       });
-    }, [rawProducts, categories]);
+    }, [rawProducts, categories, components]);
     var [sales, setSales] = useState(initialState.sales);
     var [orders, setOrders] = useState(initialState.orders);
     var [activeOrderId, setActiveOrderId] = useState(initialState.activeOrderId || initialState.orders[0].id);
@@ -1855,7 +1983,7 @@
     var [issues, setIssues] = useState([]);
     var [movements, setMovements] = useState([]);
     // Drafts for nhập/xuất views
-    var [purchaseDraft, setPurchaseDraft] = useState({ supplierId: "", supplierName: "", paymentMethod: "Tiền mặt / Cash", note: "", items: [] });
+    var [purchaseDraft, setPurchaseDraft] = useState({ supplierId: "", supplierName: "", paymentMethod: "cash", note: "", items: [] });
     var [purchaseProductSearch, setPurchaseProductSearch] = useState("");
     var [issueDraft, setIssueDraft] = useState({ reason: "damaged", note: "", items: [] });
     var [supplierDraft, setSupplierDraft] = useState({ id: null, name: "", phone: "", address: "", note: "" });
@@ -1910,6 +2038,8 @@
       idTouched: false,
       name: "",
       category: initialState.categories[0] ? initialState.categories[0].id : "",
+      inventoryMode: initialState.categories[0] && isRecipeCategory(initialState.categories[0].id, initialState.categories) ? "recipe" : "stock",
+      inventoryModeTouched: false,
       price: 0,
       stock: 0,
       barcode: "",
@@ -1938,7 +2068,9 @@
       labelVi: "",
       labelEn: "",
       unit: "",
-      note: ""
+      note: "",
+      stockQty: 0,
+      minStock: 0
     });
     var [selectedBarcodeProductId, setSelectedBarcodeProductId] = useState(initialState.products[0] ? initialState.products[0].id : "");
     var barcodeInputRef = useRef(null);
@@ -2332,6 +2464,7 @@
                 image: row.image || prev.image || "🛒",
                 description: row.description || "",
                 componentIds: row.component_ids ? safeJsonParse(row.component_ids, []) : (prev.componentIds || []),
+                inventoryMode: row.inventory_mode || prev.inventoryMode || "stock",
                 minStock: Number(row.min_stock) || 0,
                 unit: row.unit || prev.unit || "",
                 skuCode: row.sku_code || prev.skuCode || row.id
@@ -2374,6 +2507,29 @@
             data.addOns.forEach(function (row) {
               if (row.is_active === 0) { delete byId[row.id]; return; }
               byId[row.id] = { id: row.id, label: row.label, price: Number(row.price) || 0, group: row.group_key };
+            });
+            var result = Object.keys(byId).map(function (id) { return byId[id]; });
+            return result.length ? result : current;
+          });
+        }
+        if (Array.isArray(data.components) && data.components.length) {
+          var isComponentFullSnapshot = !data.since;
+          setComponents(function (current) {
+            var byId = {};
+            if (!isComponentFullSnapshot) {
+              current.forEach(function (component) { byId[component.id] = component; });
+            }
+            data.components.forEach(function (row) {
+              if (row.is_active === 0) { delete byId[row.id]; return; }
+              byId[row.id] = normalizeComponent(Object.assign({}, byId[row.id] || {}, {
+                id: row.id,
+                label: row.label,
+                unit: row.unit || "",
+                note: row.note || "",
+                stockQty: Number(row.stock_qty) || 0,
+                minStock: Number(row.min_stock) || 0,
+                active: row.is_active !== 0
+              }));
             });
             var result = Object.keys(byId).map(function (id) { return byId[id]; });
             return result.length ? result : current;
@@ -2435,20 +2591,25 @@
                 } catch (e) {}
               }
 
-              byId[row.id] = Object.assign({}, byId[row.id] || {}, {
+              byId[row.id] = normalizeSaleRecord(Object.assign({}, byId[row.id] || {}, {
                 id: row.id,
+                orderId: row.order_id || row.orderId || (byId[row.id] && byId[row.id].orderId) || "",
                 createdAt: Number(row.created_at) || (byId[row.id] && byId[row.id].createdAt) || Date.now(),
                 total: Number(row.total) || 0,
                 subtotal: Number(row.subtotal) || 0,
                 discount: Number(row.discount) || 0,
+                vat: Number(row.vat_amount) || 0,
                 vatAmount: Number(row.vat_amount) || 0,
                 paid: Number(row.paid) || 0,
                 changeAmount: Number(row.change_amount) || 0,
-                paymentMethod: row.payment_method || "Chuyển khoản / Bank Transfer",
+                paymentMethod: normalizePaymentMethod(row.payment_method),
                 customerName: row.customer_name || "Khách lẻ / Walk-in",
+                cashierName: row.cashier_name || "",
+                paymentStatus: row.payment_status || "paid",
+                orderStatus: row.order_status || "completed",
                 note: row.note || "",
                 items: items.length > 0 ? items : (byId[row.id] ? byId[row.id].items : [])
-              });
+              }));
             });
             var merged = Object.keys(byId).map(function (id) { return byId[id]; });
             merged.sort(function (a, b) { return b.createdAt - a.createdAt; });
@@ -2903,6 +3064,23 @@
         byDay[key].orders += 1;
       });
       var daySeries = Object.keys(byDay).sort().map(function (k) { return byDay[k]; });
+      var byPaymentMethod = {};
+      salesInRange.forEach(function (sale) {
+        var method = normalizePaymentMethod(sale.paymentMethod || sale.payment_method);
+        if (!byPaymentMethod[method]) {
+          byPaymentMethod[method] = {
+            method: method,
+            label: getPaymentMethodLabel(method),
+            orders: 0,
+            revenue: 0
+          };
+        }
+        byPaymentMethod[method].orders += 1;
+        byPaymentMethod[method].revenue += Number(sale.total) || 0;
+      });
+      var paymentBreakdown = Object.values(byPaymentMethod).sort(function (a, b) {
+        return b.revenue - a.revenue;
+      });
       // Top selling products in range
       var byProduct = {};
       salesInRange.forEach(function (s) {
@@ -2922,6 +3100,7 @@
         avgTicket: avgTicket,
         lowStock: lowStock,
         daySeries: daySeries,
+        paymentBreakdown: paymentBreakdown,
         topProducts: topProducts,
         recentSales: clone(salesInRange).sort(function (a, b) { return b.createdAt - a.createdAt; }).slice(0, 10)
       };
@@ -3460,8 +3639,9 @@
       });
     }
 
-    function getOrderProductQuantities(items) {
+    function getOrderStockRequirements(items) {
       var quantitiesByProduct = {};
+      var quantitiesByComponent = {};
       (items || []).forEach(function (item) {
         if (!item || !item.productId) return;
         var qty = Number(item.qty) || 0;
@@ -3469,19 +3649,21 @@
         
         var product = products.find(function(p) { return p.id === item.productId; });
         if (product && product.isMixedDrink) {
-          var components = product.componentIds || [];
-          if (components.length > 0) {
-            components.forEach(function(comp) {
-              var compId = typeof comp === "string" ? comp : comp.id;
-              var compQty = typeof comp === "string" ? 1 : (Number(comp.qty) || 1);
-              quantitiesByProduct[compId] = (quantitiesByProduct[compId] || 0) + (compQty * qty);
+          var recipeEntries = getRecipeEntries(product);
+          if (recipeEntries.length > 0) {
+            recipeEntries.forEach(function(entry) {
+              var compQty = Number(entry.qty) || 1;
+              quantitiesByComponent[entry.id] = (quantitiesByComponent[entry.id] || 0) + (compQty * qty);
             });
           }
         } else {
           quantitiesByProduct[item.productId] = (quantitiesByProduct[item.productId] || 0) + qty;
         }
       });
-      return quantitiesByProduct;
+      return {
+        products: quantitiesByProduct,
+        components: quantitiesByComponent
+      };
     }
 
     function holdOrder() {
@@ -3514,7 +3696,7 @@
             takeAway: false,
             status: "open",
             customerName: "Khách lẻ / Walk-in",
-            paymentMethod: "Chuyển khoản / Bank Transfer",
+            paymentMethod: PAYMENT_METHOD_DEFAULT,
             cashReceived: 0
           });
         });
@@ -3546,7 +3728,7 @@
 
       // B7: Warn when cash payment is short of total.
       var cashReceivedNumber = Number(activeOrder.cashReceived) || 0;
-      var isCashLike = !activeOrder.paymentMethod || /Tiền mặt|Cash/i.test(activeOrder.paymentMethod || "");
+      var isCashLike = isCashPaymentMethod(activeOrder.paymentMethod);
       if (isCashLike && cashReceivedNumber < (Number(totals.total) || 0)) {
         var shortBy = (Number(totals.total) || 0) - cashReceivedNumber;
         if (!window.confirm(
@@ -3557,7 +3739,9 @@
         }
       }
 
-      var requiredQtyByProduct = getOrderProductQuantities(activeOrder.items);
+      var stockRequirements = getOrderStockRequirements(activeOrder.items);
+      var requiredQtyByProduct = stockRequirements.products;
+      var requiredQtyByComponent = stockRequirements.components;
       var insufficientProducts = Object.keys(requiredQtyByProduct).map(function (productId) {
         var product = products.find(function (currentProduct) {
           return currentProduct.id === productId;
@@ -3585,11 +3769,39 @@
           required: required
         };
       }).filter(Boolean);
+      var insufficientComponents = Object.keys(requiredQtyByComponent).map(function (componentId) {
+        var component = components.find(function (currentComponent) {
+          return currentComponent.id === componentId;
+        });
 
-      if (insufficientProducts.length) {
+        if (!component) {
+          return {
+            productId: componentId,
+            name: componentId,
+            available: 0,
+            required: requiredQtyByComponent[componentId]
+          };
+        }
+
+        var available = Math.max(0, Number(component.stockQty) || 0);
+        var required = Math.max(0, Number(requiredQtyByComponent[componentId]) || 0);
+        if (available >= required) {
+          return null;
+        }
+
+        return {
+          productId: componentId,
+          name: L(component.label),
+          available: available,
+          required: required
+        };
+      }).filter(Boolean);
+      var insufficientItems = insufficientProducts.concat(insufficientComponents);
+
+      if (insufficientItems.length) {
         window.alert(
           L("Không đủ tồn kho để hoàn tất đơn này: / Not enough stock to complete this sale:\n") +
-          insufficientProducts.map(function (item) {
+          insufficientItems.map(function (item) {
             return "- " + item.name + " (" + item.available + "/" + item.required + ")";
           }).join("\n")
         );
@@ -3607,7 +3819,7 @@
         vat: totals.vat,
         discount: totals.discount,
         customerName: orderSnapshot.customerName || "",
-        paymentMethod: orderSnapshot.paymentMethod || "",
+        paymentMethod: normalizePaymentMethod(orderSnapshot.paymentMethod),
         cashReceived: Number(orderSnapshot.cashReceived) || 0,
         cashierName: settings.cashierName || "",
         paymentStatus: "paid",
@@ -3641,6 +3853,23 @@
           }
 
           return Object.assign({}, product, { stock: newQty });
+        });
+      });
+      setComponents(function (currentComponents) {
+        return currentComponents.map(function (component) {
+          var usedQty = Number(requiredQtyByComponent[component.id]) || 0;
+          if (!usedQty) {
+            return component;
+          }
+
+          var oldQty = Number(component.stockQty) || 0;
+          var newQty = Math.max(0, oldQty - usedQty);
+          var min = Number(component.minStock) || 0;
+          if (min > 0 && oldQty > min && newQty <= min) {
+            newlyLow.push({ name: L(component.label), newQty: newQty, min: min });
+          }
+
+          return Object.assign({}, component, { stockQty: newQty });
         });
       });
       // After the state update settles, surface the warning.
@@ -3796,7 +4025,7 @@
           id: saleObj.orderId || saleObj.order_id || saleObj.id,
           createdAt: saleObj.createdAt || saleObj.created_at,
           customerName: saleObj.customerName || saleObj.customer_name || "",
-          paymentMethod: saleObj.paymentMethod || saleObj.payment_method || "",
+          paymentMethod: normalizePaymentMethod(saleObj.paymentMethod || saleObj.payment_method),
           cashReceived: Number(saleObj.cashReceived || saleObj.paid || 0),
           items: (items || []).map(function (it) {
             // Re-decode addons stored as JSON; default to empty list
@@ -4116,7 +4345,7 @@
             createdAt: sale.createdAt,
             cashierName: sale.cashierName || settings.cashierName || "",
             customerName: sale.customerName || "",
-            paymentMethod: sale.paymentMethod || "",
+            paymentMethod: normalizePaymentMethod(sale.paymentMethod),
             cashReceived: Number(sale.cashReceived) || 0,
             subtotal: Number(sale.subtotal) || 0,
             discount: Number(sale.discount) || 0,
@@ -4141,7 +4370,7 @@
             createdAt: order.createdAt,
             cashierName: settings.cashierName || "",
             customerName: order.customerName || "",
-            paymentMethod: order.paymentMethod || "",
+            paymentMethod: normalizePaymentMethod(order.paymentMethod),
             cashReceived: Number(order.cashReceived) || 0,
             subtotal: Number(orderTotals.subtotal) || 0,
             discount: Number(orderTotals.discount) || 0,
@@ -4199,8 +4428,8 @@
             category: "ingredient",
             unit: component.unit || "",
             cost_per_unit: 0,
-            stock_qty: 0,
-            min_stock: 0,
+            stock_qty: Number(component.stockQty) || 0,
+            min_stock: Number(component.minStock) || 0,
             supplier_id: "",
             active: toCsvBoolean(component.active !== false),
             created_at: "",
@@ -4219,20 +4448,20 @@
       });
 
       var productIngredientsRows = products.reduce(function (rows, product) {
-        return rows.concat((product.componentIds || []).filter(function (componentId) {
-          return (!exportActiveOnly || (activeProductIds[product.id] && activeIngredientIds[componentId]));
-        }).map(function (componentId) {
+        return rows.concat(getRecipeEntries(product).filter(function (entry) {
+          return (!exportActiveOnly || (activeProductIds[product.id] && activeIngredientIds[entry.id]));
+        }).map(function (entry) {
           var component = components.find(function (item) {
-            return item.id === componentId;
+            return item.id === entry.id;
           }) || {};
           return {
-            recipe_id: product.id + "-" + componentId,
+            recipe_id: product.id + "-" + entry.id,
             product_id: product.id,
-            ingredient_id: componentId,
-            qty_used: 1,
-            unit: component.unit || "",
+            ingredient_id: entry.id,
+            qty_used: Number(entry.qty) || 1,
+            unit: entry.unit || component.unit || "",
             waste_rate: 0,
-            note: component.note || "",
+            note: entry.note || component.note || "",
             created_at: "",
             updated_at: ""
           };
@@ -4288,9 +4517,9 @@
           order_id: record.orderId,
           payment_date: formatExportDate(record.createdAt),
           payment_time: formatExportTime(record.createdAt),
-          method: L(record.paymentMethod || ""),
+          method: normalizePaymentMethod(record.paymentMethod),
           amount: record.total,
-          bank: /bank transfer|chuyển khoản/i.test(record.paymentMethod || "") ? "Bank Transfer" : "",
+          bank: normalizePaymentMethod(record.paymentMethod) === "bank_transfer" ? "Bank Transfer" : "",
           transaction_ref: "",
           note: record.note || "",
           created_at: formatExportDateTime(record.createdAt)
@@ -4340,7 +4569,7 @@
           type: "IN",
           category: "sale",
           amount: record.total,
-          payment_method: L(record.paymentMethod || ""),
+          payment_method: normalizePaymentMethod(record.paymentMethod),
           reference_id: record.orderId,
           description: "Sale payment",
           created_by: userId,
@@ -4401,11 +4630,12 @@
         dailySummaryMap[dateKey].vat_output += record.vat;
         dailySummaryMap[dateKey].net_revenue += record.total - record.vat;
 
-        if (/cash|tiền mặt/i.test(record.paymentMethod || "")) {
+        var normalizedRecordPaymentMethod = normalizePaymentMethod(record.paymentMethod);
+        if (normalizedRecordPaymentMethod === "cash") {
           dailySummaryMap[dateKey].cash_revenue += record.total;
-        } else if (/bank transfer|chuyển khoản/i.test(record.paymentMethod || "")) {
+        } else if (normalizedRecordPaymentMethod === "bank_transfer") {
           dailySummaryMap[dateKey].bank_transfer_revenue += record.total;
-        } else if (/card|thẻ/i.test(record.paymentMethod || "")) {
+        } else if (normalizedRecordPaymentMethod === "card") {
           dailySummaryMap[dateKey].card_revenue += record.total;
         }
       });
@@ -4619,6 +4849,8 @@
           label_en: labelParts.en,
           unit: component.unit || "",
           note: component.note || "",
+          stock_qty: Number(component.stockQty) || 0,
+          min_stock: Number(component.minStock) || 0,
           active: component.active !== false
         });
       }
@@ -4635,6 +4867,7 @@
           category_label_en: categoryLabelParts.en,
           price: Number(product.price) || 0,
           stock: Number(product.stock) || 0,
+          inventory_mode: getEffectiveInventoryMode(product, categories),
           barcode: normalizeBarcode(product.barcode || ""),
           image: product.image || "",
           description: product.description || "",
@@ -4688,7 +4921,7 @@
         return buildFirebaseDoc(order.id, {
           order_id: order.id,
           customer_name: order.customerName || "",
-          payment_method: order.paymentMethod || "",
+          payment_method: normalizePaymentMethod(order.paymentMethod),
           cash_received: Number(order.cashReceived) || 0,
           status: order.status || "open",
           created_at: formatExportDateTime(order.createdAt),
@@ -4705,7 +4938,7 @@
           sale_id: sale.orderId || "sale-" + padNumber(index + 1, 4),
           order_id: sale.orderId || "",
           customer_name: sale.customerName || "",
-          payment_method: sale.paymentMethod || "",
+          payment_method: normalizePaymentMethod(sale.paymentMethod),
           cash_received: Number(sale.cashReceived) || 0,
           cashier_name: sale.cashierName || "",
           subtotal: Number(sale.subtotal) || 0,
@@ -4931,6 +5164,10 @@
             if (!next.skuTouched) next.skuCode = suggestion;
           }
         }
+        if (field === "category" && !next.inventoryModeTouched) {
+          next.inventoryMode = isRecipeCategory(value, categories) ? "recipe" : "stock";
+        }
+        if (field === "inventoryMode") next.inventoryModeTouched = true;
         // Đánh dấu user đã gõ tay customId → không auto override nữa
         if (field === "customId" && value) next.idTouched = true;
         return next;
@@ -4979,6 +5216,8 @@
         idTouched: false,
         name: "",
         category: firstCat,
+        inventoryMode: isRecipeCategory(firstCat, categories) ? "recipe" : "stock",
+        inventoryModeTouched: false,
         price: 0,
         stock: 0,
         barcode: "",
@@ -5290,7 +5529,9 @@
         labelVi: "",
         labelEn: "",
         unit: "",
-        note: ""
+        note: "",
+        stockQty: 0,
+        minStock: 0
       });
     }
 
@@ -5301,7 +5542,9 @@
         labelVi: labelParts.vi,
         labelEn: labelParts.en,
         unit: component.unit || "",
-        note: component.note || ""
+        note: component.note || "",
+        stockQty: Number(component.stockQty) || 0,
+        minStock: Number(component.minStock) || 0
       });
       setActiveView("inventory");
       setInventorySection("catalog");
@@ -5323,7 +5566,10 @@
               ? Object.assign({}, component, {
                   label: label,
                   unit: componentDraft.unit,
-                  note: componentDraft.note
+                  note: componentDraft.note,
+                  stockQty: Math.max(0, Number(componentDraft.stockQty) || 0),
+                  minStock: Math.max(0, Number(componentDraft.minStock) || 0),
+                  active: true
                 })
               : component;
           });
@@ -5341,10 +5587,43 @@
             id: nextId,
             label: label,
             unit: componentDraft.unit,
-            note: componentDraft.note
+            note: componentDraft.note,
+            stockQty: Math.max(0, Number(componentDraft.stockQty) || 0),
+            minStock: Math.max(0, Number(componentDraft.minStock) || 0),
+            active: true
           });
         });
+
+        syncEnqueue({
+          endpoint: "/components",
+          method: "POST",
+          opType: "component",
+          body: {
+            id: nextId,
+            label: label,
+            unit: componentDraft.unit || "",
+            note: componentDraft.note || "",
+            stockQty: Math.max(0, Number(componentDraft.stockQty) || 0),
+            minStock: Math.max(0, Number(componentDraft.minStock) || 0)
+          }
+        });
+        resetComponentDraft();
+        return;
       }
+
+      syncEnqueue({
+        endpoint: "/components",
+        method: "POST",
+        opType: "component",
+        body: {
+          id: componentDraft.id,
+          label: label,
+          unit: componentDraft.unit || "",
+          note: componentDraft.note || "",
+          stockQty: Math.max(0, Number(componentDraft.stockQty) || 0),
+          minStock: Math.max(0, Number(componentDraft.minStock) || 0)
+        }
+      });
 
       resetComponentDraft();
     }
@@ -5364,17 +5643,19 @@
         return currentProducts.map(function (product) {
           return Object.assign({}, product, {
             componentIds: (product.componentIds || []).filter(function (currentId) {
-              return currentId !== componentId;
+              var currentComponentId = typeof currentId === "string" ? currentId : currentId.id;
+              return currentComponentId !== componentId;
             })
           });
         });
       });
 
-      if (productDraft.componentIds && productDraft.componentIds.indexOf(componentId) !== -1) {
+      if (recipeEntriesFromDraft(productDraft).some(function (entry) { return entry.id === componentId; })) {
         setProductDraft(function (currentDraft) {
           return Object.assign({}, currentDraft, {
             componentIds: (currentDraft.componentIds || []).filter(function (currentId) {
-              return currentId !== componentId;
+              var currentComponentId = typeof currentId === "string" ? currentId : currentId.id;
+              return currentComponentId !== componentId;
             })
           });
         });
@@ -5383,6 +5664,13 @@
       if (componentDraft.id === componentId) {
         resetComponentDraft();
       }
+
+      syncEnqueue({
+        endpoint: "/components",
+        method: "DELETE",
+        opType: "component",
+        body: { id: componentId }
+      });
     }
 
     function submitProduct(event) {
@@ -5462,8 +5750,9 @@
               ? Object.assign({}, product, {
                   name: productDraft.name,
                   category: productDraft.category,
+                  inventoryMode: productDraft.inventoryMode === "recipe" ? "recipe" : "stock",
                   price: Number(productDraft.price) || 0,
-                  stock: Number(productDraft.stock) || 0,
+                  stock: productDraft.inventoryMode === "recipe" ? 0 : (Number(productDraft.stock) || 0),
                   barcode: getScannableBarcode(
                     productDraft.barcode || product.barcode,
                     [effectiveId, productDraft.name, productDraft.category].join("|")
@@ -5502,8 +5791,9 @@
           id: newId,
           name: productDraft.name,
           category: productDraft.category,
+          inventoryMode: productDraft.inventoryMode === "recipe" ? "recipe" : "stock",
           price: Number(productDraft.price) || 0,
-          stock: Number(productDraft.stock) || 0,
+          stock: productDraft.inventoryMode === "recipe" ? 0 : (Number(productDraft.stock) || 0),
           barcode: getScannableBarcode(
             productDraft.barcode,
             [newId, productDraft.name, productDraft.category, productDraft.price, productDraft.stock, Date.now()].join("|")
@@ -5532,13 +5822,14 @@
       //   • Creating new → typed or auto
       var productId = effectiveId
         || (typeof newProduct !== "undefined" ? newProduct.id : ("p-" + Math.random().toString(36).slice(2, 10)));
-      var newStockValue = Math.max(0, Number(productDraft.stock) || 0);
-      var oldStockValue = saved ? Number(saved.stock) || 0 : 0;
+      var newStockValue = productDraft.inventoryMode === "recipe" ? 0 : Math.max(0, Number(productDraft.stock) || 0);
+      var oldStockValue = saved ? Number(saved.rawStock != null ? saved.rawStock : saved.stock) || 0 : 0;
 
       var payload = {
         id: productId,
         name: productDraft.name,
         category: productDraft.category,
+        inventoryMode: productDraft.inventoryMode === "recipe" ? "recipe" : "stock",
         price: Number(productDraft.price) || 0,
         barcode: productDraft.barcode || "",
         image: productDraft.image || "🍊",
@@ -5585,10 +5876,12 @@
         customId: product.id,
         skuCode: product.skuCode || product.id,
         skuTouched: true,   // editing an existing one — never auto-overwrite SKU
+        inventoryModeTouched: true,
         name: product.name,
         category: product.category,
+        inventoryMode: getEffectiveInventoryMode(product, categories),
         price: product.price,
-        stock: product.stock,
+        stock: product.rawStock != null ? product.rawStock : product.stock,
         barcode: product.barcode,
         image: product.image,
         description: product.description || "",
@@ -5640,6 +5933,10 @@
     // and the outbox (also localStorage) survives offline too, so even if
     // the user is offline + F5s, the edit reaches D1 on next online session.
     function updateProductStock(productId, nextStock) {
+      var targetProduct = products.find(function (product) { return product.id === productId; });
+      if (targetProduct && targetProduct.isMixedDrink) {
+        return;
+      }
       var target = Math.max(0, Math.floor(Number(nextStock) || 0));
 
       // 1. Optimistic local UI update.
@@ -6330,14 +6627,14 @@
                       setPaymentMenuOpen(!paymentMenuOpen);
                     }}
                   >
-                    <span>${L(activeOrder.paymentMethod || "Chuyển khoản / Bank Transfer")}</span>
+                    <span>${L(getPaymentMethodLabel(activeOrder.paymentMethod))}</span>
                     <span className="payment-select-icon">▾</span>
                   </button>
 
                   ${paymentMenuOpen ? html`
                     <div className="payment-select-dropdown">
                       ${PAYMENT_METHOD_OPTIONS.map(function (option) {
-                        var isActive = (activeOrder.paymentMethod || "Chuyển khoản / Bank Transfer") === option.value;
+                        var isActive = normalizePaymentMethod(activeOrder.paymentMethod) === option.value;
                         return html`
                           <button
                             key=${option.value}
@@ -6532,6 +6829,43 @@
             </section>
           ` : null}
 
+          ${dashboardMetrics.paymentBreakdown.length ? html`
+            <section className="surface section-card">
+              <div className="section-top">
+                <div>
+                  <p className="eyebrow">${L("Thanh toán / Payment")}</p>
+                  <h2 className="section-title">${L("Doanh thu theo phương thức thanh toán / Revenue by Payment Method")}</h2>
+                </div>
+              </div>
+              <div className="list-stack" style=${{ marginTop: 8 }}>
+                ${(function () {
+                  var maxPaymentRevenue = Math.max.apply(null, dashboardMetrics.paymentBreakdown.map(function (item) { return item.revenue; }));
+                  return dashboardMetrics.paymentBreakdown.map(function (item) {
+                    var pct = maxPaymentRevenue > 0 ? Math.round(item.revenue / maxPaymentRevenue * 100) : 0;
+                    return html`
+                      <article key=${item.method} className="list-row" style=${{ alignItems: "center" }}>
+                        <div style=${{ minWidth: 180 }}>
+                          <strong>${L(item.label)}</strong>
+                          <p><code>${item.method}</code> · ${item.orders} ${L("đơn / orders")}</p>
+                        </div>
+                        <div style=${{ flex: 1, margin: "0 12px" }}>
+                          <div style=${{ height: 10, background: "#fff3e6", borderRadius: 999, overflow: "hidden" }}>
+                            <div style=${{
+                              width: pct + "%",
+                              height: "100%",
+                              background: "linear-gradient(90deg, #ffd49d, #db5d17)"
+                            }}></div>
+                          </div>
+                        </div>
+                        <strong style=${{ minWidth: 120, textAlign: "right" }}>${formatCurrency(item.revenue)}</strong>
+                      </article>
+                    `;
+                  });
+                })()}
+              </div>
+            </section>
+          ` : null}
+
           <div className="split-grid">
             <section className="surface section-card">
               <div className="section-top">
@@ -6571,7 +6905,7 @@
                         <article key=${sale.id} className="list-row list-row-actions">
                           <div>
                             <strong>${sale.orderId || sale.id}</strong>
-                            <p>${formatDateTime(sale.createdAt)} · ${formatCurrency(sale.total)}</p>
+                            <p>${formatDateTime(sale.createdAt)} · ${formatCurrency(sale.total)} · ${L(getPaymentMethodLabel(sale.paymentMethod || sale.payment_method))}</p>
                           </div>
                           <div className="row-actions">
                             <button className="ghost-btn" onClick=${function () { reprintSale(sale, false); }}>
@@ -6882,7 +7216,10 @@
                                 <span>${L("Chọn / Select")}</span>
                               </label>
                               <strong>${product.image} ${product.name}</strong>
-                              <p>${product.barcode} · ${category ? L(category.label) : product.category}</p>
+                              <p>
+                                ${product.barcode} · ${category ? L(category.label) : product.category}
+                                ${product.isMixedDrink ? " · " + L("Pha chế / Recipe-based") : ""}
+                              </p>
                               <div className="barcode-inline-card">
                                 <${BarcodeGraphic}
                                   value=${product.barcode}
@@ -6896,7 +7233,7 @@
                               </div>
                             </div>
                             <div className="row-actions">
-                              <span className="stock-badge">${product.stock}</span>
+                              <span className="stock-badge" title=${product.isMixedDrink ? L("Tồn ảo tính theo nguyên liệu / Virtual stock based on ingredients") : ""}>${product.stock}</span>
                               <label className="label-qty-field">
                                 <span>${L("Số tem / Qty")}</span>
                                 <input
@@ -7020,6 +7357,22 @@
                   <!-- Group: Price + stock -->
                   <fieldset style=${{ border: "1px dashed #e5d5c7", borderRadius: 14, padding: "12px 16px 16px", margin: 0 }}>
                     <legend style=${{ padding: "0 8px", color: "#8a7565", fontSize: 12, letterSpacing: "0.14em", textTransform: "uppercase" }}>${L("Giá & Tồn kho / Pricing & Stock")}</legend>
+                    <div className="toggle-grid" style=${{ marginBottom: 12 }}>
+                      <button
+                        type="button"
+                        className=${"ghost-btn" + (productDraft.inventoryMode !== "recipe" ? " active-toggle" : "")}
+                        onClick=${function () { updateProductDraft("inventoryMode", "stock"); }}
+                      >
+                        ${L("Hàng bán lẻ / Direct Stock")}
+                      </button>
+                      <button
+                        type="button"
+                        className=${"ghost-btn" + (productDraft.inventoryMode === "recipe" ? " active-toggle" : "")}
+                        onClick=${function () { updateProductDraft("inventoryMode", "recipe"); }}
+                      >
+                        ${L("Đồ pha chế / Track by Ingredients")}
+                      </button>
+                    </div>
                     <div className="field-grid">
                       <label className="field">
                         <span>${L("Giá bán / Price")}</span>
@@ -7035,8 +7388,18 @@
                       </label>
                       <label className="field">
                         <span>${L("Tồn kho / Stock")}</span>
-                        <input type="number" min="0" value=${productDraft.stock} onInput=${function (event) { updateProductDraft("stock", event.target.value); }} />
-                        <small>${L("Số tồn hiện tại; thường để hệ thống cập nhật qua Nhập/Xuất. / Usually updated via Stock-In/Out.")}</small>
+                        <input
+                          type="number"
+                          min="0"
+                          disabled=${productDraft.inventoryMode === "recipe"}
+                          value=${productDraft.inventoryMode === "recipe" ? 0 : productDraft.stock}
+                          onInput=${function (event) { updateProductDraft("stock", event.target.value); }}
+                        />
+                        <small>
+                          ${productDraft.inventoryMode === "recipe"
+                            ? L("Món pha chế không có tồn kho riêng; tồn được tính từ thành phần bên dưới. / Prepared items do not keep direct stock; stock is derived from recipe ingredients below.")
+                            : L("Số tồn hiện tại; thường để hệ thống cập nhật qua Nhập/Xuất. / Usually updated via Stock-In/Out.")}
+                        </small>
                       </label>
                       <label className="field">
                         <span>${L("Mức cảnh báo / Min Stock Alert")}</span>
@@ -7253,6 +7616,8 @@
                       <label className="field"><span>${L("Tên tiếng Việt / Vietnamese Name")}</span><input value=${componentDraft.labelVi} onInput=${function (event) { updateComponentDraft("labelVi", event.target.value); }} /></label>
                       <label className="field"><span>${L("Tên tiếng Anh / English Name")}</span><input value=${componentDraft.labelEn} onInput=${function (event) { updateComponentDraft("labelEn", event.target.value); }} /></label>
                       <label className="field"><span>${L("Đơn vị / Unit")}</span><input value=${componentDraft.unit} onInput=${function (event) { updateComponentDraft("unit", event.target.value); }} /></label>
+                      <label className="field"><span>${L("Tồn kho thật / Real Stock")}</span><input type="number" min="0" step="0.1" value=${componentDraft.stockQty} onInput=${function (event) { updateComponentDraft("stockQty", event.target.value); }} /></label>
+                      <label className="field"><span>${L("Mức cảnh báo / Min Stock")}</span><input type="number" min="0" step="0.1" value=${componentDraft.minStock} onInput=${function (event) { updateComponentDraft("minStock", event.target.value); }} /></label>
                       <label className="field"><span>${L("Ghi chú / Note")}</span><input value=${componentDraft.note} onInput=${function (event) { updateComponentDraft("note", event.target.value); }} /></label>
                     </div>
                     <button type="submit" className="primary-btn">${componentDraft.id ? L("Lưu thành phần / Save Component") : L("Thêm thành phần / Add Component")}</button>
@@ -7263,7 +7628,8 @@
                         <article key=${component.id} className="list-row list-row-actions">
                           <div>
                             <strong>${L(component.label)}</strong>
-                            <p>${component.unit || L("Chưa có đơn vị / No unit")} · ${component.note || L("Chưa có ghi chú / No note")}</p>
+                            <p>${component.unit || L("Chưa có đơn vị / No unit")} · ${L("Tồn thực / Real stock")}: ${Number(component.stockQty) || 0} · ${L("Min")}: ${Number(component.minStock) || 0}</p>
+                            ${component.note ? html`<p>${component.note}</p>` : null}
                           </div>
                           <div className="row-actions">
                             <button className="ghost-btn" onClick=${function () { startEditComponent(component); }}>${L("Sửa / Edit")}</button>
@@ -7326,7 +7692,7 @@
       });
     }
     function resetPurchaseDraft() {
-      setPurchaseDraft({ supplierId: "", supplierName: "", paymentMethod: "Tiền mặt / Cash", note: "", items: [] });
+      setPurchaseDraft({ supplierId: "", supplierName: "", paymentMethod: "cash", note: "", items: [] });
     }
     function submitPurchase() {
       if (!purchaseDraft.items.length) {
@@ -7351,7 +7717,7 @@
         body: {
           supplierId: purchaseDraft.supplierId || null,
           supplierName: purchaseDraft.supplierName || null,
-          paymentMethod: purchaseDraft.paymentMethod || null,
+          paymentMethod: normalizePaymentMethod(purchaseDraft.paymentMethod),
           paidAmount: total,
           note: purchaseDraft.note || null,
           items: purchaseDraft.items.map(function (it) {
@@ -7597,7 +7963,7 @@
                 </label>
                 <label className="field">
                   <span>${L("Thanh toán / Payment")}</span>
-                  <select value=${purchaseDraft.paymentMethod} onChange=${function (e) {
+                  <select value=${normalizePaymentMethod(purchaseDraft.paymentMethod)} onChange=${function (e) {
                     setPurchaseDraft(function (cur) { return Object.assign({}, cur, { paymentMethod: e.target.value }); });
                   }}>
                     ${PAYMENT_METHOD_OPTIONS.map(function (opt) {

@@ -1,7 +1,8 @@
-import { json, notFound } from "../_lib.js";
+import { json, notFound, ensureProductsInventoryModeColumn } from "../_lib.js";
 
 // GET /api/products/:id
 export const onRequestGet = async ({ env, params }) => {
+  await ensureProductsInventoryModeColumn(env.DB);
   const row = await env.DB.prepare(
     `SELECT p.*, COALESCE(i.qty_on_hand, 0) AS stock
      FROM products p

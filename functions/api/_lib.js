@@ -36,6 +36,50 @@ export function uid(prefix) {
     Date.now().toString(36).slice(-5);
 }
 
+function stripVietnameseAccents(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+}
+
+export function normalizePaymentMethod(value) {
+  if (!value) return "bank_transfer";
+  const raw = String(value).trim();
+  const key = raw.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  const text = stripVietnameseAccents(raw);
+
+  if (key === "cash" || /\bcash\b/.test(text) || text.includes("tien mat")) {
+    return "cash";
+  }
+  if (key === "card" || /\bcard\b/.test(text) || /\bthe\b/.test(text)) {
+    return "card";
+  }
+  if (
+    key === "bank_transfer" ||
+    key === "banktransfer" ||
+    key === "transfer" ||
+    text.includes("bank transfer") ||
+    text.includes("chuyen khoan")
+  ) {
+    return "bank_transfer";
+  }
+  if (
+    key === "ewallet" ||
+    key === "e_wallet" ||
+    key === "wallet" ||
+    text.includes("e-wallet") ||
+    text.includes("e wallet") ||
+    text.includes("vi dien tu") ||
+    text.includes("wallet")
+  ) {
+    return "ewallet";
+  }
+  return "other";
+}
+
 // YYYYMMDD in shop-local-ish UTC (no TZ adjust; good enough for daily ids)
 export function dateKey(ts) {
   const d = new Date(ts || Date.now());
@@ -167,4 +211,36 @@ export async function getProductName(db, productId) {
     .bind(productId)
     .first();
   return row ? row.name : null;
+}
+
+async function columnExists(db, tableName, columnName) {
+  const { results } = await db.prepare(`PRAGMA table_info(${tableName})`).all();
+  return (results || []).some((column) => column.name === columnName);
+}
+
+export async function ensureProductsInventoryModeColumn(db) {
+  const hasColumn = await columnExists(db, "products", "inventory_mode");
+  if (!hasColumn) {
+    await db.prepare(
+      `ALTER TABLE products ADD COLUMN inventory_mode TEXT NOT NULL DEFAULT 'stock'`
+    ).run();
+  }
+}
+
+export async function ensureComponentsInventoryColumns(db) {
+  if (!(await columnExists(db, "components", "stock_qty"))) {
+    await db.prepare(
+      `ALTER TABLE components ADD COLUMN stock_qty INTEGER NOT NULL DEFAULT 0`
+    ).run();
+  }
+  if (!(await columnExists(db, "components", "min_stock"))) {
+    await db.prepare(
+      `ALTER TABLE components ADD COLUMN min_stock INTEGER NOT NULL DEFAULT 0`
+    ).run();
+  }
+  if (!(await columnExists(db, "components", "is_active"))) {
+    await db.prepare(
+      `ALTER TABLE components ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1`
+    ).run();
+  }
 }

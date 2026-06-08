@@ -2,6 +2,7 @@ import {
   json, readJson, badRequest, now,
   isDuplicateOp, recordOpStmt, runIdempotentBatch,
   inventoryDeltaStmt, movementStmt,
+  ensureProductsInventoryModeColumn,
 } from "../_lib.js";
 
 // POST /api/inventory/adjust
@@ -15,6 +16,7 @@ import {
 // Either form is supported; absolute form is preferred because it survives
 // race conditions (two devices both setting "5" agree on the result).
 export const onRequestPost = async ({ env, request }) => {
+  await ensureProductsInventoryModeColumn(env.DB);
   const body = await readJson(request);
   if (!body || !body.productId || typeof body.productId !== "string") {
     return badRequest("productId required");
@@ -23,6 +25,13 @@ export const onRequestPost = async ({ env, request }) => {
   if (body.clientOpId) {
     const dup = await isDuplicateOp(env.DB, body.clientOpId);
     if (dup) return json({ ok: true, duplicate: true });
+  }
+
+  const productMeta = await env.DB.prepare(
+    `SELECT inventory_mode FROM products WHERE id = ?`
+  ).bind(body.productId).first();
+  if (productMeta && productMeta.inventory_mode === "recipe") {
+    return badRequest("recipe-based product stock is derived from components");
   }
 
   // Resolve target qty.

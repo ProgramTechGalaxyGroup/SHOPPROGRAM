@@ -51,6 +51,33 @@ export const onRequestGet = async ({ env, request }) => {
      ORDER BY day`
   ).bind(from, to).all();
 
+  const { results: byPaymentMethod } = await env.DB.prepare(
+    `SELECT payment_method,
+            COUNT(*) AS orders,
+            COALESCE(SUM(total), 0) AS revenue
+     FROM (
+       SELECT total,
+              CASE
+                WHEN payment_method IS NULL OR trim(payment_method) = '' THEN 'bank_transfer'
+                WHEN lower(payment_method) = 'cash' OR lower(payment_method) LIKE '%cash%' OR lower(payment_method) LIKE '%tiền mặt%' THEN 'cash'
+                WHEN lower(payment_method) = 'card' OR lower(payment_method) LIKE '%card%' OR lower(payment_method) LIKE '%thẻ%' THEN 'card'
+                WHEN lower(payment_method) IN ('bank_transfer', 'banktransfer', 'transfer')
+                  OR lower(payment_method) LIKE '%bank transfer%'
+                  OR lower(payment_method) LIKE '%chuyển khoản%' THEN 'bank_transfer'
+                WHEN lower(payment_method) IN ('ewallet', 'e_wallet', 'wallet')
+                  OR lower(payment_method) LIKE '%e-wallet%'
+                  OR lower(payment_method) LIKE '%e wallet%'
+                  OR lower(payment_method) LIKE '%ví điện tử%' THEN 'ewallet'
+                ELSE 'other'
+              END AS payment_method
+       FROM sales
+       WHERE created_at BETWEEN ? AND ?
+         AND order_status = 'completed'
+     )
+     GROUP BY payment_method
+     ORDER BY revenue DESC`
+  ).bind(from, to).all();
+
   return json({
     ok: true,
     range: { from, to },
@@ -64,5 +91,6 @@ export const onRequestGet = async ({ env, request }) => {
     },
     topProducts: topProducts || [],
     byDay: byDay || [],
+    byPaymentMethod: byPaymentMethod || [],
   });
 };

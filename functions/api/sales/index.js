@@ -2,6 +2,8 @@ import {
   json, readJson, badRequest, now, uid,
   isDuplicateOp, recordOpStmt, runIdempotentBatch, nextDocId,
   inventoryDeltaStmt, movementStmt, getProductCost,
+  ensureProductsInventoryModeColumn, ensureComponentsInventoryColumns,
+  normalizePaymentMethod,
 } from "../_lib.js";
 
 // GET /api/sales?from=&to=&limit=
@@ -36,6 +38,8 @@ export const onRequestGet = async ({ env, request }) => {
 //   }
 // Atomic: sales + sale_items + stock_movements (SALE) + inventory delta.
 export const onRequestPost = async ({ env, request }) => {
+  await ensureProductsInventoryModeColumn(env.DB);
+  await ensureComponentsInventoryColumns(env.DB);
   const body = await readJson(request);
   if (!body || !Array.isArray(body.items) || !body.items.length) {
     return badRequest("items required");
@@ -81,7 +85,7 @@ export const onRequestPost = async ({ env, request }) => {
   if (productIds.length > 0) {
     const placeholders = productIds.map(() => "?").join(",");
     const sql = `
-      SELECT p.id, p.component_ids, c.code as category_code
+      SELECT p.id, p.component_ids, p.inventory_mode, c.code as category_code
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       WHERE p.id IN (${placeholders})
@@ -93,7 +97,9 @@ export const onRequestPost = async ({ env, request }) => {
   }
 
   const requiredByProduct = new Map();
+  const requiredByComponent = new Map();
   const qtyByProduct = new Map();
+  const qtyByComponent = new Map();
 
   for (const it of body.items) {
     if (!it.productId) continue;
@@ -102,7 +108,9 @@ export const onRequestPost = async ({ env, request }) => {
 
     const info = productInfoMap.get(it.productId);
     let isMixedDrink = false;
-    if (info && info.category_code) {
+    if (info && info.inventory_mode === "recipe") {
+      isMixedDrink = true;
+    } else if (info && info.category_code) {
       const codeNum = parseInt(info.category_code, 10);
       if (codeNum >= 10000 && codeNum <= 50000) {
         isMixedDrink = true;
@@ -119,8 +127,8 @@ export const onRequestPost = async ({ env, request }) => {
           const compId = typeof comp === "string" ? comp : comp.id;
           const compQty = typeof comp === "string" ? 1 : (Number(comp.qty) || 1);
           const totalCompQty = compQty * qty;
-          requiredByProduct.set(compId, (requiredByProduct.get(compId) || 0) + totalCompQty);
-          qtyByProduct.set(compId, (qtyByProduct.get(compId) || 0) + totalCompQty);
+          requiredByComponent.set(compId, (requiredByComponent.get(compId) || 0) + totalCompQty);
+          qtyByComponent.set(compId, (qtyByComponent.get(compId) || 0) + totalCompQty);
         }
       }
     } else {
@@ -130,7 +138,7 @@ export const onRequestPost = async ({ env, request }) => {
   }
 
   if (!body.allowNegativeStock) {
-    const checks = await Promise.all(
+    const productChecks = await Promise.all(
       [...requiredByProduct.keys()].map((pid) =>
         env.DB.prepare(
           `SELECT p.name, COALESCE(i.qty_on_hand, 0) AS stock
@@ -139,14 +147,34 @@ export const onRequestPost = async ({ env, request }) => {
         ).bind(pid).first()
       )
     );
+    const componentChecks = await Promise.all(
+      [...requiredByComponent.keys()].map((componentId) =>
+        env.DB.prepare(
+          `SELECT label AS name, COALESCE(stock_qty, 0) AS stock
+           FROM components WHERE id = ?`
+        ).bind(componentId).first()
+      )
+    );
     const insufficient = [];
     [...requiredByProduct.entries()].forEach(([pid, need], idx) => {
-      const row = checks[idx];
+      const row = productChecks[idx];
       const have = row ? Number(row.stock) || 0 : 0;
       if (have < need) {
         insufficient.push({
           productId: pid,
           name: row ? row.name : pid,
+          available: have,
+          required: need,
+        });
+      }
+    });
+    [...requiredByComponent.entries()].forEach(([componentId, need], idx) => {
+      const row = componentChecks[idx];
+      const have = row ? Number(row.stock) || 0 : 0;
+      if (have < need) {
+        insufficient.push({
+          productId: componentId,
+          name: row ? row.name : componentId,
           available: have,
           required: need,
         });
@@ -208,6 +236,7 @@ export const onRequestPost = async ({ env, request }) => {
   // Use SERVER-computed amounts so a tampered client can't change billing.
   const paidAmount = Math.max(0, Math.round(Number(body.paid) || 0));
   const changeAmount = Math.max(0, paidAmount - serverTotal);
+  const paymentMethod = normalizePaymentMethod(body.paymentMethod);
   stmts.push(
     env.DB.prepare(
       `INSERT INTO sales
@@ -225,7 +254,7 @@ export const onRequestPost = async ({ env, request }) => {
       serverTotal,
       paidAmount,
       changeAmount,
-      body.paymentMethod || null,
+      paymentMethod,
       body.cashierName || null,
       body.note || null,
       ts
@@ -274,6 +303,17 @@ export const onRequestPost = async ({ env, request }) => {
       })
     );
     stmts.push(inventoryDeltaStmt(env.DB, productId, -qty, ts));
+  }
+  for (const [componentId, qty] of qtyByComponent.entries()) {
+    if (!componentId || !qty) continue;
+    stmts.push(
+      env.DB.prepare(
+        `UPDATE components
+         SET stock_qty = MAX(0, COALESCE(stock_qty, 0) - ?),
+             updated_at = ?
+         WHERE id = ?`
+      ).bind(qty, ts, componentId)
+    );
   }
 
   stmts.push(recordOpStmt(env.DB, body.clientOpId, "sale", saleId));
