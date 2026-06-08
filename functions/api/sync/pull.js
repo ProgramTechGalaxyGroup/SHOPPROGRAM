@@ -49,8 +49,27 @@ export const onRequestGet = async ({ env, request }) => {
       ).bind(since).all(),
 
       env.DB.prepare(
-        `SELECT id, created_at, total, payment_method, customer_name
-         FROM sales WHERE created_at > ? ORDER BY created_at DESC LIMIT 50`
+        `SELECT 
+           s.id, s.created_at, s.total, s.payment_method, s.customer_name,
+           s.subtotal, s.vat_amount, s.discount, s.paid, s.change_amount, s.note,
+           (
+             SELECT json_group_array(
+               json_object(
+                 'id', si.id,
+                 'productId', si.product_id,
+                 'name', si.product_name,
+                 'qty', si.qty,
+                 'price', si.unit_price,
+                 'addonsJson', si.addons_json,
+                 'addonsTotal', si.addons_total,
+                 'lineTotal', si.line_total
+               )
+             )
+             FROM sale_items si WHERE si.sale_id = s.id
+           ) as items_json
+         FROM sales s 
+         WHERE s.created_at > ? 
+         ORDER BY s.created_at DESC LIMIT 500`
       ).bind(since).all(),
     ]);
 

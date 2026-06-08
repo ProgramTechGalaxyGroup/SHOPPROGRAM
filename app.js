@@ -2104,6 +2104,53 @@
             }
           });
         }
+
+        if (Array.isArray(data.recentSales) && data.recentSales.length) {
+          setSales(function (current) {
+            var byId = {};
+            current.forEach(function (s) { byId[s.id] = s; });
+            data.recentSales.forEach(function (row) {
+              var items = [];
+              if (row.items_json) {
+                try {
+                  var parsed = JSON.parse(row.items_json);
+                  if (Array.isArray(parsed)) {
+                    items = parsed.map(function (it) {
+                      return {
+                        id: it.id,
+                        productId: it.productId,
+                        name: it.name,
+                        qty: Number(it.qty) || 0,
+                        price: Number(it.price) || 0,
+                        addonsJson: it.addonsJson,
+                        addonsTotal: Number(it.addonsTotal) || 0,
+                        lineTotal: Number(it.lineTotal) || 0
+                      };
+                    });
+                  }
+                } catch (e) {}
+              }
+
+              byId[row.id] = Object.assign({}, byId[row.id] || {}, {
+                id: row.id,
+                createdAt: Number(row.created_at) || (byId[row.id] && byId[row.id].createdAt) || Date.now(),
+                total: Number(row.total) || 0,
+                subtotal: Number(row.subtotal) || 0,
+                discount: Number(row.discount) || 0,
+                vatAmount: Number(row.vat_amount) || 0,
+                paid: Number(row.paid) || 0,
+                changeAmount: Number(row.change_amount) || 0,
+                paymentMethod: row.payment_method || "Chuyển khoản / Bank Transfer",
+                customerName: row.customer_name || "Khách lẻ / Walk-in",
+                note: row.note || "",
+                items: items.length > 0 ? items : (byId[row.id] ? byId[row.id].items : [])
+              });
+            });
+            var merged = Object.keys(byId).map(function (id) { return byId[id]; });
+            merged.sort(function (a, b) { return b.createdAt - a.createdAt; });
+            return merged.slice(0, 1000); // Keep last 1000 sales
+          });
+        }
       }
 
       function handleStatus(status) { setSyncStatus(status); }
