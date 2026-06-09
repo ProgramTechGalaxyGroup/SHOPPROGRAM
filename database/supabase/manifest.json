@@ -2,6 +2,7 @@
   "generated_at": "2026-06-08T09:18:15.358Z",
   "files": [
     "database/supabase/schema.sql",
+    "database/supabase/rls_policies.sql",
     "database/supabase/seed.sql",
     "database/supabase/seed.json"
   ],

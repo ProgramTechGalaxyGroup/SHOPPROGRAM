@@ -97,6 +97,7 @@ Repo này hiện đã có sẵn bộ dữ liệu và schema để chuẩn bị m
 
 - Hướng dẫn: [docs/deploy/VERCEL_SUPABASE_SETUP.md](./docs/deploy/VERCEL_SUPABASE_SETUP.md)
 - Schema: [database/supabase/schema.sql](./database/supabase/schema.sql)
+- RLS policies: [database/supabase/rls_policies.sql](./database/supabase/rls_policies.sql)
 - Seed SQL: [database/supabase/seed.sql](./database/supabase/seed.sql)
 - Seed JSON: [database/supabase/seed.json](./database/supabase/seed.json)
 

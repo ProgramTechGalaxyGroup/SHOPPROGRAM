@@ -16,6 +16,7 @@ Tài liệu này chuẩn bị sẵn bộ dữ liệu và cấu hình để đưa
 ## Bộ file đã chuẩn bị
 
 - [database/supabase/schema.sql](/Users/charlotte/Desktop/NGÂN HÀ/CTY TechGalaxy Group/SHOPPROGRAM/database/supabase/schema.sql)
+- [database/supabase/rls_policies.sql](/Users/charlotte/Desktop/NGÂN HÀ/CTY TechGalaxy Group/SHOPPROGRAM/database/supabase/rls_policies.sql)
 - [database/supabase/seed.sql](/Users/charlotte/Desktop/NGÂN HÀ/CTY TechGalaxy Group/SHOPPROGRAM/database/supabase/seed.sql)
 - [database/supabase/seed.json](/Users/charlotte/Desktop/NGÂN HÀ/CTY TechGalaxy Group/SHOPPROGRAM/database/supabase/seed.json)
 - [database/supabase/manifest.json](/Users/charlotte/Desktop/NGÂN HÀ/CTY TechGalaxy Group/SHOPPROGRAM/database/supabase/manifest.json)
@@ -54,7 +55,17 @@ Mở SQL Editor và chạy:
 
 Nếu bạn đang copy-paste trực tiếp trong dashboard, dán nội dung file `schema.sql` vào SQL Editor và Run.
 
-### 3. Chạy seed
+### 3. Chạy RLS policies
+
+`schema.sql` đã bao gồm RLS, nhưng repo cũng tách riêng file này để bạn có thể chạy lại khi Supabase linter báo `RLS Disabled in Public`:
+
+```sql
+\i database/supabase/rls_policies.sql
+```
+
+Nếu bạn đang copy-paste trực tiếp trong dashboard, dán nội dung file `rls_policies.sql` vào SQL Editor và Run. File này có thể chạy lại nhiều lần.
+
+### 4. Chạy seed
 
 Sau khi schema xong, chạy:
 
@@ -64,7 +75,7 @@ Sau khi schema xong, chạy:
 
 Hoặc copy-paste file `seed.sql` vào SQL Editor.
 
-### 3b. Hoặc upload bằng script tự động
+### 4b. Hoặc upload bằng script tự động
 
 Nếu bạn muốn đẩy trực tiếp từ máy này qua Supabase Management API, repo đã có sẵn:
 
@@ -86,7 +97,15 @@ SUPABASE_ACCESS_TOKEN=sbp_your_pat \
 node scripts/push_supabase_bundle.js
 ```
 
-### 4. Cấu hình Vercel env
+Nếu chỉ cần sửa lỗi Supabase linter `RLS Disabled in Public` mà không muốn chạy lại seed:
+
+```bash
+SUPABASE_PROJECT_REF=your-project-ref \
+SUPABASE_ACCESS_TOKEN=sbp_your_pat \
+node scripts/push_supabase_rls.js
+```
+
+### 5. Cấu hình Vercel env
 
 Tạo các biến môi trường trong Vercel theo file `.env.vercel.example`:
 

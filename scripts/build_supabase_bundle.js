@@ -147,6 +147,139 @@ const LEGACY_PRODUCT_ID_MAP = {
 
 const DUPLICATE_PRODUCT_IDS = new Set(["product-oiqum90zl"]);
 
+const RLS_SQL = `-- Supabase RLS policies for ShopFlow POS.
+--
+-- Supabase exposes the public schema through PostgREST, so each public table
+-- must have row level security enabled. Browser clients can read only the
+-- safe catalog/config data needed to render the POS. Sensitive writes should
+-- be handled by server-side code using the service role key.
+
+alter table public.categories enable row level security;
+alter table public.add_ons enable row level security;
+alter table public.components enable row level security;
+alter table public.products enable row level security;
+alter table public.inventory enable row level security;
+alter table public.stock_movements enable row level security;
+alter table public.suppliers enable row level security;
+alter table public.purchase_orders enable row level security;
+alter table public.purchase_order_items enable row level security;
+alter table public.stock_issues enable row level security;
+alter table public.stock_issue_items enable row level security;
+alter table public.sales enable row level security;
+alter table public.sale_items enable row level security;
+alter table public.settings enable row level security;
+alter table public.sync_log enable row level security;
+alter table public.doc_sequences enable row level security;
+
+alter table public.components add column if not exists stock_qty integer not null default 0;
+alter table public.components add column if not exists min_stock integer not null default 0;
+alter table public.components add column if not exists is_active integer not null default 1;
+alter table public.products add column if not exists inventory_mode text not null default 'stock';
+
+grant usage on schema public to anon, authenticated;
+grant select on public.categories, public.add_ons, public.components, public.products, public.inventory, public.settings to anon, authenticated;
+grant select on public.suppliers, public.sales, public.sale_items, public.purchase_orders, public.purchase_order_items, public.stock_issues, public.stock_issue_items, public.stock_movements to authenticated;
+
+drop policy if exists "catalog_select_active_categories" on public.categories;
+create policy "catalog_select_active_categories"
+on public.categories for select
+to anon, authenticated
+using (is_active = 1);
+
+drop policy if exists "catalog_select_active_add_ons" on public.add_ons;
+create policy "catalog_select_active_add_ons"
+on public.add_ons for select
+to anon, authenticated
+using (is_active = 1);
+
+drop policy if exists "catalog_select_active_components" on public.components;
+create policy "catalog_select_active_components"
+on public.components for select
+to anon, authenticated
+using (is_active = 1);
+
+drop policy if exists "catalog_select_active_products" on public.products;
+create policy "catalog_select_active_products"
+on public.products for select
+to anon, authenticated
+using (is_active = 1);
+
+drop policy if exists "catalog_select_active_inventory" on public.inventory;
+create policy "catalog_select_active_inventory"
+on public.inventory for select
+to anon, authenticated
+using (
+  exists (
+    select 1
+    from public.products
+    where products.id = inventory.product_id
+      and products.is_active = 1
+  )
+);
+
+drop policy if exists "settings_select_public_app_config" on public.settings;
+create policy "settings_select_public_app_config"
+on public.settings for select
+to anon, authenticated
+using (
+  key in (
+    'shop',
+    'invoice_templates',
+    'barcode_templates',
+    'selected_invoice_template_id',
+    'selected_barcode_template_id'
+  )
+);
+
+drop policy if exists "staff_select_suppliers" on public.suppliers;
+create policy "staff_select_suppliers"
+on public.suppliers for select
+to authenticated
+using (true);
+
+drop policy if exists "staff_select_sales" on public.sales;
+create policy "staff_select_sales"
+on public.sales for select
+to authenticated
+using (true);
+
+drop policy if exists "staff_select_sale_items" on public.sale_items;
+create policy "staff_select_sale_items"
+on public.sale_items for select
+to authenticated
+using (true);
+
+drop policy if exists "staff_select_purchase_orders" on public.purchase_orders;
+create policy "staff_select_purchase_orders"
+on public.purchase_orders for select
+to authenticated
+using (true);
+
+drop policy if exists "staff_select_purchase_order_items" on public.purchase_order_items;
+create policy "staff_select_purchase_order_items"
+on public.purchase_order_items for select
+to authenticated
+using (true);
+
+drop policy if exists "staff_select_stock_issues" on public.stock_issues;
+create policy "staff_select_stock_issues"
+on public.stock_issues for select
+to authenticated
+using (true);
+
+drop policy if exists "staff_select_stock_issue_items" on public.stock_issue_items;
+create policy "staff_select_stock_issue_items"
+on public.stock_issue_items for select
+to authenticated
+using (true);
+
+drop policy if exists "staff_select_stock_movements" on public.stock_movements;
+create policy "staff_select_stock_movements"
+on public.stock_movements for select
+to authenticated
+using (true);
+`;
+
 const SCHEMA_SQL = `-- Supabase/Postgres schema for ShopFlow POS
 -- Generated from the current Cloudflare D1 project.
 
@@ -178,6 +311,9 @@ create table if not exists components (
   label text not null,
   unit text,
   note text,
+  stock_qty integer not null default 0,
+  min_stock integer not null default 0,
+  is_active integer not null default 1,
   updated_at bigint not null
 );
 
@@ -191,6 +327,7 @@ create table if not exists products (
   image text,
   description text,
   component_ids text,
+  inventory_mode text not null default 'stock',
   min_stock integer not null default 0,
   is_active integer not null default 1,
   updated_at bigint not null,
@@ -300,6 +437,8 @@ create table if not exists sales (
 );
 create index if not exists idx_sales_date on sales(created_at);
 create index if not exists idx_sales_order on sales(order_id);
+comment on column sales.payment_method is 'Canonical POS payment method code: cash, card, bank_transfer, ewallet, or other.';
+comment on column purchase_orders.payment_method is 'Canonical POS payment method code: cash, card, bank_transfer, ewallet, or other.';
 
 create table if not exists sale_items (
   id text primary key,
@@ -336,7 +475,7 @@ create table if not exists doc_sequences (
   last_number integer not null default 0,
   primary key (prefix, date_key)
 );
-`;
+` + RLS_SQL;
 
 function readProducts() {
   const source = JSON.parse(fs.readFileSync(path.join(DATA_DIR, "db_dump.json"), "utf8"));
@@ -348,19 +487,20 @@ function readProducts() {
       const normalizedSku = LEGACY_PRODUCT_ID_MAP[row.sku_code] || row.sku_code || normalizedId;
       return {
         id: normalizedId,
-    name: row.name,
-    category_id: row.category_id || null,
-    price: Number(row.price) || 0,
-    cost_price: 0,
-    barcode: row.barcode || normalizedSku || normalizedId,
-    image: CATEGORY_ICON_MAP[row.category_id] || "🛒",
-    description: row.description || null,
-    component_ids: "[]",
-    min_stock: Number(row.min_stock) || 0,
-    is_active: 1,
-    updated_at: NOW,
-    unit: row.unit || null,
-    sku_code: normalizedSku
+        name: row.name,
+        category_id: row.category_id || null,
+        price: Number(row.price) || 0,
+        cost_price: 0,
+        barcode: row.barcode || normalizedSku || normalizedId,
+        image: CATEGORY_ICON_MAP[row.category_id] || "🛒",
+        description: row.description || null,
+        component_ids: "[]",
+        inventory_mode: row.inventory_mode || "stock",
+        min_stock: Number(row.min_stock) || 0,
+        is_active: 1,
+        updated_at: NOW,
+        unit: row.unit || null,
+        sku_code: normalizedSku
       };
     });
 }
@@ -396,7 +536,13 @@ function buildSeedData() {
     tables: {
       categories: CATEGORY_ROWS.map((row) => ({ ...row, is_active: 1, updated_at: NOW })),
       add_ons: ADD_ON_ROWS.map((row) => ({ ...row, updated_at: NOW })),
-      components: COMPONENT_ROWS.map((row) => ({ ...row, updated_at: NOW })),
+      components: COMPONENT_ROWS.map((row) => ({
+        ...row,
+        stock_qty: 0,
+        min_stock: 0,
+        is_active: 1,
+        updated_at: NOW
+      })),
       products,
       inventory,
       stock_movements: [],
@@ -471,8 +617,8 @@ function buildSeedSql(seed) {
     "",
     buildUpsertSql("categories", ["id", "label", "icon", "sort_order", "is_active", "updated_at", "parent_id", "level", "code"], tables.categories, { conflict: ["id"] }),
     buildUpsertSql("add_ons", ["id", "label", "price", "group_key", "is_active", "updated_at"], tables.add_ons, { conflict: ["id"] }),
-    buildUpsertSql("components", ["id", "label", "unit", "note", "updated_at"], tables.components, { conflict: ["id"] }),
-    buildUpsertSql("products", ["id", "name", "category_id", "price", "cost_price", "barcode", "image", "description", "component_ids", "min_stock", "is_active", "updated_at", "unit", "sku_code"], tables.products, { conflict: ["id"] }),
+    buildUpsertSql("components", ["id", "label", "unit", "note", "stock_qty", "min_stock", "is_active", "updated_at"], tables.components, { conflict: ["id"] }),
+    buildUpsertSql("products", ["id", "name", "category_id", "price", "cost_price", "barcode", "image", "description", "component_ids", "inventory_mode", "min_stock", "is_active", "updated_at", "unit", "sku_code"], tables.products, { conflict: ["id"] }),
     buildUpsertSql("inventory", ["product_id", "qty_on_hand", "location", "updated_at"], tables.inventory, { conflict: ["product_id"] }),
     buildUpsertSql("settings", ["key", "value", "updated_at"], tables.settings, { conflict: ["key"], jsonColumns: ["value"] }),
     "commit;",
@@ -488,6 +634,7 @@ function main() {
     generated_at: seed.meta.generated_at,
     files: [
       "database/supabase/schema.sql",
+      "database/supabase/rls_policies.sql",
       "database/supabase/seed.sql",
       "database/supabase/seed.json"
     ],
@@ -497,6 +644,7 @@ function main() {
   };
 
   fs.writeFileSync(path.join(OUT_DIR, "schema.sql"), SCHEMA_SQL, "utf8");
+  fs.writeFileSync(path.join(OUT_DIR, "rls_policies.sql"), RLS_SQL, "utf8");
   fs.writeFileSync(path.join(OUT_DIR, "seed.sql"), seedSql, "utf8");
   fs.writeFileSync(path.join(OUT_DIR, "seed.json"), JSON.stringify(seed, null, 2) + "\n", "utf8");
   fs.writeFileSync(path.join(OUT_DIR, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n", "utf8");
