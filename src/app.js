@@ -1812,9 +1812,6 @@
   function MenuDrawer(props) {
     var items = [
       { id: "pos", label: "Bán hàng / POS", icon: "🧾", help: "Bán hàng tại quầy / Counter sales" },
-      { id: "purchases", label: "Nhập hàng / Stock In", icon: "📥", help: "Tạo phiếu nhập, nhà cung cấp / Purchase orders" },
-      { id: "issues", label: "Xuất hàng / Stock Out", icon: "📤", help: "Xuất hủy, mẫu, nội bộ / Damage, sample, internal" },
-      { id: "warehouse", label: "Lưu kho / Warehouse", icon: "🏬", help: "Tồn kho, sổ cái, kiểm kê / Stock & ledger" },
       { id: "dashboard", label: "Tổng quan / Dashboard", icon: "📊", help: "Tổng quan doanh thu / Sales overview" },
       { id: "inventory", label: "Kho hàng / Inventory", icon: "📦", help: "Sửa, thêm, xóa sản phẩm / Manage products" },
       { id: "settings", label: "Cài đặt / Settings", icon: "⚙️", help: "Cửa hàng, hóa đơn, mã vạch / Shop, invoice, barcode" }
@@ -2695,10 +2692,11 @@
     }
     // Auto refresh when relevant views open.
     useEffect(function () {
-      if (activeView === "purchases") { refreshSuppliers(); refreshPurchases(); }
-      if (activeView === "issues") { refreshIssues(); }
-      if (activeView === "warehouse") { refreshMovements(); }
-    }, [activeView]);
+      if (activeView !== "inventory") return;
+      if (inventorySection === "purchases") { refreshSuppliers(); refreshPurchases(); }
+      if (inventorySection === "issues") { refreshIssues(); }
+      if (inventorySection === "warehouse") { refreshMovements(); }
+    }, [activeView, inventorySection]);
 
     // ---------- Debounced persistence of settings / templates to D1 ----------
     // We don't want to flood /api/settings with one request per keystroke,
@@ -3122,6 +3120,9 @@
 
     var inventoryTabs = [
       { id: "stock", label: "Kiểm hàng tồn kho / Stock Check" },
+      { id: "purchases", label: "Nhập hàng / Stock In" },
+      { id: "issues", label: "Xuất hàng / Stock Out" },
+      { id: "warehouse", label: "Lưu kho / Warehouse" },
       { id: "convert", label: "Chuyển thành phần / Convert Stock" },
       { id: "product", label: "Thêm sản phẩm / Add Product" },
       { id: "catalog", label: "Điều chỉnh danh mục / Catalog Adjustments" }
@@ -6411,7 +6412,11 @@
               </div>
               <button
                 className="ghost-btn"
-                onClick=${function () { setActiveView("warehouse"); setWarehouseTab("stock"); }}
+                onClick=${function () {
+                  setActiveView("inventory");
+                  setInventorySection("warehouse");
+                  setWarehouseTab("stock");
+                }}
               >${L("Xem chi tiết / View Details")}</button>
             </aside>
           ` : null}
@@ -7276,6 +7281,10 @@
           </aside>
 
           <div className="settings-content">
+            ${inventorySection === "purchases" ? renderPurchasesView() : null}
+            ${inventorySection === "issues" ? renderIssuesView() : null}
+            ${inventorySection === "warehouse" ? renderWarehouseView() : null}
+
             ${inventorySection === "stock" ? html`
               <div className="stack-view">
                 <div className="card-grid card-grid-4">
@@ -9407,7 +9416,8 @@
                 color: "#a4451a", cursor: "pointer", fontWeight: 600
               }}
               onClick=${function () {
-                setActiveView("warehouse");
+                setActiveView("inventory");
+                setInventorySection("warehouse");
                 setWarehouseTab("stock");
               }}
             >
@@ -9434,9 +9444,6 @@
 
         <main className="page-body">
           ${activeView === "pos" ? renderPosView() : null}
-          ${activeView === "purchases" ? renderPurchasesView() : null}
-          ${activeView === "issues" ? renderIssuesView() : null}
-          ${activeView === "warehouse" ? renderWarehouseView() : null}
           ${activeView === "dashboard" ? renderDashboardView() : null}
           ${activeView === "inventory" ? renderInventoryView() : null}
           ${activeView === "settings" ? renderSettingsView() : null}
