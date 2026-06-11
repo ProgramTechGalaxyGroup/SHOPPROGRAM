@@ -149,6 +149,8 @@ export async function runIdempotentBatch(db, batch, clientOpId) {
     const msg = String((err && err.message) || err || "");
     const isDup =
       msg.indexOf("UNIQUE constraint failed") !== -1 ||
+      msg.toLowerCase().indexOf("duplicate key value violates unique constraint") !== -1 ||
+      msg.toLowerCase().indexOf("unique constraint") !== -1 && msg.indexOf("sync_log") !== -1 ||
       msg.indexOf("constraint failed") !== -1 ||
       msg.indexOf("D1_ERROR") !== -1 && msg.indexOf("sync_log") !== -1;
     if (isDup && clientOpId) {

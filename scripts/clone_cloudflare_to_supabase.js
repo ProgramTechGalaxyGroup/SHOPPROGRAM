@@ -171,16 +171,16 @@ async function fetchAllData() {
     salesPayload,
     settingsPayload
   ] = await Promise.all([
-    fetchJson("/api/categories"),
+    fetchJson("/api/sync/pull?since=0"),
     fetchJson("/api/addons"),
-    fetchJson("/api/products"),
+    fetchJson("/api/products?all=1"),
     fetchJson("/api/inventory"),
     fetchJson("/api/inventory/movements"),
     fetchJson("/api/components"),
     fetchJson("/api/suppliers"),
-    fetchJson("/api/purchases"),
-    fetchJson("/api/issues"),
-    fetchJson("/api/sales"),
+    fetchJson("/api/purchases?limit=1000"),
+    fetchJson("/api/issues?limit=1000"),
+    fetchJson("/api/sales?limit=1000"),
     fetchJson("/api/settings")
   ]);
 

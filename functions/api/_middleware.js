@@ -1,3 +1,5 @@
+import { getRuntimeDb } from "./_supabase_db.js";
+
 // Global middleware for all /api/* routes.
 // - Adds permissive CORS so the static frontend can call /api/ from the same
 //   Pages domain or from localhost during development.
@@ -18,6 +20,7 @@ export const onRequest = async (context) => {
   }
 
   try {
+    context.env.DB = getRuntimeDb(context.env);
     const response = await next();
     const headers = new Headers(response.headers);
     for (const [k, v] of Object.entries(CORS_HEADERS)) headers.set(k, v);
