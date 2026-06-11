@@ -1,11 +1,15 @@
 import { json } from "./_lib.js";
-import { getDbProvider } from "./_supabase_db.js";
+import {
+  getDbProvider,
+  getSupabaseServiceRoleKey,
+  getSupabaseUrl,
+} from "./_supabase_db.js";
 
 export const onRequestGet = async ({ env }) => {
   const provider = getDbProvider(env);
   const checks = {
-    supabaseUrl: Boolean(env.SUPABASE_URL),
-    supabaseServiceRoleKey: Boolean(env.SUPABASE_SERVICE_ROLE_KEY),
+    supabaseUrl: Boolean(getSupabaseUrl(env)),
+    supabaseServiceRoleKey: Boolean(getSupabaseServiceRoleKey(env)),
     d1Binding: Boolean(env.DB),
   };
 
@@ -27,4 +31,3 @@ export const onRequestGet = async ({ env }) => {
     serverTime: Date.now(),
   }, { status: ok ? 200 : 500 });
 };
-

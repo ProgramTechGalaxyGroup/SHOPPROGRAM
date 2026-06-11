@@ -65,8 +65,8 @@ function isReturningQuery(sql) {
 }
 
 async function callSupabaseRpc(env, fn, payload) {
-  const url = String(env.SUPABASE_URL || "").replace(/\/+$/, "");
-  const key = env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = getSupabaseUrl(env);
+  const key = getSupabaseServiceRoleKey(env);
   if (!url || !key) {
     throw new Error("Supabase env missing: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required");
   }
@@ -137,7 +137,7 @@ class SupabaseStatement {
 
 export function shouldUseSupabase(env) {
   const provider = String(env.SHOPFLOW_DB_PROVIDER || "").toLowerCase();
-  return provider === "supabase" || Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY && provider !== "d1");
+  return provider === "supabase" || Boolean(getSupabaseUrl(env) && getSupabaseServiceRoleKey(env) && provider !== "d1");
 }
 
 export function createSupabaseD1Adapter(env) {
@@ -168,3 +168,20 @@ export function getDbProvider(env) {
   return shouldUseSupabase(env) ? "supabase" : "d1";
 }
 
+export function getSupabaseUrl(env) {
+  return String(
+    env.SUPABASE_URL ||
+    env.NEXT_PUBLIC_SUPABASE_URL ||
+    env.VITE_SUPABASE_URL ||
+    env.SUPABASE_PROJECT_URL ||
+    ""
+  ).replace(/\/+$/, "");
+}
+
+export function getSupabaseServiceRoleKey(env) {
+  return env.SUPABASE_SERVICE_ROLE_KEY ||
+    env.SUPABASE_SERVICE_KEY ||
+    env.SUPABASE_SECRET_KEY ||
+    env.SERVICE_ROLE_KEY ||
+    "";
+}
