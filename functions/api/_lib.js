@@ -93,6 +93,20 @@ export function dateKey(ts) {
 // Returns a string like "PN-20260521-001".
 export async function nextDocId(db, prefix, ts) {
   const dk = dateKey(ts);
+  if (db && db.__provider === "supabase") {
+    const row = await db
+      .prepare(
+        `INSERT INTO doc_sequences AS ds (prefix, date_key, last_number)
+         VALUES (?, ?, 1)
+         ON CONFLICT(prefix, date_key)
+           DO UPDATE SET last_number = ds.last_number + 1
+         RETURNING ds.last_number AS last_number`
+      )
+      .bind(prefix, dk)
+      .first();
+    const n = (row && row.last_number) || 1;
+    return `${prefix}-${dk}-${String(n).padStart(3, "0")}`;
+  }
   // SQLite upsert that increments and returns the value.
   // D1 supports RETURNING.
   const row = await db
