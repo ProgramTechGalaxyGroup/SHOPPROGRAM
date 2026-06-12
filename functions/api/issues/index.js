@@ -3,6 +3,7 @@ import {
   isDuplicateOp, recordOpStmt, runIdempotentBatch, nextDocId,
   inventoryDeltaStmt, movementStmt,
   getProductCost, getProductName,
+  componentMovementStmt, ensureComponentsInventoryColumns,
 } from "../_lib.js";
 
 const VALID_REASONS = new Set(["damaged", "sample", "internal", "transfer", "other"]);
@@ -41,19 +42,25 @@ export const onRequestGet = async ({ env, request }) => {
 //     items: [{ productId, qty, unitCost? }]
 //   }
 export const onRequestPost = async ({ env, request }) => {
+  await ensureComponentsInventoryColumns(env.DB);
   const body = await readJson(request);
   if (!body || !VALID_REASONS.has(body.reason)) return badRequest("invalid reason");
   if (!Array.isArray(body.items) || !body.items.length) return badRequest("items required");
   for (let i = 0; i < body.items.length; i++) {
     const it = body.items[i];
-    if (!it || !it.productId || typeof it.productId !== "string") {
-      return badRequest(`items[${i}].productId required`);
+    it.itemType = it.itemType === "component" || it.type === "component" ? "component" : "product";
+    if (it.itemType === "component") {
+      it.componentId = String(it.componentId || it.itemId || it.productId || "").trim();
+      if (!it.componentId) return badRequest(`items[${i}].componentId required`);
+    } else {
+      it.productId = String(it.productId || it.itemId || "").trim();
+      if (!it.productId) return badRequest(`items[${i}].productId required`);
     }
     const q = Number(it.qty);
     if (!Number.isFinite(q) || q <= 0) {
       return badRequest(`items[${i}].qty must be > 0 (got ${it.qty})`);
     }
-    it.qty = Math.floor(q);
+    it.qty = it.itemType === "component" ? q : Math.floor(q);
   }
 
   if (body.clientOpId) {
@@ -65,8 +72,13 @@ export const onRequestPost = async ({ env, request }) => {
   // allowNegativeStock=true (used by the kiểm kê UI when actual<system).
   if (!body.allowNegativeStock) {
     const needByProduct = new Map();
+    const needByComponent = new Map();
     for (const it of body.items) {
-      needByProduct.set(it.productId, (needByProduct.get(it.productId) || 0) + (Number(it.qty) || 0));
+      if (it.itemType === "component") {
+        needByComponent.set(it.componentId, (needByComponent.get(it.componentId) || 0) + (Number(it.qty) || 0));
+      } else {
+        needByProduct.set(it.productId, (needByProduct.get(it.productId) || 0) + (Number(it.qty) || 0));
+      }
     }
     const checks = await Promise.all(
       [...needByProduct.keys()].map((pid) =>
@@ -85,6 +97,21 @@ export const onRequestPost = async ({ env, request }) => {
         insufficient.push({ productId: pid, name: row ? row.name : pid, available: have, required: need });
       }
     });
+    const componentChecks = await Promise.all(
+      [...needByComponent.keys()].map((componentId) =>
+        env.DB.prepare(
+          `SELECT label AS name, COALESCE(stock_qty, 0) AS stock
+           FROM components WHERE id = ?`
+        ).bind(componentId).first()
+      )
+    );
+    [...needByComponent.entries()].forEach(([componentId, need], idx) => {
+      const row = componentChecks[idx];
+      const have = row ? Number(row.stock) || 0 : 0;
+      if (have < need) {
+        insufficient.push({ productId: componentId, name: row ? row.name : componentId, available: have, required: need });
+      }
+    });
     if (insufficient.length) {
       return badRequest("Insufficient stock", { code: "INSUFFICIENT_STOCK", insufficient });
     }
@@ -94,11 +121,30 @@ export const onRequestPost = async ({ env, request }) => {
   const issueId = body.id || await nextDocId(env.DB, "PX", ts);
 
   // Snapshot costs + names in parallel.
-  const enriched = await Promise.all(body.items.map(async (it) => ({
-    ...it,
-    productName: it.productName || (await getProductName(env.DB, it.productId)),
-    unitCost: it.unitCost != null ? Number(it.unitCost) : await getProductCost(env.DB, it.productId),
-  })));
+  let enriched;
+  try {
+    enriched = await Promise.all(body.items.map(async (it) => {
+      if (it.itemType === "component") {
+        const component = await env.DB.prepare(
+          `SELECT id, label, cost_per_unit FROM components WHERE id = ?`
+        ).bind(it.componentId).first();
+        if (!component) throw new Error(`component not found: ${it.componentId}`);
+        return {
+          ...it,
+          productId: it.componentId,
+          productName: it.componentName || it.productName || component.label || it.componentId,
+          unitCost: it.unitCost != null ? Number(it.unitCost) : Number(component.cost_per_unit) || 0,
+        };
+      }
+      return {
+        ...it,
+        productName: it.productName || (await getProductName(env.DB, it.productId)),
+        unitCost: it.unitCost != null ? Number(it.unitCost) : await getProductCost(env.DB, it.productId),
+      };
+    }));
+  } catch (err) {
+    return badRequest(err && err.message ? err.message : "invalid issue item");
+  }
 
   const stmts = [];
   stmts.push(
@@ -115,19 +161,42 @@ export const onRequestPost = async ({ env, request }) => {
          VALUES (?, ?, ?, ?, ?, ?)`
       ).bind(uid("sii"), issueId, it.productId, it.productName, Number(it.qty), it.unitCost)
     );
-    stmts.push(
-      movementStmt(env.DB, {
-        productId: it.productId,
-        movementType: "OUT",
-        qtyChange: -Number(it.qty),
-        unitCost: it.unitCost,
-        refType: "issue",
-        refId: issueId,
-        note: body.reason,
-        createdAt: ts,
-      })
-    );
-    stmts.push(inventoryDeltaStmt(env.DB, it.productId, -Number(it.qty), ts));
+    if (it.itemType === "component") {
+      stmts.push(
+        env.DB.prepare(
+          `UPDATE components
+           SET stock_qty = COALESCE(stock_qty, 0) - ?,
+               updated_at = ?
+           WHERE id = ?`
+        ).bind(Number(it.qty), ts, it.componentId)
+      );
+      stmts.push(
+        componentMovementStmt(env.DB, {
+          componentId: it.componentId,
+          movementType: "OUT",
+          qtyChange: -Number(it.qty),
+          unitCost: it.unitCost,
+          refType: "issue",
+          refId: issueId,
+          note: body.reason,
+          createdAt: ts,
+        })
+      );
+    } else {
+      stmts.push(
+        movementStmt(env.DB, {
+          productId: it.productId,
+          movementType: "OUT",
+          qtyChange: -Number(it.qty),
+          unitCost: it.unitCost,
+          refType: "issue",
+          refId: issueId,
+          note: body.reason,
+          createdAt: ts,
+        })
+      );
+      stmts.push(inventoryDeltaStmt(env.DB, it.productId, -Number(it.qty), ts));
+    }
   });
 
   stmts.push(recordOpStmt(env.DB, body.clientOpId, "issue", issueId));

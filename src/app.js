@@ -2228,8 +2228,13 @@
     var [purchaseItemType, setPurchaseItemType] = useState("product");
     var [purchaseProductSearch, setPurchaseProductSearch] = useState("");
     var [issueDraft, setIssueDraft] = useState({ reason: "damaged", note: "", items: [] });
+    var [issueItemType, setIssueItemType] = useState("product");
+    var [issueItemSearch, setIssueItemSearch] = useState("");
     var [supplierDraft, setSupplierDraft] = useState({ id: null, name: "", phone: "", address: "", note: "" });
     var [warehouseTab, setWarehouseTab] = useState("stock"); // stock | ledger | stocktake
+    var [stockOpsMode, setStockOpsMode] = useState("in"); // in | out
+    var [stockCheckTab, setStockCheckTab] = useState("check"); // check | ledger | stocktake
+    var [componentWorkspaceMode, setComponentWorkspaceMode] = useState("edit"); // edit | convert
     var [stocktakeDraft, setStocktakeDraft] = useState({}); // productId -> actual qty
     // Search boxes for product lookup in Kho hàng (Inventory) and Lưu kho
     // (Warehouse) views. Plain string; we run productMatchesQuery() on top.
@@ -3035,10 +3040,13 @@
     // Auto refresh when relevant views open.
     useEffect(function () {
       if (activeView !== "inventory") return;
-      if (inventorySection === "purchases") { refreshSuppliers(); refreshPurchases(); }
-      if (inventorySection === "issues") { refreshIssues(); }
-      if (inventorySection === "warehouse") { refreshMovements(); }
-    }, [activeView, inventorySection]);
+      if (inventorySection === "stock_ops") {
+        refreshSuppliers();
+        refreshPurchases();
+        refreshIssues();
+      }
+      if (inventorySection === "stock" && stockCheckTab === "ledger") { refreshMovements(); }
+    }, [activeView, inventorySection, stockCheckTab]);
 
     // ---------- Debounced persistence of settings / templates to D1 ----------
     // We don't want to flood /api/settings with one request per keystroke,
@@ -3464,13 +3472,11 @@
 
     var inventoryTabs = [
       { id: "stock", label: "Kiểm hàng tồn kho / Stock Check" },
-      { id: "purchases", label: "Nhập hàng / Stock In" },
-      { id: "issues", label: "Xuất hàng / Stock Out" },
-      { id: "warehouse", label: "Lưu kho / Warehouse" },
-      { id: "convert", label: "Chuyển thành phần / Convert Stock" },
+      { id: "stock_ops", label: "Phiếu nhập / xuất / Stock In-Out" },
+      { id: "components", label: "Thành phần / Components" },
       { id: "production", label: "Sơ chế / Production" },
       { id: "product", label: "Thêm sản phẩm / Add Product" },
-      { id: "catalog", label: "Điều chỉnh danh mục / Catalog Adjustments" }
+      { id: "catalog", label: "Điều chỉnh, sửa / Adjust & Edit" }
     ];
 
     var addOnGroupLabels = {
@@ -7064,8 +7070,8 @@
                 className="ghost-btn"
                 onClick=${function () {
                   setActiveView("inventory");
-                  setInventorySection("warehouse");
-                  setWarehouseTab("stock");
+                  setInventorySection("stock");
+                  setStockCheckTab("check");
                 }}
               >${L("Xem chi tiết / View Details")}</button>
             </aside>
@@ -7983,11 +7989,29 @@
           </aside>
 
           <div className="settings-content">
-            ${inventorySection === "purchases" ? renderPurchasesView() : null}
-            ${inventorySection === "issues" ? renderIssuesView() : null}
-            ${inventorySection === "warehouse" ? renderWarehouseView() : null}
+            ${inventorySection === "stock_ops" ? renderStockOperationsView() : null}
 
             ${inventorySection === "stock" ? html`
+              <div className="settings-nav" style=${{ marginBottom: 16 }}>
+                <button
+                  type="button"
+                  className=${"settings-nav-btn" + (stockCheckTab === "check" ? " is-active" : "")}
+                  onClick=${function () { setStockCheckTab("check"); }}
+                >${L("Kiểm hàng / Stock Check")}</button>
+                <button
+                  type="button"
+                  className=${"settings-nav-btn" + (stockCheckTab === "ledger" ? " is-active" : "")}
+                  onClick=${function () { setStockCheckTab("ledger"); refreshMovements(); }}
+                >${L("Sổ cái / Ledger")}</button>
+                <button
+                  type="button"
+                  className=${"settings-nav-btn" + (stockCheckTab === "stocktake" ? " is-active" : "")}
+                  onClick=${function () { setStockCheckTab("stocktake"); }}
+                >${L("Kiểm kê / Stocktake")}</button>
+              </div>
+            ` : null}
+
+            ${inventorySection === "stock" && stockCheckTab === "check" ? html`
               <div className="stack-view">
                 <div className="card-grid card-grid-4">
                   <article className="metric-card surface">
@@ -8164,7 +8188,69 @@
               </div>
             ` : null}
 
-            ${inventorySection === "convert" ? html`
+            ${inventorySection === "stock" && stockCheckTab === "ledger" ? html`
+              <section className="surface section-card">
+                <div className="section-top">
+                  <h2 className="section-title">${L("Sổ cái chuyển động kho / Stock Movement Ledger")}</h2>
+                  <button className="ghost-btn" onClick=${function () { refreshMovements(); }}>${L("Tải lại / Reload")}</button>
+                </div>
+                <div className="management-list">
+                  ${movements.length === 0
+                    ? html`<p style=${{ color: "#7b6b5d" }}>${L("Chưa có chuyển động. / No movements yet.")}</p>`
+                    : movements.map(function (m) {
+                        var sign = m.qty_change > 0 ? "+" : "";
+                        return html`
+                          <article key=${m.id} className="list-row list-row-actions">
+                            <div>
+                              <strong>${m.product_name || m.product_id}</strong>
+                              <p>${formatMovementType(m.movement_type)} · ${formatDateTime(m.created_at)} ${m.ref_id ? " · " + m.ref_id : ""}</p>
+                            </div>
+                            <strong style=${{ color: m.qty_change > 0 ? "#1f8a3a" : "#c0392b" }}>${sign}${m.qty_change}</strong>
+                          </article>
+                        `;
+                      })}
+                </div>
+              </section>
+            ` : null}
+
+            ${inventorySection === "stock" && stockCheckTab === "stocktake" ? html`
+              <section className="surface section-card">
+                <h2 className="section-title">${L("Kiểm kê / Stocktake")}</h2>
+                <p style=${{ color: "#7b6b5d" }}>${L("Nhập số lượng thực tế. Hệ thống sẽ tự sinh phiếu điều chỉnh tăng/giảm. / Enter actual quantity. The system will create adjustment entries.")}</p>
+                <div className="management-list">
+                  ${products.map(function (p) {
+                    var actual = stocktakeDraft[p.id];
+                    var diff = (actual === undefined || actual === "") ? null : Number(actual) - (Number(p.stock) || 0);
+                    return html`
+                      <article key=${p.id} className="list-row list-row-actions">
+                        <div>
+                          <strong>${p.image} ${p.name}</strong>
+                          <p>${L("Tồn hệ thống / System stock")}: ${p.stock || 0}</p>
+                        </div>
+                        <div className="row-actions">
+                          <label className="field" style=${{ width: 110 }}>
+                            <span>${L("Thực tế / Actual")}</span>
+                            <input type="number" min="0" value=${actual === undefined ? "" : actual} onInput=${function (e) {
+                              var val = e.target.value;
+                              setStocktakeDraft(function (cur) { var next = Object.assign({}, cur); next[p.id] = val; return next; });
+                            }} />
+                          </label>
+                          ${diff !== null && diff !== 0
+                            ? html`<strong style=${{ color: diff > 0 ? "#1f8a3a" : "#c0392b" }}>${diff > 0 ? "+" : ""}${diff}</strong>`
+                            : null}
+                        </div>
+                      </article>
+                    `;
+                  })}
+                </div>
+                <div className="section-top" style=${{ marginTop: 18 }}>
+                  <button className="ghost-btn" onClick=${function () { setStocktakeDraft({}); }}>${L("Xóa nháp / Clear draft")}</button>
+                  <button className="primary-btn" onClick=${submitStocktake}>${L("Ghi nhận kiểm kê / Submit Stocktake")}</button>
+                </div>
+              </section>
+            ` : null}
+
+            ${inventorySection === "components" && componentWorkspaceMode === "convert" ? html`
               <div className="stack-view">
                 <section className="surface section-card form-card">
                   <div className="section-top">
@@ -8724,7 +8810,7 @@
 
                     ${components.length === 0 ? html`
                       <div style=${{ color: "#7b6b5d", fontSize: 13, padding: "8px 0" }}>
-                        ${L("Chưa có nguyên liệu nào trong danh mục. Vào tab \"Điều chỉnh danh mục\" để thêm. / No components defined. Add them in the \"Catalog Adjustments\" tab.")}
+                        ${L("Chưa có nguyên liệu nào trong danh mục. Vào tab \"Thành phần\" để thêm. / No components defined. Add them in the \"Components\" tab.")}
                       </div>
                     ` : html`
                       <!-- Chip palette to toggle ingredients in/out of recipe -->
@@ -8812,6 +8898,21 @@
               </div>
             ` : null}
 
+            ${inventorySection === "components" ? html`
+              <div className="settings-nav" style=${{ marginBottom: 16 }}>
+                <button
+                  type="button"
+                  className=${"settings-nav-btn" + (componentWorkspaceMode === "edit" ? " is-active" : "")}
+                  onClick=${function () { setComponentWorkspaceMode("edit"); }}
+                >${L("Thêm / Sửa thành phần / Add & Edit Components")}</button>
+                <button
+                  type="button"
+                  className=${"settings-nav-btn" + (componentWorkspaceMode === "convert" ? " is-active" : "")}
+                  onClick=${function () { setComponentWorkspaceMode("convert"); }}
+                >${L("Chuyển thành phần / Convert to Component")}</button>
+              </div>
+            ` : null}
+
             ${inventorySection === "catalog" ? html`
               <div className="stack-view">
                 <div className="split-grid">
@@ -8892,7 +8993,11 @@
                     </div>
                   </section>
                 </div>
+              </div>
+            ` : null}
 
+            ${inventorySection === "components" && componentWorkspaceMode === "edit" ? html`
+              <div className="stack-view">
                 <section className="surface section-card form-card">
                   <div className="section-top">
                     <div>
@@ -9113,14 +9218,23 @@
       { value: "transfer", label: "Chuyển kho / Transfer" },
       { value: "other",    label: "Khác / Other" }
     ];
-    function addIssueLine(productId) {
-      var product = products.find(function (p) { return p.id === productId; });
+    function issueLineKey(itemType, itemId) {
+      return (itemType === "component" ? "component:" : "product:") + itemId;
+    }
+    function addIssueLine(itemId, itemType) {
+      var type = itemType === "component" ? "component" : "product";
+      var key = issueLineKey(type, itemId);
+      var product = type === "product" ? products.find(function (p) { return p.id === itemId; }) : null;
+      var component = type === "component" ? components.find(function (c) { return c.id === itemId; }) : null;
       setIssueDraft(function (current) {
-        var existing = current.items.find(function (it) { return it.productId === productId; });
+        var existing = current.items.find(function (it) {
+          return (it.lineKey || issueLineKey(it.itemType || "product", it.itemId || it.productId || it.componentId)) === key;
+        });
         if (existing) {
           return Object.assign({}, current, {
             items: current.items.map(function (it) {
-              return it.productId === productId
+              var currentKey = it.lineKey || issueLineKey(it.itemType || "product", it.itemId || it.productId || it.componentId);
+              return currentKey === key
                 ? Object.assign({}, it, { qty: (Number(it.qty) || 0) + 1 })
                 : it;
             })
@@ -9128,29 +9242,37 @@
         }
         return Object.assign({}, current, {
           items: current.items.concat([{
-            productId: productId,
-            productName: product ? product.name : productId,
+            lineKey: key,
+            itemType: type,
+            itemId: itemId,
+            productId: type === "product" ? itemId : "",
+            componentId: type === "component" ? itemId : "",
+            productName: type === "component" ? (component ? L(component.label) : itemId) : (product ? product.name : itemId),
             qty: 1,
-            maxStock: product ? Number(product.stock) || 0 : 0
+            maxStock: type === "component" ? (component ? Number(component.stockQty) || 0 : 0) : (product ? Number(product.stock) || 0 : 0)
           }])
         });
       });
     }
-    function updateIssueLine(productId, qty) {
+    function updateIssueLine(lineKey, qty) {
       setIssueDraft(function (current) {
         return Object.assign({}, current, {
           items: current.items.map(function (it) {
-            return it.productId === productId
+            var currentKey = it.lineKey || issueLineKey(it.itemType || "product", it.itemId || it.productId || it.componentId);
+            return currentKey === lineKey
               ? Object.assign({}, it, { qty: Number(qty) || 0 })
               : it;
           })
         });
       });
     }
-    function removeIssueLine(productId) {
+    function removeIssueLine(lineKey) {
       setIssueDraft(function (current) {
         return Object.assign({}, current, {
-          items: current.items.filter(function (it) { return it.productId !== productId; })
+          items: current.items.filter(function (it) {
+            var currentKey = it.lineKey || issueLineKey(it.itemType || "product", it.itemId || it.productId || it.componentId);
+            return currentKey !== lineKey;
+          })
         });
       });
     }
@@ -9163,12 +9285,21 @@
         return;
       }
       var insufficient = issueDraft.items.filter(function (it) {
+        if (it.itemType === "component") {
+          var c = components.find(function (x) { return x.id === it.componentId; });
+          var componentStock = c ? Number(c.stockQty) || 0 : 0;
+          return (Number(it.qty) || 0) > componentStock;
+        }
         var p = products.find(function (x) { return x.id === it.productId; });
         var stock = p ? Number(p.stock) || 0 : 0;
         return (Number(it.qty) || 0) > stock;
       });
       if (insufficient.length) {
         var msg = insufficient.map(function (it) {
+          if (it.itemType === "component") {
+            var c = components.find(function (x) { return x.id === it.componentId; });
+            return "- " + (c ? L(c.label) : it.componentId) + " (" + (c ? c.stockQty : 0) + "/" + it.qty + ")";
+          }
           var p = products.find(function (x) { return x.id === it.productId; });
           return "- " + (p ? p.name : it.productId) + " (" + (p ? p.stock : 0) + "/" + it.qty + ")";
         }).join("\n");
@@ -9177,9 +9308,16 @@
       // Optimistic local decrement.
       setProducts(function (current) {
         return current.map(function (p) {
-          var line = issueDraft.items.find(function (it) { return it.productId === p.id; });
+          var line = issueDraft.items.find(function (it) { return it.itemType !== "component" && it.productId === p.id; });
           if (!line) return p;
           return Object.assign({}, p, { stock: Math.max(0, (Number(p.stock) || 0) - (Number(line.qty) || 0)) });
+        });
+      });
+      setComponents(function (current) {
+        return current.map(function (component) {
+          var line = issueDraft.items.find(function (it) { return it.itemType === "component" && it.componentId === component.id; });
+          if (!line) return component;
+          return Object.assign({}, component, { stockQty: Math.max(0, (Number(component.stockQty) || 0) - (Number(line.qty) || 0)) });
         });
       });
       syncEnqueue({
@@ -9190,7 +9328,15 @@
           reason: issueDraft.reason,
           note: issueDraft.note || null,
           items: issueDraft.items.map(function (it) {
-            return { productId: it.productId, productName: it.productName, qty: Number(it.qty) || 0 };
+            if (it.itemType === "component") {
+              return {
+                itemType: "component",
+                componentId: it.componentId,
+                componentName: it.productName,
+                qty: Number(it.qty) || 0
+              };
+            }
+            return { itemType: "product", productId: it.productId, productName: it.productName, qty: Number(it.qty) || 0 };
           })
         }
       });
@@ -9272,13 +9418,51 @@
     // ==================================================================
     // RENDER: NHẬP HÀNG VIEW
     // ==================================================================
-    function renderPurchasesView() {
+    function renderStockOperationsView() {
+      return html`
+        <section className="page-section">
+          <header className="page-header surface">
+            <div>
+              <p className="eyebrow">${L("Phiếu kho / Stock Documents")}</p>
+              <h1 className="section-title">${L("Nhập / Xuất hàng chung một trang / Stock In-Out in One Workspace")}</h1>
+              <small style=${{ color: "#7b6b5d" }}>
+                ${L("Chọn loại phiếu để đổi form. Nhập và xuất đều hỗ trợ sản phẩm hoặc thành phần. / Choose document type to switch templates. Both stock-in and stock-out support products or components.")}
+              </small>
+            </div>
+            <div className="row-actions">
+              <span className="eyebrow">${L("Trạng thái / Status")}: ${syncStatus.online ? "🟢" : "🔴"} ${syncStatus.pending ? ("⏳" + syncStatus.pending) : ""}</span>
+            </div>
+          </header>
+
+          <div className="settings-nav" style=${{ marginBottom: 16 }}>
+            <button
+              type="button"
+              className=${"settings-nav-btn" + (stockOpsMode === "in" ? " is-active" : "")}
+              onClick=${function () { setStockOpsMode("in"); refreshSuppliers(); refreshPurchases(); }}
+            >
+              ${L("Nhập hàng / Stock In")}
+            </button>
+            <button
+              type="button"
+              className=${"settings-nav-btn" + (stockOpsMode === "out" ? " is-active" : "")}
+              onClick=${function () { setStockOpsMode("out"); refreshIssues(); }}
+            >
+              ${L("Xuất hàng / Stock Out")}
+            </button>
+          </div>
+
+          ${stockOpsMode === "in" ? renderPurchasesView(true) : renderIssuesView(true)}
+        </section>
+      `;
+    }
+
+    function renderPurchasesView(embedded) {
       var total = purchaseDraft.items.reduce(function (s, it) {
         return s + (Number(it.qty) || 0) * (Number(it.unitCost) || 0);
       }, 0);
       return html`
         <section className="page-section">
-          <header className="page-header surface">
+          ${embedded ? null : html`<header className="page-header surface">
             <div>
               <p className="eyebrow">${L("Nhập hàng / Stock In")}</p>
               <h1 className="section-title">${L("Tạo phiếu nhập / Create Purchase Order")}</h1>
@@ -9287,7 +9471,7 @@
             <div className="row-actions">
               <span className="eyebrow">${L("Trạng thái / Status")}: ${syncStatus.online ? "🟢" : "🔴"} ${syncStatus.pending ? ("⏳" + syncStatus.pending) : ""}</span>
             </div>
-          </header>
+          </header>`}
 
           <div className="grid-2">
             <section className="surface section-card form-card">
@@ -9520,10 +9704,10 @@
     // ==================================================================
     // RENDER: XUẤT HÀNG VIEW
     // ==================================================================
-    function renderIssuesView() {
+    function renderIssuesView(embedded) {
       return html`
         <section className="page-section">
-          <header className="page-header surface">
+          ${embedded ? null : html`<header className="page-header surface">
             <div>
               <p className="eyebrow">${L("Xuất hàng / Stock Out")}</p>
               <h1 className="section-title">${L("Tạo phiếu xuất (không phải bán) / Create Issue (non-sale)")}</h1>
@@ -9532,7 +9716,7 @@
             <div className="row-actions">
               <span className="eyebrow">${L("Trạng thái / Status")}: ${syncStatus.online ? "🟢" : "🔴"} ${syncStatus.pending ? ("⏳" + syncStatus.pending) : ""}</span>
             </div>
-          </header>
+          </header>`}
 
           <section className="surface section-card form-card">
             <div className="field-grid">
@@ -9554,37 +9738,123 @@
               </label>
             </div>
 
-            <h3 className="section-title" style=${{ marginTop: 16 }}>${L("Thêm mặt hàng / Add Product")}</h3>
-            <select onChange=${function (e) {
-              if (e.target.value) { addIssueLine(e.target.value); e.target.value = ""; }
-            }}>
-              <option value="">${L("— Chọn sản phẩm / Pick product —")}</option>
-              ${products.map(function (p) {
-                return html`<option key=${p.id} value=${p.id}>${p.image} ${p.name} (${L("tồn")}: ${p.stock || 0})</option>`;
-              })}
-            </select>
+            <h3 className="section-title" style=${{ marginTop: 16 }}>${L("Thêm mặt hàng / Add Item")}</h3>
+            <div className="toggle-grid" style=${{ marginBottom: 12 }}>
+              <button
+                type="button"
+                className=${"ghost-btn" + (issueItemType === "product" ? " active-toggle" : "")}
+                onClick=${function () { setIssueItemType("product"); setIssueItemSearch(""); }}
+              >
+                ${L("Sản phẩm / Product")}
+              </button>
+              <button
+                type="button"
+                className=${"ghost-btn" + (issueItemType === "component" ? " active-toggle" : "")}
+                onClick=${function () { setIssueItemType("component"); setIssueItemSearch(""); }}
+              >
+                ${L("Thành phần / Component")}
+              </button>
+            </div>
+            <input
+              placeholder=${issueItemType === "component"
+                ? L("Tìm thành phần/nguyên liệu... / Search component or ingredient...")
+                : L("Tìm sản phẩm... / Search product...")}
+              value=${issueItemSearch}
+              onInput=${function (e) { setIssueItemSearch(e.target.value); }}
+              style=${{ marginBottom: "10px" }}
+            />
+            ${issueItemSearch.trim() ? html`
+              <div className="management-list" style=${{ maxHeight: "240px", overflowY: "auto", marginBottom: "12px" }}>
+                ${(function () {
+                  var nq = normalizeSearchText(issueItemSearch);
+                  if (issueItemType === "component") {
+                    var matchedComponents = components.filter(function (component) {
+                      var haystack = normalizeSearchText([
+                        component.id,
+                        component.label,
+                        L(component.label),
+                        component.unit,
+                        component.note
+                      ].join(" "));
+                      return haystack.indexOf(nq) !== -1;
+                    }).slice(0, 20);
+                    if (!matchedComponents.length) return html`<p style=${{ color: "#7b6b5d", padding: "8px" }}>${L("Không tìm thấy thành phần. / No components found.")}</p>`;
+                    return matchedComponents.map(function (component) {
+                      return html`
+                        <button
+                          key=${component.id}
+                          type="button"
+                          className="list-row"
+                          onClick=${function () { addIssueLine(component.id, "component"); setIssueItemSearch(""); }}
+                          style=${{ cursor: "pointer", width: "100%", textAlign: "left", border: "1px solid rgba(111,84,41,0.08)", background: "rgba(255,255,255,0.78)", borderRadius: "14px", padding: "12px 16px", marginBottom: "6px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}
+                        >
+                          <div>
+                            <strong>🧺 ${L(component.label)}</strong>
+                            <p style=${{ margin: "4px 0 0", color: "#7b6b5d", fontSize: "0.88rem" }}>
+                              ${component.id} · ${L("tồn")}: ${Number(component.stockQty) || 0} ${component.unit || ""}
+                            </p>
+                          </div>
+                          <span style=${{ color: "#de631d", fontWeight: 700, flexShrink: 0 }}>+ ${L("Thêm / Add")}</span>
+                        </button>
+                      `;
+                    });
+                  }
+                  var matchedProducts = products.filter(function (p) { return productMatchesQuery(p, nq); }).slice(0, 20);
+                  if (!matchedProducts.length) return html`<p style=${{ color: "#7b6b5d", padding: "8px" }}>${L("Không tìm thấy sản phẩm. / No products found.")}</p>`;
+                  return matchedProducts.map(function (p) {
+                    return html`
+                      <button
+                        key=${p.id}
+                        type="button"
+                        className="list-row"
+                        onClick=${function () { addIssueLine(p.id, "product"); setIssueItemSearch(""); }}
+                        style=${{ cursor: "pointer", width: "100%", textAlign: "left", border: "1px solid rgba(111,84,41,0.08)", background: "rgba(255,255,255,0.78)", borderRadius: "14px", padding: "12px 16px", marginBottom: "6px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}
+                      >
+                        <div>
+                          <strong>${p.image || ""} ${p.name}</strong>
+                          <p style=${{ margin: "4px 0 0", color: "#7b6b5d", fontSize: "0.88rem" }}>${p.barcode || ""} · ${L("tồn")}: ${p.stock || 0}</p>
+                        </div>
+                        <span style=${{ color: "#de631d", fontWeight: 700, flexShrink: 0 }}>+ ${L("Thêm / Add")}</span>
+                      </button>
+                    `;
+                  });
+                })()}
+              </div>
+            ` : null}
 
             <div className="management-list" style=${{ marginTop: 16 }}>
               ${issueDraft.items.length === 0
                 ? html`<p style=${{ color: "#7b6b5d" }}>${L("Chưa có dòng hàng. / No lines yet.")}</p>`
                 : issueDraft.items.map(function (it) {
-                    var p = products.find(function (x) { return x.id === it.productId; });
-                    var stock = p ? Number(p.stock) || 0 : 0;
+                    var lineKey = it.lineKey || issueLineKey(it.itemType || "product", it.itemId || it.productId || it.componentId);
+                    var isComponentLine = it.itemType === "component";
+                    var p = isComponentLine ? null : products.find(function (x) { return x.id === it.productId; });
+                    var c = isComponentLine ? components.find(function (x) { return x.id === it.componentId; }) : null;
+                    var stock = isComponentLine ? (c ? Number(c.stockQty) || 0 : 0) : (p ? Number(p.stock) || 0 : 0);
                     var over = (Number(it.qty) || 0) > stock;
                     return html`
-                      <article key=${it.productId} className="list-row list-row-actions">
+                      <article key=${lineKey} className="list-row list-row-actions">
                         <div>
                           <strong>${it.productName}</strong>
                           <p style=${{ color: over ? "#c0392b" : "#7b6b5d" }}>
+                            <span className="stock-badge" style=${{ marginRight: 8 }}>
+                              ${isComponentLine ? L("Thành phần / Component") : L("Sản phẩm / Product")}
+                            </span>
                             ${L("Tồn")}: ${stock}${over ? " ⚠ " + L("vượt tồn / over stock") : ""}
                           </p>
                         </div>
                         <div className="row-actions">
                           <label className="field" style=${{ width: 100 }}>
                             <span>${L("SL / Qty")}</span>
-                            <input type="number" min="1" value=${it.qty} onInput=${function (e) { updateIssueLine(it.productId, e.target.value); }} />
+                            <input
+                              type="number"
+                              min=${isComponentLine ? "0" : "1"}
+                              step=${isComponentLine ? "0.1" : "1"}
+                              value=${it.qty}
+                              onInput=${function (e) { updateIssueLine(lineKey, e.target.value); }}
+                            />
                           </label>
-                          <button className="ghost-btn danger-text" onClick=${function () { removeIssueLine(it.productId); }}>${L("Xóa / Remove")}</button>
+                          <button className="ghost-btn danger-text" onClick=${function () { removeIssueLine(lineKey); }}>${L("Xóa / Remove")}</button>
                         </div>
                       </article>
                     `;
@@ -10328,8 +10598,8 @@
               }}
               onClick=${function () {
                 setActiveView("inventory");
-                setInventorySection("warehouse");
-                setWarehouseTab("stock");
+                setInventorySection("stock");
+                setStockCheckTab("check");
               }}
             >
               <span style=${{ fontSize: 16 }}>⚠</span>
