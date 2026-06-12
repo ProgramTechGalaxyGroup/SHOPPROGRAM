@@ -19,6 +19,18 @@
 
   var STORAGE_KEY = "fruit-house-pos-suite-v3";
 
+  function isKnownTechnicalTestSale(record) {
+    if (!record) return false;
+    var id = String(record.id || record.serverId || record.server_id || "");
+    var orderId = String(record.orderId || record.order_id || "");
+    var note = String(record.note || "");
+    return id === "HD-20260612-002" ||
+      orderId.indexOf("CODEX-LIVE-SYNC-TEST") !== -1 ||
+      orderId.indexOf("DEBUG-VN-DATE") !== -1 ||
+      note.toLowerCase().indexOf("temporary live sync test") !== -1 ||
+      note.toLowerCase().indexOf("temporary debug sale") !== -1;
+  }
+
   function repairKnownLocalPaymentIssues() {
     var targetOrderId = "09/06/2026-019";
     var targetPaid = 61000;
@@ -53,14 +65,21 @@
         var state = JSON.parse(rawState);
         var changed = false;
         if (Array.isArray(state.sales)) {
-          state.sales = state.sales.map(function (sale) {
+          var originalSalesLength = state.sales.length;
+          state.sales = state.sales.filter(function (sale) {
+            return !isKnownTechnicalTestSale(sale);
+          }).map(function (sale) {
             var repaired = repairSale(sale);
             if (repaired !== sale) changed = true;
             return repaired;
           });
+          if (state.sales.length !== originalSalesLength) changed = true;
         }
         if (Array.isArray(state.orders)) {
-          state.orders = state.orders.map(function (order) {
+          var originalOrdersLength = state.orders.length;
+          state.orders = state.orders.filter(function (order) {
+            return !isKnownTechnicalTestSale(order);
+          }).map(function (order) {
             if (!order || order.id !== targetOrderId) return order;
             changed = true;
             return Object.assign({}, order, {
@@ -68,6 +87,7 @@
               paymentMethod: "cash"
             });
           });
+          if (state.orders.length !== originalOrdersLength) changed = true;
         }
         if (changed) {
           window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -81,12 +101,16 @@
         var outbox = JSON.parse(rawOutbox);
         var outboxChanged = false;
         if (Array.isArray(outbox)) {
-          outbox = outbox.map(function (entry) {
+          var originalOutboxLength = outbox.length;
+          outbox = outbox.filter(function (entry) {
+            return !isKnownTechnicalTestSale(entry && entry.body);
+          }).map(function (entry) {
             if (!entry || !entry.body || !isTargetSale(entry.body)) return entry;
             var body = repairSale(entry.body);
             outboxChanged = true;
             return Object.assign({}, entry, { body: body });
           });
+          if (outbox.length !== originalOutboxLength) outboxChanged = true;
         }
         if (outboxChanged) {
           window.localStorage.setItem("shopflow-outbox", JSON.stringify(outbox));
@@ -1431,6 +1455,8 @@
       takeAway: !!baseOrder.takeAway,
       discountAmount: Number(baseOrder.discountAmount) || 0,
       status: baseOrder.status || "open",
+      syncError: baseOrder.syncError || baseOrder.sync_error || "",
+      syncRetryCount: Number(baseOrder.syncRetryCount || baseOrder.sync_retry_count) || 0,
       createdAt: baseOrder.createdAt || Date.now(),
       customerName: baseOrder.customerName || "Khách lẻ / Walk-in",
       paymentMethod: normalizePaymentMethod(baseOrder.paymentMethod),
@@ -1487,12 +1513,12 @@
     if (orderStatus && orderStatus !== "completed") return false;
     if (paymentStatus && paymentStatus !== "paid") return false;
     if (syncStatus !== "synced") return false;
+    if (!isServerSaleRecord(sale)) return false;
     return paid >= total;
   }
 
   function isServerSaleRecord(sale) {
-    var syncStatus = String((sale && (sale.syncStatus || sale.sync_status)) || "").toLowerCase();
-    return syncStatus === "synced" || /^HD-/i.test(String((sale && (sale.serverId || sale.server_id || sale.id)) || ""));
+    return /^HD-/i.test(String((sale && (sale.serverId || sale.server_id || sale.id)) || ""));
   }
 
   function dedupeSalesByOrderId(saleList) {
@@ -1523,8 +1549,8 @@
     if (isSaleRevenueEligible(sale)) {
       return { label: "Hoàn thành / Completed", tone: "success" };
     }
-    if (syncStatus === "error") {
-      return { label: "Lỗi đồng bộ / Sync Error", tone: "danger" };
+    if (syncStatus === "error" || syncStatus === "needs_action" || !isServerSaleRecord(sale)) {
+      return { label: "Cần xử lí / Needs Action", tone: "danger" };
     }
     return { label: "Đang chờ đồng bộ / Pending Sync", tone: "warning" };
   }
@@ -1652,7 +1678,9 @@
       products: Array.isArray(safeStored.products) && safeStored.products.length ? safeStored.products.map(normalizeProduct) : clone(DEFAULT_PRODUCTS).map(normalizeProduct),
       productionRecipes: Array.isArray(safeStored.productionRecipes) ? safeStored.productionRecipes.map(normalizeProductionRecipe) : [],
       productionBatches: Array.isArray(safeStored.productionBatches) ? safeStored.productionBatches.map(normalizeProductionBatch) : [],
-      sales: Array.isArray(safeStored.sales) ? safeStored.sales.map(normalizeSaleRecord) : [],
+      sales: Array.isArray(safeStored.sales)
+        ? safeStored.sales.filter(function (sale) { return !isKnownTechnicalTestSale(sale); }).map(normalizeSaleRecord)
+        : [],
       orders: normalizedOrders,
       activeOrderId: safeStored.activeOrderId || null,
       language: safeStored.language || "vi",
@@ -2180,6 +2208,7 @@
 
     // ---- Remote API sync state ----------------------------------
     var [syncStatus, setSyncStatus] = useState({ online: true, pending: 0, lastSyncAt: 0, lastError: null });
+    var [checkoutSaving, setCheckoutSaving] = useState(false);
     // Toast queue — array of { id, kind: "success"|"error"|"info", text, ts }.
     // Auto-dismissed by the renderer after ~3.5s.
     var [toasts, setToasts] = useState([]);
@@ -2847,8 +2876,12 @@
         if (Array.isArray(data.recentSales) && data.recentSales.length) {
           setSales(function (current) {
             var byId = {};
-            current.forEach(function (s) { byId[s.id] = s; });
-            data.recentSales.forEach(function (row) {
+            current.forEach(function (s) {
+              if (!isKnownTechnicalTestSale(s)) byId[s.id] = s;
+            });
+            data.recentSales.filter(function (row) {
+              return !isKnownTechnicalTestSale(row);
+            }).forEach(function (row) {
               var items = [];
               if (row.items_json) {
                 try {
@@ -2892,7 +2925,9 @@
                 items: items.length > 0 ? items : (byId[row.id] ? byId[row.id].items : [])
               }));
             });
-            var merged = dedupeSalesByOrderId(Object.keys(byId).map(function (id) { return byId[id]; }));
+            var merged = dedupeSalesByOrderId(Object.keys(byId).map(function (id) { return byId[id]; })).filter(function (sale) {
+              return !isKnownTechnicalTestSale(sale);
+            });
             merged.sort(function (a, b) { return b.createdAt - a.createdAt; });
             return merged.slice(0, 1000); // Keep last 1000 sales
           });
@@ -3423,7 +3458,7 @@
         daySeries: daySeries,
         paymentBreakdown: paymentBreakdown,
         topProducts: topProducts,
-        recentSales: clone(salesInRange).sort(function (a, b) { return b.createdAt - a.createdAt; })
+        recentSales: clone(paidSalesInRange).sort(function (a, b) { return b.createdAt - a.createdAt; })
       };
     }, [products, sales, dashboardRange, dashboardCustomFrom, dashboardCustomTo]);
 
@@ -3455,9 +3490,35 @@
             return order;
           }
 
-          return updater(order);
+          var nextOrder = updater(order);
+          if (order.status === "needs_action" && nextOrder && nextOrder.status === "needs_action") {
+            return nextOrder;
+          }
+          if (order.status === "needs_action" && nextOrder) {
+            return Object.assign({}, nextOrder, {
+              status: "open",
+              syncError: "",
+              syncRetryCount: 0
+            });
+          }
+          return nextOrder;
         });
       });
+    }
+
+    function markOrderNeedsAction(orderId, message) {
+      setOrders(function (currentOrders) {
+        return currentOrders.map(function (order) {
+          if (order.id !== orderId) return order;
+          return Object.assign({}, order, {
+            status: "needs_action",
+            syncError: message || L("Không lưu được đơn hàng. / Could not save this order."),
+            syncRetryCount: 1
+          });
+        });
+      });
+      setActiveOrderId(orderId);
+      setActiveView("pos");
     }
 
     function findProductByBarcode(rawCode) {
@@ -4046,7 +4107,62 @@
       });
     }
 
+    function buildSalePayload(orderSnapshot, saleTotals, saleClientOpId) {
+      return {
+        clientOpId: saleClientOpId,
+        orderId: orderSnapshot.id,
+        customerName: orderSnapshot.customerName || "",
+        subtotal: saleTotals.subtotal,
+        vatAmount: saleTotals.vat,
+        discount: saleTotals.discount,
+        total: saleTotals.total,
+        paid: Number(orderSnapshot.cashReceived) || 0,
+        changeAmount: Math.max(0, (Number(orderSnapshot.cashReceived) || 0) - (Number(saleTotals.total) || 0)),
+        paymentMethod: normalizePaymentMethod(orderSnapshot.paymentMethod),
+        cashierName: settings.cashierName || "",
+        items: (orderSnapshot.items || []).map(function (item) {
+          var addonTotal = getItemAddonTotal(item, addOns);
+          var unitPrice = (Number(item.price) || 0) + addonTotal;
+          var qty = Number(item.qty) || 0;
+          return {
+            productId: item.productId,
+            productName: item.name,
+            qty: qty,
+            unitPrice: unitPrice,
+            addonsTotal: addonTotal,
+            lineTotal: unitPrice * qty,
+            addons: (item.addOnIds || []).map(function (id) {
+              var a = getAddonById(id, addOns);
+              return a ? { id: a.id, label: a.label, price: a.price } : { id: id };
+            })
+          };
+        })
+      };
+    }
+
+    function saveSaleWithOneRetry(payload) {
+      return syncApi("/sales", {
+        method: "POST",
+        body: payload
+      }).catch(function (firstError) {
+        return syncApi("/sales", {
+          method: "POST",
+          body: payload
+        }).catch(function (secondError) {
+          secondError.firstError = firstError;
+          throw secondError;
+        });
+      });
+    }
+
     function payNow() {
+      if (checkoutSaving) {
+        return;
+      }
+      if (activeOrder.status === "needs_action") {
+        window.alert(L("Đơn này cần xử lí trước khi hoàn tất. Hãy kiểm tra lỗi, sửa đơn rồi thử lại. / This order needs action before checkout. Review the error, edit the order, then try again."));
+        return;
+      }
       if (!activeOrder.items.length) {
         window.alert(L("Đơn hiện tại chưa có món. / This order is empty."));
         return;
@@ -4141,137 +4257,112 @@
 
       var orderSnapshot = clone(activeOrder);
       var saleClientOpId = uid("sale-op");
-      var saleRecord = {
-        id: uid("sale"),
-        orderId: activeOrder.id,
-        clientOpId: saleClientOpId,
-        serverId: "",
-        syncStatus: "pending",
-        syncError: "",
-        createdAt: Date.now(),
-        items: orderSnapshot.items,
-        total: totals.total,
-        subtotal: totals.subtotal,
-        vat: totals.vat,
-        discount: totals.discount,
-        customerName: orderSnapshot.customerName || "",
-        paymentMethod: normalizePaymentMethod(orderSnapshot.paymentMethod),
-        cashReceived: Number(orderSnapshot.cashReceived) || 0,
-        cashierName: settings.cashierName || "",
-        paymentStatus: "paid",
-        orderStatus: "completed",
-        note: ""
-      };
+      var salePayload = buildSalePayload(orderSnapshot, totals, saleClientOpId);
 
-      setSales(function (currentSales) {
-        return [saleRecord].concat(currentSales);
-      });
-
-      // Decrement local stock + record which products newly hit/passed
-      // the min_stock threshold so we can warn the cashier right after the
-      // sale is recorded.
-      var newlyLow = [];
-      setProducts(function (currentProducts) {
-        return currentProducts.map(function (product) {
-          var soldQty = Number(requiredQtyByProduct[product.id]) || 0;
-          if (!soldQty) {
-            return product;
-          }
-
-          var oldQty = Number(product.stock) || 0;
-          var newQty = Math.max(0, oldQty - soldQty);
-          var min = Number(product.minStock) || 0;
-          // Trigger when (a) min is set, (b) we just dropped to/below it,
-          // (c) we weren't already below it before — so we only warn once
-          // per crossing.
-          if (min > 0 && oldQty > min && newQty <= min) {
-            newlyLow.push({ name: product.name, newQty: newQty, min: min });
-          }
-
-          return Object.assign({}, product, { stock: newQty });
-        });
-      });
-      setComponents(function (currentComponents) {
-        return currentComponents.map(function (component) {
-          var usedQty = Number(requiredQtyByComponent[component.id]) || 0;
-          if (!usedQty) {
-            return component;
-          }
-
-          var oldQty = Number(component.stockQty) || 0;
-          var newQty = Math.max(0, oldQty - usedQty);
-          var min = Number(component.minStock) || 0;
-          if (min > 0 && oldQty > min && newQty <= min) {
-            newlyLow.push({ name: L(component.label), newQty: newQty, min: min });
-          }
-
-          return Object.assign({}, component, { stockQty: newQty });
-        });
-      });
-      // After the state update settles, surface the warning.
-      if (newlyLow.length) {
-        // setTimeout so the alert fires AFTER the optimistic stock update
-        // is reflected on screen.
-        window.setTimeout(function () {
-          window.alert(
-            L("⚠ Cảnh báo tồn kho thấp / Low stock alert") + ":\n\n" +
-            newlyLow.map(function (p) {
-              return "• " + p.name + " — " + L("còn") + " " + p.newQty + " / " + L("min") + " " + p.min;
-            }).join("\n") +
-            "\n\n" + L("Vui lòng tạo phiếu nhập hàng sớm. / Please create a Purchase Order soon.")
-          );
-        }, 200);
-      }
-
-      // ---- Push to remote API (non-blocking, queued offline) ----
-      syncEnqueue({
-        endpoint: "/sales",
-        method: "POST",
-        opType: "sale",
-        body: {
-          clientOpId: saleClientOpId,
-          orderId: activeOrder.id,
-          customerName: saleRecord.customerName,
-          subtotal: saleRecord.subtotal,
-          vatAmount: saleRecord.vat,
-          discount: saleRecord.discount,
-          total: saleRecord.total,
-          paid: saleRecord.cashReceived,
-          changeAmount: Math.max(0, (Number(saleRecord.cashReceived) || 0) - (Number(saleRecord.total) || 0)),
-          paymentMethod: saleRecord.paymentMethod,
-          cashierName: saleRecord.cashierName,
-          items: (saleRecord.items || []).map(function (item) {
-            var addonTotal = getItemAddonTotal(item, addOns);
-            var unitPrice = (Number(item.price) || 0) + addonTotal;
-            var qty = Number(item.qty) || 0;
-            return {
-              productId: item.productId,
-              productName: item.name,
-              qty: qty,
-              unitPrice: unitPrice,
-              addonsTotal: addonTotal,
-              lineTotal: unitPrice * qty,
-              addons: (item.addOnIds || []).map(function (id) {
-                var a = getAddonById(id, addOns);
-                return a ? { id: a.id, label: a.label, price: a.price } : { id: id };
-              })
-            };
-          })
-        }
-      });
-
+      setCheckoutSaving(true);
       setOrders(function (currentOrders) {
-        var remaining = currentOrders.filter(function (order) {
-          return order.id !== activeOrder.id;
+        return currentOrders.map(function (order) {
+          return order.id === orderSnapshot.id
+            ? Object.assign({}, order, { status: "saving", syncError: "", syncRetryCount: 0 })
+            : order;
         });
+      });
 
-        if (!remaining.length) {
-          var createdNextOrderState = createOrder(orderSequenceByDate);
-          setOrderSequenceByDate(createdNextOrderState.nextSequenceByDate);
-          return [createdNextOrderState.order];
+      saveSaleWithOneRetry(salePayload).then(function (response) {
+        var serverId = response && response.id;
+        if (!serverId) {
+          throw new Error(L("Server chưa trả mã hóa đơn. / Server did not return a sale ID."));
         }
 
-        return remaining;
+        var saleRecord = {
+          id: serverId,
+          orderId: orderSnapshot.id,
+          clientOpId: saleClientOpId,
+          serverId: serverId,
+          syncStatus: "synced",
+          syncError: "",
+          createdAt: Date.now(),
+          items: orderSnapshot.items,
+          total: Number(response.serverTotal) || totals.total,
+          subtotal: Number(response.serverSubtotal) || totals.subtotal,
+          vat: Number(response.serverVat) || totals.vat,
+          discount: totals.discount,
+          customerName: orderSnapshot.customerName || "",
+          paymentMethod: normalizePaymentMethod(orderSnapshot.paymentMethod),
+          cashReceived: Number(orderSnapshot.cashReceived) || 0,
+          cashierName: settings.cashierName || "",
+          paymentStatus: "paid",
+          orderStatus: "completed",
+          note: ""
+        };
+
+        setSales(function (currentSales) {
+          return [normalizeSaleRecord(saleRecord)].concat(currentSales.filter(function (sale) {
+            return sale.orderId !== orderSnapshot.id && sale.id !== serverId;
+          }));
+        });
+
+        // Only decrement local stock after the server confirms the sale.
+        var newlyLow = [];
+        setProducts(function (currentProducts) {
+          return currentProducts.map(function (product) {
+            var soldQty = Number(requiredQtyByProduct[product.id]) || 0;
+            if (!soldQty) return product;
+            var oldQty = Number(product.stock) || 0;
+            var newQty = Math.max(0, oldQty - soldQty);
+            var min = Number(product.minStock) || 0;
+            if (min > 0 && oldQty > min && newQty <= min) {
+              newlyLow.push({ name: product.name, newQty: newQty, min: min });
+            }
+            return Object.assign({}, product, { stock: newQty });
+          });
+        });
+        setComponents(function (currentComponents) {
+          return currentComponents.map(function (component) {
+            var usedQty = Number(requiredQtyByComponent[component.id]) || 0;
+            if (!usedQty) return component;
+            var oldQty = Number(component.stockQty) || 0;
+            var newQty = Math.max(0, oldQty - usedQty);
+            var min = Number(component.minStock) || 0;
+            if (min > 0 && oldQty > min && newQty <= min) {
+              newlyLow.push({ name: L(component.label), newQty: newQty, min: min });
+            }
+            return Object.assign({}, component, { stockQty: newQty });
+          });
+        });
+
+        if (newlyLow.length) {
+          window.setTimeout(function () {
+            window.alert(
+              L("⚠ Cảnh báo tồn kho thấp / Low stock alert") + ":\n\n" +
+              newlyLow.map(function (p) {
+                return "• " + p.name + " — " + L("còn") + " " + p.newQty + " / " + L("min") + " " + p.min;
+              }).join("\n") +
+              "\n\n" + L("Vui lòng tạo phiếu nhập hàng sớm. / Please create a Purchase Order soon.")
+            );
+          }, 200);
+        }
+
+        setOrders(function (currentOrders) {
+          var remaining = currentOrders.filter(function (order) {
+            return order.id !== orderSnapshot.id;
+          });
+          if (!remaining.length) {
+            var createdNextOrderState = createOrder(orderSequenceByDate);
+            setOrderSequenceByDate(createdNextOrderState.nextSequenceByDate);
+            return [createdNextOrderState.order];
+          }
+          return remaining;
+        });
+        pushToast("success", L("Đã lưu hóa đơn vào Supabase. / Sale saved to Supabase."));
+      }).catch(function (error) {
+        var message = error && error.data && error.data.error
+          ? error.data.error
+          : (error && error.message ? error.message : L("Không lưu được đơn hàng. / Could not save this order."));
+        markOrderNeedsAction(orderSnapshot.id, message);
+        pushToast("error", L("Đơn chưa được lưu. Cần xử lí trước khi hoàn tất. / Sale was not saved. Needs action before checkout."));
+      }).finally(function () {
+        setCheckoutSaving(false);
       });
     }
 
@@ -6935,6 +7026,15 @@
     function renderPosView() {
       var changeDue = Math.max(0, (Number(activeOrder.cashReceived) || 0) - totals.total);
       var quickCashOptions = [50000, 100000, 200000, 500000];
+      var orderNeedsAction = activeOrder.status === "needs_action";
+      var orderSaving = activeOrder.status === "saving" || checkoutSaving;
+      var checkoutDisabled = orderNeedsAction || orderSaving;
+      function getOpenOrderStatusLabel(order) {
+        if (order.status === "needs_action") return L("CẦN XỬ LÍ / NEEDS ACTION");
+        if (order.status === "saving") return L("Đang lưu / Saving");
+        if (order.status === "held") return L("Tạm giữ / Held");
+        return L("Đang mở / Open");
+      }
       return html`
         <section className="pos-layout">
           ${lowStockCount > 0 ? html`
@@ -7136,7 +7236,9 @@
                       }}
                     >
                       <span>${order.id}</span>
-                      <small>${order.status === "held" ? L("Tạm giữ / Held") : L("Đang mở / Open")}</small>
+                      <small style=${order.status === "needs_action" ? { color: "#c0392b", fontWeight: 900 } : null}>
+                        ${getOpenOrderStatusLabel(order)}
+                      </small>
                     </button>
                   `;
                 })}
@@ -7243,6 +7345,16 @@
                 <div>
                   <p className="eyebrow">${L("Đơn hiện tại / Current Order")}</p>
                   <h2 className="section-title">${activeOrder.id}</h2>
+                  ${orderNeedsAction ? html`
+                    <div className="status-pill status-danger" style=${{ marginTop: 8 }}>
+                      ${L("CẦN XỬ LÍ / NEEDS ACTION")}
+                    </div>
+                  ` : null}
+                  ${orderSaving ? html`
+                    <div className="status-pill status-warning" style=${{ marginTop: 8 }}>
+                      ${L("Đang lưu vào Supabase... / Saving to Supabase...")}
+                    </div>
+                  ` : null}
                 </div>
                 <div className="item-badge">#${totals.itemCount} ${L("món / items")}</div>
               </div>
@@ -7335,6 +7447,14 @@
                   })
                 : html`<div className="empty-state">${L("Chưa có sản phẩm trong giỏ. Quét mã vạch hoặc bấm Thêm. / No items in cart yet.")}</div>`}
             </div>
+
+            ${orderNeedsAction ? html`
+              <div className="empty-state align-left" style=${{ borderColor: "#f0b6aa", background: "#fff1eb", color: "#8f351d" }}>
+                <strong>${L("Đơn chưa được lưu vào dữ liệu. / This sale has not been saved.")}</strong>
+                <div>${activeOrder.syncError || L("Vui lòng kiểm tra tồn kho, số tiền thanh toán hoặc kết nối mạng. / Check stock, payment amount, or connection.")}</div>
+                <small>${L("Sửa lại bill để mở khóa nút hoàn tất. / Edit the bill to unlock checkout.")}</small>
+              </div>
+            ` : null}
 
             <div className="payment-grid">
               <label className="field">
@@ -7457,7 +7577,16 @@
 
             <div className="button-row button-row-main">
               <button className="ghost-btn preview-btn" onClick=${previewInvoice}>${L("Xem trước hóa đơn / Preview Invoice")}</button>
-              <button className="primary-btn checkout-btn" onClick=${payNow}>${L("Hoàn tất bán hàng / Complete Sale")}</button>
+              <button
+                className="primary-btn checkout-btn"
+                disabled=${checkoutDisabled}
+                onClick=${payNow}
+                title=${orderNeedsAction ? L("Đơn cần xử lí trước. / This order needs action first.") : ""}
+              >
+                ${orderSaving
+                  ? L("Đang lưu... / Saving...")
+                  : (orderNeedsAction ? L("CẦN XỬ LÍ / NEEDS ACTION") : L("Hoàn tất bán hàng / Complete Sale"))}
+              </button>
             </div>
 
             <div className="button-row button-row-secondary">
