@@ -18,7 +18,7 @@
 - **Kiểm soát lưu đơn**: đơn chỉ ghi nhận doanh thu khi API lưu thành công; đơn lỗi giữ lại ở màn hình bán hàng để xử lý.
 - **Kho hàng**: kiểm hàng tồn kho, phiếu nhập/xuất chung, kiểm kê, sổ cái/chuyển động kho.
 - **Phiếu nhập riêng**: mở `/purchase.html` trong POS hoặc deploy folder `purchase-web/` thành Cloudflare Pages project riêng; web riêng vẫn lưu về API chính `https://shopprogram.pages.dev/api`.
-- **Deploy web nhập hàng riêng trên Cloudflare Workers**: đặt `Path` là `purchase-web`, bỏ trống `Build command`, và dùng `Deploy command` là `npm run deploy`.
+- **Deploy web nhập hàng riêng trên Cloudflare Workers**: khuyến nghị đặt `Path` trống, bỏ trống `Build command`, và dùng `Deploy command` là `npx wrangler deploy --config purchase-web/wrangler.toml`.
 - **Thành phần**: thêm/sửa nguyên liệu, chuyển thành phần, hỗ trợ sản phẩm bán lẻ và sản phẩm pha chế/recipe.
 - **Sản phẩm**: thêm/sửa sản phẩm, barcode EAN-13, phân loại retail/recipe, giá, tồn kho, active/inactive.
 - **Danh mục và add-ons**: quản lý danh mục, add-ons và lựa chọn custom cho sản phẩm.
