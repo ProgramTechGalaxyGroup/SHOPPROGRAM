@@ -29,11 +29,12 @@
   }
 
   function api(path, opts) {
-    if (window.ShopFlowSync && typeof window.ShopFlowSync.api === "function") {
+    var apiBase = String(window.SHOPFLOW_API_BASE || "").replace(/\/+$/, "");
+    if (!apiBase && window.ShopFlowSync && typeof window.ShopFlowSync.api === "function") {
       return window.ShopFlowSync.api(path, opts);
     }
     var init = opts || {};
-    return fetch("/api" + path, {
+    return fetch((apiBase || "/api") + path, {
       method: init.method || "GET",
       headers: init.body ? { "Content-Type": "application/json" } : {},
       body: init.body ? JSON.stringify(init.body) : undefined,
