@@ -84,7 +84,7 @@ export const onRequestGet = async ({ env, request }) => {
            ) as items_json
          FROM sales s 
          WHERE s.created_at > ? 
-         ORDER BY s.created_at DESC LIMIT 500`
+         ORDER BY s.created_at DESC LIMIT 1000`
       ).bind(since).all(),
 
       env.DB.prepare(

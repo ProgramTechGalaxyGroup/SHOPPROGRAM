@@ -2988,7 +2988,7 @@
                 items: items.length > 0 ? items : (byId[row.id] ? byId[row.id].items : [])
               }));
             });
-            var merged = dedupeSalesByOrderId(Object.keys(byId).map(function (id) { return byId[id]; })).filter(function (sale) {
+            var merged = Object.keys(byId).map(function (id) { return byId[id]; }).filter(function (sale) {
               return !isKnownTechnicalTestSale(sale);
             });
             merged.sort(function (a, b) { return b.createdAt - a.createdAt; });
@@ -3036,9 +3036,11 @@
                 orderStatus: "completed"
               }));
             });
-            var deduped = dedupeSalesByOrderId(updated);
-            deduped.sort(function (a, b) { return b.createdAt - a.createdAt; });
-            return deduped;
+            var cleaned = updated.filter(function (sale) {
+              return !isKnownTechnicalTestSale(sale);
+            });
+            cleaned.sort(function (a, b) { return b.createdAt - a.createdAt; });
+            return cleaned;
           });
         }
         pushToast("success", labelForOp(payload));
@@ -3099,6 +3101,11 @@
     useEffect(function () {
       if (activeView === "dashboard") {
         refreshPurchases();
+        if (window.ShopFlowSync && typeof window.ShopFlowSync.pull === "function") {
+          // Dashboard must reconcile from the full server snapshot so payment
+          // history cannot miss bills that were created on another device.
+          window.ShopFlowSync.pull(0).catch(function () {});
+        }
         return;
       }
       if (activeView !== "inventory") return;
@@ -3494,12 +3501,19 @@
 
     var dashboardMetrics = useMemo(function () {
       var range = getDashboardRangeBounds();
-      var displaySales = dedupeSalesByOrderId(sales);
+      var displaySales = (sales || []).map(normalizeSaleRecord).filter(function (sale) {
+        return !isKnownTechnicalTestSale(sale);
+      });
+      var revenueSales = dedupeSalesByOrderId(displaySales);
       var salesInRange = displaySales.filter(function (sale) {
         var t = Number(sale.createdAt) || 0;
         return t >= range.from && t <= range.to;
       });
-      var paidSalesInRange = salesInRange.filter(isSaleRevenueEligible);
+      var revenueSalesInRange = revenueSales.filter(function (sale) {
+        var t = Number(sale.createdAt) || 0;
+        return t >= range.from && t <= range.to;
+      });
+      var paidSalesInRange = revenueSalesInRange.filter(isSaleRevenueEligible);
       var revenue = paidSalesInRange.reduce(function (sum, sale) { return sum + (Number(sale.total) || 0); }, 0);
       var ordersCount = paidSalesInRange.length;
       // Average ticket
@@ -3561,7 +3575,7 @@
         topProducts: topProducts,
         pendingPurchases: pendingPurchases,
         pendingPurchaseTotal: pendingPurchaseTotal,
-        recentSales: clone(paidSalesInRange).sort(function (a, b) { return b.createdAt - a.createdAt; })
+        recentSales: clone(salesInRange).sort(function (a, b) { return b.createdAt - a.createdAt; })
       };
     }, [products, sales, purchases, dashboardRange, dashboardCustomFrom, dashboardCustomTo, lowStockAlerts]);
 
