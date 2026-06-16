@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-08T09:18:15.358Z",
+  "generated_at": "2026-06-16T12:44:49.044Z",
   "files": [
     "database/supabase/schema.sql",
     "database/supabase/rls_policies.sql",
@@ -18,6 +18,8 @@
     "purchase_order_items": 0,
     "purchase_component_items": 0,
     "component_stock_movements": 0,
+    "production_recipes": 0,
+    "production_batches": 0,
     "stock_issues": 0,
     "stock_issue_items": 0,
     "sales": 0,

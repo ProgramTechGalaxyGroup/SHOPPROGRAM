@@ -265,12 +265,12 @@ export async function ensureProductsInventoryModeColumn(db) {
 export async function ensureComponentsInventoryColumns(db) {
   if (!(await columnExists(db, "components", "stock_qty"))) {
     await db.prepare(
-      `ALTER TABLE components ADD COLUMN stock_qty INTEGER NOT NULL DEFAULT 0`
+      `ALTER TABLE components ADD COLUMN stock_qty REAL NOT NULL DEFAULT 0`
     ).run();
   }
   if (!(await columnExists(db, "components", "min_stock"))) {
     await db.prepare(
-      `ALTER TABLE components ADD COLUMN min_stock INTEGER NOT NULL DEFAULT 0`
+      `ALTER TABLE components ADD COLUMN min_stock REAL NOT NULL DEFAULT 0`
     ).run();
   }
   if (!(await columnExists(db, "components", "is_active"))) {
@@ -287,6 +287,43 @@ export async function ensureComponentsInventoryColumns(db) {
     await db.prepare(
       `ALTER TABLE components ADD COLUMN cost_per_unit INTEGER NOT NULL DEFAULT 0`
     ).run();
+  }
+  if (db && db.__provider === "supabase") {
+    await db.prepare(
+      `ALTER TABLE components ALTER COLUMN stock_qty TYPE numeric USING stock_qty::numeric`
+    ).run();
+    await db.prepare(
+      `ALTER TABLE components ALTER COLUMN min_stock TYPE numeric USING min_stock::numeric`
+    ).run();
+  }
+}
+
+export async function ensureStockIssueItemColumns(db) {
+  if (!(await columnExists(db, "stock_issue_items", "item_type"))) {
+    await db.prepare(
+      `ALTER TABLE stock_issue_items ADD COLUMN item_type TEXT NOT NULL DEFAULT 'product'`
+    ).run();
+  }
+  if (!(await columnExists(db, "stock_issue_items", "component_id"))) {
+    await db.prepare(
+      `ALTER TABLE stock_issue_items ADD COLUMN component_id TEXT`
+    ).run();
+  }
+  if (db && db.__provider === "supabase") {
+    await db.prepare(
+      `ALTER TABLE stock_issue_items ALTER COLUMN product_id DROP NOT NULL`
+    ).run();
+    await db.prepare(
+      `ALTER TABLE stock_issue_items DROP CONSTRAINT IF EXISTS stock_issue_items_product_id_fkey`
+    ).run();
+    await db.prepare(
+      `ALTER TABLE stock_issue_items ADD CONSTRAINT stock_issue_items_product_id_fkey
+       FOREIGN KEY (product_id) REFERENCES products(id)`
+    ).run().catch(() => {});
+    await db.prepare(
+      `ALTER TABLE stock_issue_items ADD CONSTRAINT stock_issue_items_component_id_fkey
+       FOREIGN KEY (component_id) REFERENCES components(id)`
+    ).run().catch(() => {});
   }
 }
 

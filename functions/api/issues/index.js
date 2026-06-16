@@ -3,13 +3,14 @@ import {
   isDuplicateOp, recordOpStmt, runIdempotentBatch, nextDocId,
   inventoryDeltaStmt, movementStmt,
   getProductCost, getProductName,
-  componentMovementStmt, ensureComponentsInventoryColumns,
+  componentMovementStmt, ensureComponentsInventoryColumns, ensureStockIssueItemColumns,
 } from "../_lib.js";
 
 const VALID_REASONS = new Set(["damaged", "sample", "internal", "transfer", "other"]);
 
 // GET /api/issues
 export const onRequestGet = async ({ env, request }) => {
+  await ensureStockIssueItemColumns(env.DB);
   const url = new URL(request.url);
   const from = Number(url.searchParams.get("from"));
   const to = Number(url.searchParams.get("to"));
@@ -43,6 +44,7 @@ export const onRequestGet = async ({ env, request }) => {
 //   }
 export const onRequestPost = async ({ env, request }) => {
   await ensureComponentsInventoryColumns(env.DB);
+  await ensureStockIssueItemColumns(env.DB);
   const body = await readJson(request);
   if (!body || !VALID_REASONS.has(body.reason)) return badRequest("invalid reason");
   if (!Array.isArray(body.items) || !body.items.length) return badRequest("items required");
@@ -131,7 +133,7 @@ export const onRequestPost = async ({ env, request }) => {
         if (!component) throw new Error(`component not found: ${it.componentId}`);
         return {
           ...it,
-          productId: it.componentId,
+          productId: null,
           productName: it.componentName || it.productName || component.label || it.componentId,
           unitCost: it.unitCost != null ? Number(it.unitCost) : Number(component.cost_per_unit) || 0,
         };
@@ -157,9 +159,19 @@ export const onRequestPost = async ({ env, request }) => {
   enriched.forEach((it) => {
     stmts.push(
       env.DB.prepare(
-        `INSERT INTO stock_issue_items (id, issue_id, product_id, product_name, qty, unit_cost)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      ).bind(uid("sii"), issueId, it.productId, it.productName, Number(it.qty), it.unitCost)
+        `INSERT INTO stock_issue_items
+           (id, issue_id, product_id, component_id, item_type, product_name, qty, unit_cost)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        uid("sii"),
+        issueId,
+        it.itemType === "component" ? null : it.productId,
+        it.itemType === "component" ? it.componentId : null,
+        it.itemType === "component" ? "component" : "product",
+        it.productName,
+        Number(it.qty),
+        it.unitCost
+      )
     );
     if (it.itemType === "component") {
       stmts.push(

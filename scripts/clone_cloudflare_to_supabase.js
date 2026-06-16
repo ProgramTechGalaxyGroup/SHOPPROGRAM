@@ -246,7 +246,9 @@ async function fetchAllData() {
     stock_issue_items: issueDetails.flatMap((payload) => payload.items || []).map((item) => ({
       id: item.id,
       issue_id: item.issue_id,
-      product_id: item.product_id,
+      product_id: item.item_type === "component" ? null : item.product_id,
+      component_id: item.component_id || null,
+      item_type: item.item_type || (item.component_id ? "component" : "product"),
       product_name: item.product_name || null,
       qty: Number(item.qty) || 0,
       unit_cost: item.unit_cost == null ? null : Number(item.unit_cost)
@@ -399,7 +401,11 @@ function normalizeTables(data) {
   tables.inventory.forEach((row) => ensureProduct(row.product_id));
   tables.stock_movements.forEach((row) => ensureProduct(row.product_id, row.product_name || row.product_id));
   tables.purchase_order_items.forEach((row) => ensureProduct(row.product_id, row.product_name || row.product_id));
-  tables.stock_issue_items.forEach((row) => ensureProduct(row.product_id, row.product_name || row.product_id));
+  tables.stock_issue_items.forEach((row) => {
+    if ((row.item_type || "product") !== "component" && row.product_id) {
+      ensureProduct(row.product_id, row.product_name || row.product_id);
+    }
+  });
   tables.sale_items.forEach((row) => ensureProduct(row.product_id, row.product_name || row.product_id));
 
   if (missingProducts.size) {
@@ -423,7 +429,7 @@ function buildStatements(tables) {
     ...buildUpsertStatements("purchase_component_items", ["id", "purchase_id", "component_id", "component_name", "qty", "unit", "unit_cost", "subtotal"], tables.purchase_component_items || [], { conflict: ["id"] }),
     ...buildUpsertStatements("component_stock_movements", ["id", "component_id", "movement_type", "qty_change", "unit_cost", "ref_type", "ref_id", "note", "created_at"], tables.component_stock_movements || [], { conflict: ["id"] }),
     ...buildUpsertStatements("stock_issues", ["id", "reason", "note", "status", "created_at"], tables.stock_issues, { conflict: ["id"] }),
-    ...buildUpsertStatements("stock_issue_items", ["id", "issue_id", "product_id", "product_name", "qty", "unit_cost"], tables.stock_issue_items, { conflict: ["id"] }),
+    ...buildUpsertStatements("stock_issue_items", ["id", "issue_id", "product_id", "component_id", "item_type", "product_name", "qty", "unit_cost"], tables.stock_issue_items, { conflict: ["id"] }),
     ...buildUpsertStatements("sales", ["id", "order_id", "customer_name", "subtotal", "vat_amount", "discount", "total", "paid", "change_amount", "payment_method", "cashier_name", "payment_status", "order_status", "note", "created_at"], tables.sales, { conflict: ["id"] }),
     ...buildUpsertStatements("sale_items", ["id", "sale_id", "product_id", "product_name", "qty", "unit_price", "addons_json", "addons_total", "line_total", "unit_cost"], tables.sale_items, { conflict: ["id"] }),
     ...buildUpsertStatements("settings", ["key", "value", "updated_at"], tables.settings, { conflict: ["key"], jsonColumns: ["value"], chunkSize: 20 })

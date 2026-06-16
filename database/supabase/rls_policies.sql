@@ -26,12 +26,23 @@ alter table public.settings enable row level security;
 alter table public.sync_log enable row level security;
 alter table public.doc_sequences enable row level security;
 
-alter table public.components add column if not exists stock_qty integer not null default 0;
-alter table public.components add column if not exists min_stock integer not null default 0;
+alter table public.components add column if not exists stock_qty numeric not null default 0;
+alter table public.components add column if not exists min_stock numeric not null default 0;
+alter table public.components alter column stock_qty type numeric using stock_qty::numeric;
+alter table public.components alter column min_stock type numeric using min_stock::numeric;
 alter table public.components add column if not exists is_active integer not null default 1;
 alter table public.components add column if not exists item_type text not null default 'raw_material';
 alter table public.components add column if not exists cost_per_unit integer not null default 0;
 alter table public.products add column if not exists inventory_mode text;
+alter table public.stock_issue_items add column if not exists item_type text not null default 'product';
+alter table public.stock_issue_items add column if not exists component_id text;
+alter table public.stock_issue_items alter column product_id drop not null;
+alter table public.stock_issue_items alter column qty type numeric using qty::numeric;
+alter table public.stock_issue_items drop constraint if exists stock_issue_items_product_id_fkey;
+alter table public.stock_issue_items add constraint stock_issue_items_product_id_fkey foreign key (product_id) references public.products(id);
+alter table public.stock_issue_items drop constraint if exists stock_issue_items_component_id_fkey;
+alter table public.stock_issue_items add constraint stock_issue_items_component_id_fkey foreign key (component_id) references public.components(id);
+create index if not exists idx_issue_items_component on public.stock_issue_items(component_id);
 
 grant usage on schema public to anon, authenticated;
 grant select on public.categories, public.add_ons, public.components, public.products, public.inventory, public.settings to anon, authenticated;

@@ -1,7 +1,7 @@
 {
   "meta": {
     "format": "shopflow-supabase-seed-v1",
-    "generated_at": "2026-06-08T09:18:15.358Z",
+    "generated_at": "2026-06-16T12:44:49.044Z",
     "source": "Cloudflare D1 preparation bundle for Vercel + Supabase",
     "notes": [
       "Products are sourced from database/data/db_dump.json.",
@@ -20,7 +20,7 @@
         "level": 1,
         "code": "10000",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "smoothies",
@@ -31,7 +31,7 @@
         "level": 1,
         "code": "20000",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "juices",
@@ -42,7 +42,7 @@
         "level": 1,
         "code": "30000",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "nutritious-drinks",
@@ -53,7 +53,7 @@
         "level": 1,
         "code": "40000",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "refreshing-drinks",
@@ -64,7 +64,7 @@
         "level": 1,
         "code": "50000",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "essentials",
@@ -75,7 +75,7 @@
         "level": 1,
         "code": "60000",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "snacks",
@@ -86,7 +86,7 @@
         "level": 2,
         "code": "61000",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "beverages",
@@ -97,7 +97,7 @@
         "level": 2,
         "code": "62000",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "pantry",
@@ -108,7 +108,7 @@
         "level": 2,
         "code": "63000",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "personal-care",
@@ -119,7 +119,7 @@
         "level": 2,
         "code": "64000",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "household",
@@ -130,7 +130,7 @@
         "level": 2,
         "code": "65000",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "packaging",
@@ -141,7 +141,7 @@
         "level": 2,
         "code": "66000",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       }
     ],
     "add_ons": [
@@ -151,7 +151,7 @@
         "price": 0,
         "group_key": "sweetness",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "sugar-0",
@@ -159,7 +159,7 @@
         "price": 0,
         "group_key": "sweetness",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "ice-less",
@@ -167,7 +167,7 @@
         "price": 0,
         "group_key": "ice",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "ice-none",
@@ -175,7 +175,7 @@
         "price": 0,
         "group_key": "ice",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "chia",
@@ -183,7 +183,7 @@
         "price": 8000,
         "group_key": "extras",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "aloe",
@@ -191,7 +191,7 @@
         "price": 7000,
         "group_key": "extras",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "yogurt",
@@ -199,7 +199,7 @@
         "price": 12000,
         "group_key": "extras",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "id": "protein",
@@ -207,7 +207,7 @@
         "price": 15000,
         "group_key": "extras",
         "is_active": 1,
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       }
     ],
     "components": [
@@ -216,42 +216,72 @@
         "label": "Cam / Orange",
         "unit": "trái / fruits",
         "note": "Nguyên liệu nước ép cam / Juice base",
-        "updated_at": 1780910295358
+        "stock_qty": 0,
+        "min_stock": 0,
+        "item_type": "raw_material",
+        "cost_per_unit": 0,
+        "is_active": 1,
+        "updated_at": 1781613889044
       },
       {
         "id": "watermelon",
         "label": "Dưa hấu / Watermelon",
         "unit": "gram",
         "note": "Nguyên liệu lạnh / Chilled prep",
-        "updated_at": 1780910295358
+        "stock_qty": 0,
+        "min_stock": 0,
+        "item_type": "raw_material",
+        "cost_per_unit": 0,
+        "is_active": 1,
+        "updated_at": 1781613889044
       },
       {
         "id": "mint",
         "label": "Lá bạc hà / Mint",
         "unit": "lá / leaves",
         "note": "Trang trí và tạo mùi / Garnish",
-        "updated_at": 1780910295358
+        "stock_qty": 0,
+        "min_stock": 0,
+        "item_type": "raw_material",
+        "cost_per_unit": 0,
+        "is_active": 1,
+        "updated_at": 1781613889044
       },
       {
         "id": "honey",
         "label": "Mật ong / Honey",
         "unit": "ml",
         "note": "Tăng vị ngọt / Sweetener",
-        "updated_at": 1780910295358
+        "stock_qty": 0,
+        "min_stock": 0,
+        "item_type": "raw_material",
+        "cost_per_unit": 0,
+        "is_active": 1,
+        "updated_at": 1781613889044
       },
       {
         "id": "yogurt-base",
         "label": "Sữa chua / Yogurt",
         "unit": "gram",
         "note": "Base cho smoothie / Smoothie base",
-        "updated_at": 1780910295358
+        "stock_qty": 0,
+        "min_stock": 0,
+        "item_type": "raw_material",
+        "cost_per_unit": 0,
+        "is_active": 1,
+        "updated_at": 1781613889044
       },
       {
         "id": "chia-base",
         "label": "Hạt chia / Chia Seeds",
         "unit": "gram",
         "note": "Topping mặc định / Default topping",
-        "updated_at": 1780910295358
+        "stock_qty": 0,
+        "min_stock": 0,
+        "item_type": "raw_material",
+        "cost_per_unit": 0,
+        "is_active": 1,
+        "updated_at": 1781613889044
       }
     ],
     "products": [
@@ -265,9 +295,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA61001"
       },
@@ -281,9 +312,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61002"
       },
@@ -297,9 +329,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61003"
       },
@@ -313,9 +346,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "LY",
         "sku_code": "ORIA61004"
       },
@@ -329,9 +363,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Chai",
         "sku_code": "ORIA61005"
       },
@@ -345,9 +380,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA61006"
       },
@@ -361,9 +397,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "LY",
         "sku_code": "ORIA61007"
       },
@@ -377,9 +414,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61008"
       },
@@ -393,9 +431,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Hộp",
         "sku_code": "ORIA61009"
       },
@@ -409,9 +448,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61010"
       },
@@ -425,9 +465,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61011"
       },
@@ -441,9 +482,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61012"
       },
@@ -457,9 +499,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61013"
       },
@@ -473,9 +516,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61014"
       },
@@ -489,9 +533,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA61015"
       },
@@ -505,9 +550,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61016"
       },
@@ -521,9 +567,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61017"
       },
@@ -537,9 +584,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61018"
       },
@@ -553,9 +601,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61019"
       },
@@ -569,9 +618,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61020"
       },
@@ -585,9 +635,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61021"
       },
@@ -601,9 +652,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61022"
       },
@@ -617,9 +669,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA61023"
       },
@@ -633,9 +686,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA61024"
       },
@@ -649,9 +703,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61025"
       },
@@ -665,9 +720,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA61026"
       },
@@ -681,9 +737,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61027"
       },
@@ -697,9 +754,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61028"
       },
@@ -713,9 +771,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61029"
       },
@@ -729,9 +788,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61030"
       },
@@ -745,9 +805,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Hộp",
         "sku_code": "ORIA61031"
       },
@@ -761,9 +822,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61032"
       },
@@ -777,9 +839,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61033"
       },
@@ -793,9 +856,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA62002"
       },
@@ -809,9 +873,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Chai",
         "sku_code": "ORIA62003"
       },
@@ -825,9 +890,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Lon",
         "sku_code": "ORIA62004"
       },
@@ -841,9 +907,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Lon",
         "sku_code": "ORIA62005"
       },
@@ -857,9 +924,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Lon",
         "sku_code": "ORIA62006"
       },
@@ -873,9 +941,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Lon",
         "sku_code": "ORIA62007"
       },
@@ -889,9 +958,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Chai",
         "sku_code": "ORIA62008"
       },
@@ -905,9 +975,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Lon",
         "sku_code": "ORIA62009"
       },
@@ -921,9 +992,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Lon",
         "sku_code": "ORIA62010"
       },
@@ -937,9 +1009,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Hộp",
         "sku_code": "ORIA62011"
       },
@@ -953,9 +1026,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Hộp",
         "sku_code": "ORIA62012"
       },
@@ -969,9 +1043,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Hộp",
         "sku_code": "ORIA62013"
       },
@@ -985,9 +1060,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Hộp",
         "sku_code": "ORIA62014"
       },
@@ -1001,9 +1077,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA62015"
       },
@@ -1017,9 +1094,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA62016"
       },
@@ -1033,9 +1111,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA62017"
       },
@@ -1049,9 +1128,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Túi",
         "sku_code": "ORIA62018"
       },
@@ -1065,9 +1145,10 @@
         "image": "🥛",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Túi",
         "sku_code": "ORIA62019"
       },
@@ -1081,9 +1162,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63002"
       },
@@ -1097,9 +1179,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63003"
       },
@@ -1113,9 +1196,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63004"
       },
@@ -1129,9 +1213,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Hộp",
         "sku_code": "ORIA63005"
       },
@@ -1145,9 +1230,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Hộp",
         "sku_code": "ORIA63006"
       },
@@ -1161,9 +1247,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63007"
       },
@@ -1177,9 +1264,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63008"
       },
@@ -1193,9 +1281,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63009"
       },
@@ -1209,9 +1298,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63010"
       },
@@ -1225,9 +1315,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63011"
       },
@@ -1241,9 +1332,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Chai",
         "sku_code": "ORIA63012"
       },
@@ -1257,9 +1349,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63013"
       },
@@ -1273,9 +1366,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA63014"
       },
@@ -1289,9 +1383,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA63015"
       },
@@ -1305,9 +1400,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63016"
       },
@@ -1321,9 +1417,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA63017"
       },
@@ -1337,9 +1434,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63018"
       },
@@ -1353,9 +1451,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63019"
       },
@@ -1369,9 +1468,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63020"
       },
@@ -1385,9 +1485,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63021"
       },
@@ -1401,9 +1502,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63022"
       },
@@ -1417,9 +1519,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA63023"
       },
@@ -1433,9 +1536,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63024"
       },
@@ -1449,9 +1553,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA63025"
       },
@@ -1465,9 +1570,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63026"
       },
@@ -1481,9 +1587,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63027"
       },
@@ -1497,9 +1604,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63028"
       },
@@ -1513,9 +1621,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63029"
       },
@@ -1529,9 +1638,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63030"
       },
@@ -1545,9 +1655,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63031"
       },
@@ -1561,9 +1672,10 @@
         "image": "🥫",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA63032"
       },
@@ -1577,9 +1689,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64002"
       },
@@ -1593,9 +1706,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64003"
       },
@@ -1609,9 +1723,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64004"
       },
@@ -1625,9 +1740,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64005"
       },
@@ -1641,9 +1757,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64006"
       },
@@ -1657,9 +1774,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64007"
       },
@@ -1673,9 +1791,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64008"
       },
@@ -1689,9 +1808,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Tuýp",
         "sku_code": "ORIA64009"
       },
@@ -1705,9 +1825,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64010"
       },
@@ -1721,9 +1842,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Tuýp",
         "sku_code": "ORIA64011"
       },
@@ -1737,9 +1859,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Tuýp",
         "sku_code": "ORIA64012"
       },
@@ -1753,9 +1876,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Tuýp",
         "sku_code": "ORIA64013"
       },
@@ -1769,9 +1893,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Tuýp",
         "sku_code": "ORIA64014"
       },
@@ -1785,9 +1910,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Chai",
         "sku_code": "ORIA64015"
       },
@@ -1801,9 +1927,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64016"
       },
@@ -1817,9 +1944,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Tuýp",
         "sku_code": "ORIA64017"
       },
@@ -1833,9 +1961,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64018"
       },
@@ -1849,9 +1978,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64019"
       },
@@ -1865,9 +1995,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA64020"
       },
@@ -1881,9 +2012,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64021"
       },
@@ -1897,9 +2029,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64022"
       },
@@ -1913,9 +2046,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64023"
       },
@@ -1929,9 +2063,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA64024"
       },
@@ -1945,9 +2080,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA64025"
       },
@@ -1961,9 +2097,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA64026"
       },
@@ -1977,9 +2114,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA64027"
       },
@@ -1993,9 +2131,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Cái",
         "sku_code": "ORIA64028"
       },
@@ -2009,9 +2148,10 @@
         "image": "🧴",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Cái",
         "sku_code": "ORIA64029"
       },
@@ -2025,9 +2165,10 @@
         "image": "🧹",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA65002"
       },
@@ -2041,9 +2182,10 @@
         "image": "🧹",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA65003"
       },
@@ -2057,9 +2199,10 @@
         "image": "🧹",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Chai",
         "sku_code": "ORIA65004"
       },
@@ -2073,9 +2216,10 @@
         "image": "🧹",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Cái",
         "sku_code": "ORIA65005"
       },
@@ -2089,9 +2233,10 @@
         "image": "🧹",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Cái",
         "sku_code": "ORIA65006"
       },
@@ -2105,9 +2250,10 @@
         "image": "🧹",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Cái",
         "sku_code": "ORIA65007"
       },
@@ -2121,9 +2267,10 @@
         "image": "🧹",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Cái",
         "sku_code": "ORIA65008"
       },
@@ -2137,9 +2284,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA66002"
       },
@@ -2153,9 +2301,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA66003"
       },
@@ -2169,9 +2318,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA66004"
       },
@@ -2185,9 +2335,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA66005"
       },
@@ -2201,9 +2352,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA66006"
       },
@@ -2217,9 +2369,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA66007"
       },
@@ -2233,9 +2386,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA66008"
       },
@@ -2249,9 +2403,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA66009"
       },
@@ -2265,9 +2420,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA66010"
       },
@@ -2281,9 +2437,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA66011"
       },
@@ -2297,9 +2454,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA66012"
       },
@@ -2313,9 +2471,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA66013"
       },
@@ -2329,9 +2488,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA66014"
       },
@@ -2345,9 +2505,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Bộ",
         "sku_code": "ORIA66015"
       },
@@ -2361,9 +2522,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Bộ",
         "sku_code": "ORIA66016"
       },
@@ -2377,9 +2539,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Khay",
         "sku_code": "ORIA66017"
       },
@@ -2393,9 +2556,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA66018"
       },
@@ -2409,9 +2573,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA66019"
       },
@@ -2425,9 +2590,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Cuộn",
         "sku_code": "ORIA66020"
       },
@@ -2441,9 +2607,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Cuộn",
         "sku_code": "ORIA66021"
       },
@@ -2457,9 +2624,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Cuộn",
         "sku_code": "ORIA66022"
       },
@@ -2473,9 +2641,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Túi",
         "sku_code": "ORIA66023"
       },
@@ -2489,9 +2658,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA66024"
       },
@@ -2505,9 +2675,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Túi",
         "sku_code": "ORIA66025"
       },
@@ -2521,9 +2692,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Hộp",
         "sku_code": "ORIA66026"
       },
@@ -2537,9 +2709,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Hộp",
         "sku_code": "ORIA66027"
       },
@@ -2553,9 +2726,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA66028"
       },
@@ -2569,9 +2743,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA66029"
       },
@@ -2585,9 +2760,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Hộp",
         "sku_code": "ORIA66030"
       },
@@ -2601,9 +2777,10 @@
         "image": "🥡",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Cuộn",
         "sku_code": "ORIA66031"
       },
@@ -2617,9 +2794,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Gói",
         "sku_code": "ORIA61034"
       },
@@ -2633,9 +2811,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": "Hộp",
         "sku_code": "ORIA61036"
       },
@@ -2649,9 +2828,10 @@
         "image": "🍿",
         "description": null,
         "component_ids": "[]",
+        "inventory_mode": null,
         "min_stock": 0,
         "is_active": 1,
-        "updated_at": 1780910295358,
+        "updated_at": 1781613889044,
         "unit": null,
         "sku_code": "ORIA61035"
       }
@@ -2661,901 +2841,901 @@
         "product_id": "ORIA61001",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61002",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61003",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61004",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61005",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61006",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61007",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61008",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61009",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61010",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61011",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61012",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61013",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61014",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61015",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61016",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61017",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61018",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61019",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61020",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61021",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61022",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61023",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61024",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61025",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61026",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61027",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61028",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61029",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61030",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61031",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61032",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61033",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62002",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62003",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62004",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62005",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62006",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62007",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62008",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62009",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62010",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62011",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62012",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62013",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62014",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62015",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62016",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62017",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62018",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA62019",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63002",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63003",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63004",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63005",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63006",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63007",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63008",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63009",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63010",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63011",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63012",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63013",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63014",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63015",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63016",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63017",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63018",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63019",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63020",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63021",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63022",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63023",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63024",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63025",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63026",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63027",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63028",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63029",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63030",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63031",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA63032",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64002",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64003",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64004",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64005",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64006",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64007",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64008",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64009",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64010",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64011",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64012",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64013",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64014",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64015",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64016",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64017",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64018",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64019",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64020",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64021",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64022",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64023",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64024",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64025",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64026",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64027",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64028",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA64029",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA65002",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA65003",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA65004",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA65005",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA65006",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA65007",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA65008",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66002",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66003",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66004",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66005",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66006",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66007",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66008",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66009",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66010",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66011",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66012",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66013",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66014",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66015",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66016",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66017",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66018",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66019",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66020",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66021",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66022",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66023",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66024",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66025",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66026",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66027",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66028",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66029",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66030",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA66031",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61034",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61036",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "product_id": "ORIA61035",
         "qty_on_hand": 0,
         "location": "main",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       }
     ],
     "stock_movements": [],
@@ -3564,6 +3744,8 @@
     "purchase_order_items": [],
     "purchase_component_items": [],
     "component_stock_movements": [],
+    "production_recipes": [],
+    "production_batches": [],
     "stock_issues": [],
     "stock_issue_items": [],
     "sales": [],
@@ -3586,7 +3768,7 @@
           "logoUrl": "/logo.png",
           "logoPrintUrl": "/logo-thermal.png"
         },
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "key": "invoice_templates",
@@ -3633,7 +3815,7 @@
           ],
           "selectedId": "invoice-vat"
         },
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "key": "barcode_templates",
@@ -3678,17 +3860,17 @@
           ],
           "selectedId": "barcode-retail"
         },
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "key": "selected_invoice_template_id",
         "value": "invoice-vat",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       },
       {
         "key": "selected_barcode_template_id",
         "value": "barcode-retail",
-        "updated_at": 1780910295358
+        "updated_at": 1781613889044
       }
     ],
     "sync_log": [],

@@ -1,6 +1,7 @@
-import { json, notFound } from "../_lib.js";
+import { json, notFound, ensureStockIssueItemColumns } from "../_lib.js";
 
 export const onRequestGet = async ({ env, params }) => {
+  await ensureStockIssueItemColumns(env.DB);
   const head = await env.DB.prepare(`SELECT * FROM stock_issues WHERE id = ?`)
     .bind(params.id).first();
   if (!head) return notFound();

@@ -4404,13 +4404,12 @@
       var insufficientItems = insufficientProducts.concat(insufficientComponents);
 
       if (insufficientItems.length) {
-        window.alert(
-          L("Không đủ tồn kho để hoàn tất đơn này: / Not enough stock to complete this sale:\n") +
-          insufficientItems.map(function (item) {
-            return "- " + item.name + " (" + item.available + "/" + item.required + ")";
-          }).join("\n")
-        );
-        return;
+        // Local stock can be stale when another device just verified stock-in.
+        // Do not block held orders here; the server/Supabase stock guard below
+        // is the source of truth and will reject only if inventory is truly short.
+        if (window && window.console) {
+          window.console.warn("Local stock looked short; server will verify before saving sale.", insufficientItems);
+        }
       }
 
       var orderSnapshot = clone(activeOrder);
@@ -4517,6 +4516,12 @@
         var message = error && error.data && error.data.error
           ? error.data.error
           : (error && error.message ? error.message : L("Không lưu được đơn hàng. / Could not save this order."));
+        if (error && error.data && error.data.code === "INSUFFICIENT_STOCK" && Array.isArray(error.data.insufficient)) {
+          message = L("Không đủ tồn kho để hoàn tất đơn này. / Not enough stock to complete this sale.") +
+            "\n" + error.data.insufficient.map(function (item) {
+              return "- " + (item.name || item.productId) + " (" + item.available + "/" + item.required + ")";
+            }).join("\n");
+        }
         markOrderNeedsAction(orderSnapshot.id, message);
         pushToast("error", L("Đơn chưa được lưu. Cần xử lí trước khi hoàn tất. / Sale was not saved. Needs action before checkout."));
       }).finally(function () {
