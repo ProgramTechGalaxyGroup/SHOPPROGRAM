@@ -3,6 +3,7 @@ import {
   isDuplicateOp, recordOpStmt, runIdempotentBatch,
   inventoryDeltaStmt, movementStmt,
   ensureProductsInventoryModeColumn,
+  normalizeStockDelta, normalizeStockQty,
 } from "../_lib.js";
 
 // POST /api/inventory/adjust
@@ -28,7 +29,7 @@ export const onRequestPost = async ({ env, request }) => {
   }
 
   const productMeta = await env.DB.prepare(
-    `SELECT inventory_mode FROM products WHERE id = ?`
+    `SELECT inventory_mode, unit FROM products WHERE id = ?`
   ).bind(body.productId).first();
   if (productMeta && productMeta.inventory_mode === "recipe") {
     return badRequest("recipe-based product stock is derived from components");
@@ -46,11 +47,11 @@ export const onRequestPost = async ({ env, request }) => {
   const oldQty = cur ? Number(cur.qty) || 0 : 0;
 
   if (body.newQty != null) {
-    targetQty = Math.max(0, Math.floor(Number(body.newQty)));
+    targetQty = normalizeStockQty(body.newQty, productMeta.unit);
     if (!Number.isFinite(targetQty)) return badRequest("newQty must be a number");
     delta = targetQty - oldQty;
   } else if (body.delta != null) {
-    const d = Math.floor(Number(body.delta));
+    const d = normalizeStockDelta(body.delta, productMeta.unit);
     if (!Number.isFinite(d)) return badRequest("delta must be a number");
     targetQty = Math.max(0, oldQty + d);
     delta = targetQty - oldQty;

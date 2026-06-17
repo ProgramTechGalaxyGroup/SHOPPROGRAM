@@ -335,10 +335,38 @@ export function normalizeInventoryItemType(value) {
 
 export function normalizeUnit(value) {
   const unit = String(value || "").trim().toLowerCase();
+  if (unit === "kg" || unit === "kilogram" || unit === "kilograms") return "kg";
   if (unit === "g" || unit === "gram" || unit === "grams") return "gram";
+  if (unit === "l" || unit === "liter" || unit === "litre" || unit === "lit") return "l";
   if (unit === "ml" || unit === "milliliter" || unit === "milliliters") return "ml";
   if (unit === "piece" || unit === "pieces" || unit === "pcs" || unit === "cai") return "piece";
   return unit;
+}
+
+export function isFractionalStockUnit(value) {
+  const unit = normalizeUnit(value);
+  return unit === "kg" || unit === "gram" || unit === "l" || unit === "ml";
+}
+
+export function normalizeStockQty(value, unit) {
+  const qty = Number(value);
+  if (!Number.isFinite(qty)) return NaN;
+  const positive = Math.max(0, qty);
+  if (isFractionalStockUnit(unit)) {
+    return Math.round(positive * 1000) / 1000;
+  }
+  return Math.floor(positive);
+}
+
+export function normalizeStockDelta(value, unit) {
+  const delta = Number(value);
+  if (!Number.isFinite(delta)) return NaN;
+  const sign = delta < 0 ? -1 : 1;
+  const abs = Math.abs(delta);
+  if (isFractionalStockUnit(unit)) {
+    return sign * (Math.round(abs * 1000) / 1000);
+  }
+  return sign * Math.floor(abs);
 }
 
 export async function ensureProductionTables(db) {

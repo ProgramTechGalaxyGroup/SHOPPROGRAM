@@ -3,7 +3,7 @@ import {
   isDuplicateOp, recordOpStmt, runIdempotentBatch, nextDocId,
   inventoryDeltaStmt, movementStmt, getProductCost,
   ensureProductsInventoryModeColumn, ensureComponentsInventoryColumns,
-  normalizePaymentMethod,
+  normalizePaymentMethod, normalizeStockQty,
 } from "../_lib.js";
 
 function normalizeWastePercent(value) {
@@ -77,7 +77,8 @@ export const onRequestPost = async ({ env, request }) => {
   }
 
   // -------- Item-level validation (E3, E6, E8) --------
-  // Normalize qty to integer, reject lines that are unsalvageable.
+  // Normalize qty, reject lines that are unsalvageable. Products sold by
+  // measured units (kg/gram/l/ml) are normalized after product metadata loads.
   for (let i = 0; i < body.items.length; i++) {
     const it = body.items[i];
     if (!it || typeof it !== "object") {
@@ -86,13 +87,12 @@ export const onRequestPost = async ({ env, request }) => {
     if (!it.productId || typeof it.productId !== "string") {
       return badRequest(`items[${i}].productId required`);
     }
-    // Coerce qty: must be a positive integer.
+    // Coerce qty: must be positive.
     const q = Number(it.qty);
     if (!Number.isFinite(q) || q <= 0) {
       return badRequest(`items[${i}].qty must be > 0 (got ${it.qty})`);
     }
-    // Floor decimals — keep behaviour deterministic and never silently store 1.5.
-    it.qty = Math.floor(q);
+    it.qty = q;
     // Clamp unitPrice / addonsTotal so a tampered negative can't be billed.
     if (it.unitPrice != null) {
       const up = Number(it.unitPrice);
@@ -116,13 +116,22 @@ export const onRequestPost = async ({ env, request }) => {
   if (productIds.length > 0) {
     const placeholders = productIds.map(() => "?").join(",");
     const sql = `
-      SELECT p.id, p.component_ids, p.inventory_mode
+      SELECT p.id, p.component_ids, p.inventory_mode, p.unit
       FROM products p
       WHERE p.id IN (${placeholders})
     `;
     const { results } = await env.DB.prepare(sql).bind(...productIds).all();
     if (results) {
       results.forEach((r) => productInfoMap.set(r.id, r));
+    }
+  }
+
+  for (let i = 0; i < body.items.length; i++) {
+    const it = body.items[i];
+    const info = productInfoMap.get(it.productId);
+    it.qty = normalizeStockQty(it.qty, info ? info.unit : undefined);
+    if (!Number.isFinite(it.qty) || it.qty <= 0) {
+      return badRequest(`items[${i}].qty must be >= 1 unless unit supports decimals`);
     }
   }
 

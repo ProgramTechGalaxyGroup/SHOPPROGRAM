@@ -3,10 +3,10 @@ import {
   inventoryDeltaStmt,
   movementStmt,
   componentMovementStmt,
-  getProductName,
   normalizePaymentMethod,
   ensureComponentsInventoryColumns,
   ensureProductsInventoryModeColumn,
+  normalizeStockQty,
 } from "../_lib.js";
 
 export const VERIFICATION_PENDING = "pending_verification";
@@ -174,19 +174,28 @@ export async function normalizePurchasePayload(db, body, purchaseId, ts) {
     } else {
       const productId = String(raw.productId || raw.itemId || "").trim();
       if (!productId) throw new Error(`items[${i}].productId required`);
-      const qty = Math.floor(purchaseQty);
-      if (qty <= 0) throw new Error(`items[${i}].qty must be >= 1`);
-      const subtotal = qty * purchaseUnitCost;
+      const product = await db.prepare(
+        `SELECT id, name, unit FROM products WHERE id = ?`
+      ).bind(productId).first();
+      if (!product) throw new Error(`product not found: ${productId}`);
+      const baseUnit = displayUnit(product.unit || raw.baseUnit || raw.unit || "piece") || "piece";
+      const purchaseUnit = displayUnit(raw.purchaseUnit || raw.unit || baseUnit) || baseUnit;
+      const converted = convertToBaseQty(purchaseQty, purchaseUnit, baseUnit);
+      if (!converted.ok) throw new Error(`items[${i}]: ${converted.error}`);
+      const qty = normalizeStockQty(converted.qty, baseUnit);
+      if (!Number.isFinite(qty) || qty <= 0) throw new Error(`items[${i}].qty must be >= 1 unless unit supports decimals`);
+      const subtotal = purchaseQty * purchaseUnitCost;
+      const baseUnitCost = qty > 0 ? Math.round(subtotal / qty) : purchaseUnitCost;
       total += subtotal;
       itemRows.push({
         id: uid("poi"),
         productId,
-        productName: raw.productName || await getProductName(db, productId),
+        productName: raw.productName || product.name || productId,
         qty,
-        unitCost: purchaseUnitCost,
+        unitCost: baseUnitCost,
         subtotal,
-        purchaseQty: qty,
-        purchaseUnit: displayUnit(raw.purchaseUnit || raw.unit || "piece") || "piece",
+        purchaseQty,
+        purchaseUnit,
         purchaseUnitCost,
       });
     }
@@ -195,7 +204,7 @@ export async function normalizePurchasePayload(db, body, purchaseId, ts) {
   const productStateRows = await Promise.all(
     itemRows.map((row) =>
       db.prepare(
-        `SELECT p.cost_price, p.inventory_mode, COALESCE(i.qty_on_hand, 0) AS qty
+        `SELECT p.cost_price, p.inventory_mode, p.unit, COALESCE(i.qty_on_hand, 0) AS qty
          FROM products p
          LEFT JOIN inventory i ON i.product_id = p.id
          WHERE p.id = ?`

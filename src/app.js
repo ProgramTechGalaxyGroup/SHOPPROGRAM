@@ -1630,6 +1630,39 @@
     }).format(Number(value) || 0);
   }
 
+  function normalizeQtyUnit(value) {
+    var unit = String(value || "").trim().toLowerCase();
+    if (unit === "kg" || unit === "kilogram" || unit === "kilograms") return "kg";
+    if (unit === "g" || unit === "gram" || unit === "grams") return "gram";
+    if (unit === "l" || unit === "liter" || unit === "litre" || unit === "lit") return "l";
+    if (unit === "ml" || unit === "milliliter" || unit === "milliliters") return "ml";
+    if (unit === "cái" || unit === "cai" || unit === "piece" || unit === "pieces" || unit === "pcs") return "piece";
+    return unit;
+  }
+
+  function allowsFractionalQty(unit) {
+    var normalized = normalizeQtyUnit(unit);
+    return normalized === "kg" || normalized === "gram" || normalized === "l" || normalized === "ml";
+  }
+
+  function qtyInputStep(unit) {
+    return allowsFractionalQty(unit) ? "0.001" : "1";
+  }
+
+  function qtyInputMin(unit) {
+    return allowsFractionalQty(unit) ? "0.001" : "1";
+  }
+
+  function normalizeQtyForUnit(value, unit) {
+    var qty = Number(value);
+    if (!Number.isFinite(qty)) return 0;
+    qty = Math.max(0, qty);
+    if (allowsFractionalQty(unit)) {
+      return Math.round(qty * 1000) / 1000;
+    }
+    return Math.floor(qty);
+  }
+
   function formatDateTime(dateValue) {
     return new Intl.DateTimeFormat("vi-VN", {
       day: "2-digit",
@@ -2200,6 +2233,7 @@
         type="number"
         min=${props.min}
         max=${props.max}
+        step=${props.step}
         className=${props.className ? props.className + " no-spinners" : "no-spinners"}
         style=${props.style}
         defaultValue=${props.value == null ? "" : props.value}
@@ -2250,6 +2284,13 @@
         });
       });
     }, [rawProducts, categories, components]);
+    function findProductById(productId) {
+      return products.find(function (product) { return product.id === productId; });
+    }
+    function getOrderItemUnit(item) {
+      var product = item && item.productId ? findProductById(item.productId) : null;
+      return (item && item.unit) || (product && product.unit) || "";
+    }
     var [sales, setSales] = useState(initialState.sales);
     var [orders, setOrders] = useState(initialState.orders);
     var [activeOrderId, setActiveOrderId] = useState(initialState.activeOrderId || initialState.orders[0].id);
@@ -4081,6 +4122,7 @@
           productId: product.id,
           barcode: getScannableBarcode(product.barcode, [product.id, product.name, product.category].join("|")),
           name: product.name,
+          unit: product.unit || "",
           price: Number(product.price) || 0,
           qty: 1,
           addOnIds: []
@@ -4113,10 +4155,10 @@
 
     // Direct qty edit (used by the new POS input box).
     function setItemQty(itemId, qty) {
-      var q = Math.max(0, Math.floor(Number(qty) || 0));
       updateActiveOrder(function (order) {
         var nextItems = (order.items || [])
           .map(function (item) {
+            var q = normalizeQtyForUnit(qty, getOrderItemUnit(item));
             return item.id === itemId ? Object.assign({}, item, { qty: q }) : item;
           })
           .filter(function (item) { return (Number(item.qty) || 0) > 0; });
@@ -6975,7 +7017,7 @@
       if (targetProduct && targetProduct.inventoryMode !== "stock") {
         return;
       }
-      var target = Math.max(0, Math.floor(Number(nextStock) || 0));
+      var target = normalizeQtyForUnit(nextStock, targetProduct ? targetProduct.unit : "");
 
       // 1. Optimistic local UI update.
       setProducts(function (currentProducts) {
@@ -7587,6 +7629,7 @@
             <div className="order-items">
               ${activeOrder.items.length
                 ? activeOrder.items.map(function (item) {
+                    var itemUnit = getOrderItemUnit(item);
                     return html`
                       <article key=${item.id} className="order-item">
                         <div className="order-item-head">
@@ -7606,6 +7649,8 @@
                             adjustItemQty(item.id, -1);
                           }}>-</button>
                           <${LocalNumberInput}
+                            min=${qtyInputMin(itemUnit)}
+                            step=${qtyInputStep(itemUnit)}
                             style=${{
                               width: "50px",
                               textAlign: "center",
@@ -7618,9 +7663,10 @@
                             }}
                             value=${item.qty}
                             onChange=${function(val) {
+                              var normalized = val === "" ? "" : normalizeQtyForUnit(val, itemUnit);
                               updateActiveOrder(function(order) {
                                 var newItems = order.items.map(function(it) {
-                                  if (it.id === item.id) return Object.assign({}, it, { qty: val });
+                                  if (it.id === item.id) return Object.assign({}, it, { qty: normalized });
                                   return it;
                                 });
                                 return Object.assign({}, order, { items: newItems });
@@ -7630,7 +7676,7 @@
                               if (e.target.value === "" || Number(e.target.value) <= 0) {
                                 updateActiveOrder(function(order) {
                                   var newItems = order.items.map(function(it) {
-                                    if (it.id === item.id) return Object.assign({}, it, { qty: 1 });
+                                    if (it.id === item.id) return Object.assign({}, it, { qty: normalizeQtyForUnit(qtyInputMin(itemUnit), itemUnit) });
                                     return it;
                                   });
                                   return Object.assign({}, order, { items: newItems });
@@ -8312,6 +8358,7 @@
                                 <div className="row-actions stock-editor">
                                   ${product.inventoryMode === "recipe" ? html`<span className="stock-badge" title="Tồn ảo / Virtual stock" style=${{ background: "#f0f0f0", color: "#555" }}>${product.stock}</span>` : product.inventoryMode === "stock" ? html`<${LocalNumberInput}
                                     min="0"
+                                    step=${qtyInputStep(product.unit)}
                                     value=${product.stock}
                                     onChange=${function (val) {
                                       updateProductStock(product.id, val);
@@ -8479,7 +8526,7 @@
                 <div className="management-list">
                   ${products.map(function (p) {
                     var actual = stocktakeDraft[p.id];
-                    var diff = (actual === undefined || actual === "") ? null : Number(actual) - (Number(p.stock) || 0);
+                    var diff = (actual === undefined || actual === "") ? null : normalizeQtyForUnit(actual, p.unit) - (Number(p.stock) || 0);
                     return html`
                       <article key=${p.id} className="list-row list-row-actions">
                         <div>
@@ -8489,7 +8536,7 @@
                         <div className="row-actions">
                           <label className="field" style=${{ width: 110 }}>
                             <span>${L("Thực tế / Actual")}</span>
-                            <input type="number" min="0" value=${actual === undefined ? "" : actual} onInput=${function (e) {
+                            <input type="number" min="0" step=${qtyInputStep(p.unit)} value=${actual === undefined ? "" : actual} onInput=${function (e) {
                               var val = e.target.value;
                               setStocktakeDraft(function (cur) { var next = Object.assign({}, cur); next[p.id] = val; return next; });
                             }} />
@@ -9444,7 +9491,8 @@
             return (it.itemType || "product") !== "component" && it.productId === p.id;
           });
           if (!line) return p;
-          var nextStock = (Number(p.rawStock != null ? p.rawStock : p.stock) || 0) + (Number(line.qty) || 0);
+          var qty = normalizeQtyForUnit(line.qty, line.unit || p.unit || "");
+          var nextStock = (Number(p.rawStock != null ? p.rawStock : p.stock) || 0) + qty;
           return Object.assign({}, p, { stock: nextStock, rawStock: nextStock });
         });
       });
@@ -9486,6 +9534,7 @@
               itemType: "product",
               productId: it.productId,
               productName: it.productName,
+              unit: it.unit || "",
               qty: Number(it.qty) || 0,
               unitCost: Number(it.unitCost) || 0
             };
@@ -9666,6 +9715,7 @@
         var raw = stocktakeDraft[p.id];
         if (raw === undefined || raw === "") return;
         var actual = Number(raw);
+        actual = normalizeQtyForUnit(raw, p.unit);
         if (!Number.isFinite(actual)) return;
         var diff = actual - (Number(p.stock) || 0);
         if (diff === 0) return;
@@ -9912,6 +9962,8 @@
                   : purchaseDraft.items.map(function (it) {
                       var lineKey = it.lineKey || purchaseLineKey(it.itemType || "product", it.itemId || it.productId || it.componentId);
                       var isComponentLine = it.itemType === "component";
+                      var lineStep = isComponentLine && !it.unit ? "0.001" : qtyInputStep(it.unit);
+                      var lineMin = isComponentLine && !it.unit ? "0.001" : qtyInputMin(it.unit);
                       return html`
                         <article key=${lineKey} className="list-row list-row-actions">
                           <div>
@@ -9929,8 +9981,8 @@
                               <span>${L("SL / Qty")}</span>
                               <input
                                 type="number"
-                                min=${isComponentLine ? "0" : "1"}
-                                step=${isComponentLine ? "0.1" : "1"}
+                                min=${lineMin}
+                                step=${lineStep}
                                 value=${it.qty}
                                 onInput=${function (e) { updatePurchaseLine(lineKey, "qty", e.target.value); }}
                               />
@@ -10157,6 +10209,7 @@
                     var isComponentLine = it.itemType === "component";
                     var p = isComponentLine ? null : products.find(function (x) { return x.id === it.productId; });
                     var c = isComponentLine ? components.find(function (x) { return x.id === it.componentId; }) : null;
+                    var issueUnit = isComponentLine ? (c ? c.unit : "") : (p ? p.unit : "");
                     var stock = isComponentLine ? (c ? Number(c.stockQty) || 0 : 0) : (p ? Number(p.stock) || 0 : 0);
                     var over = (Number(it.qty) || 0) > stock;
                     return html`
@@ -10175,8 +10228,8 @@
                             <span>${L("SL / Qty")}</span>
                             <input
                               type="number"
-                              min=${isComponentLine ? "0" : "1"}
-                              step=${isComponentLine ? "0.1" : "1"}
+                              min=${isComponentLine && !issueUnit ? "0.001" : qtyInputMin(issueUnit)}
+                              step=${isComponentLine && !issueUnit ? "0.001" : qtyInputStep(issueUnit)}
                               value=${it.qty}
                               onInput=${function (e) { updateIssueLine(lineKey, e.target.value); }}
                             />
@@ -10336,7 +10389,7 @@
               <div className="management-list">
                 ${products.map(function (p) {
                   var actual = stocktakeDraft[p.id];
-                  var diff = (actual === undefined || actual === "") ? null : Number(actual) - (Number(p.stock) || 0);
+                  var diff = (actual === undefined || actual === "") ? null : normalizeQtyForUnit(actual, p.unit) - (Number(p.stock) || 0);
                   return html`
                     <article key=${p.id} className="list-row list-row-actions">
                       <div>
@@ -10346,7 +10399,7 @@
                       <div className="row-actions">
                         <label className="field" style=${{ width: 110 }}>
                           <span>${L("Thực tế / Actual")}</span>
-                          <input type="number" min="0" value=${actual === undefined ? "" : actual} onInput=${function (e) {
+                          <input type="number" min="0" step=${qtyInputStep(p.unit)} value=${actual === undefined ? "" : actual} onInput=${function (e) {
                             var val = e.target.value;
                             setStocktakeDraft(function (cur) { var next = Object.assign({}, cur); next[p.id] = val; return next; });
                           }} />
@@ -10840,6 +10893,7 @@
                           <div className="row-actions stock-editor">
                             <${LocalNumberInput}
                               min="0"
+                              step=${qtyInputStep(product.unit)}
                               value=${product.stock}
                               onChange=${function (val) {
                                 updateProductStock(product.id, val);

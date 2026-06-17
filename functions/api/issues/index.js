@@ -4,6 +4,7 @@ import {
   inventoryDeltaStmt, movementStmt,
   getProductCost, getProductName,
   componentMovementStmt, ensureComponentsInventoryColumns, ensureStockIssueItemColumns,
+  normalizeStockQty,
 } from "../_lib.js";
 
 const VALID_REASONS = new Set(["damaged", "sample", "internal", "transfer", "other"]);
@@ -62,7 +63,29 @@ export const onRequestPost = async ({ env, request }) => {
     if (!Number.isFinite(q) || q <= 0) {
       return badRequest(`items[${i}].qty must be > 0 (got ${it.qty})`);
     }
-    it.qty = it.itemType === "component" ? q : Math.floor(q);
+    it.qty = q;
+  }
+
+  const issueProductIds = [...new Set(body.items
+    .filter((it) => it.itemType !== "component")
+    .map((it) => it.productId)
+    .filter(Boolean))];
+  let issueProductUnits = new Map();
+  if (issueProductIds.length) {
+    const productRows = await Promise.all(issueProductIds.map((pid) =>
+      env.DB.prepare(`SELECT id, unit FROM products WHERE id = ?`).bind(pid).first()
+    ));
+    productRows.forEach((row) => {
+      if (row) issueProductUnits.set(row.id, row.unit || "");
+    });
+  }
+  for (let i = 0; i < body.items.length; i++) {
+    const it = body.items[i];
+    if (it.itemType === "component") continue;
+    it.qty = normalizeStockQty(it.qty, issueProductUnits.get(it.productId));
+    if (!Number.isFinite(it.qty) || it.qty <= 0) {
+      return badRequest(`items[${i}].qty must be >= 1 unless unit supports decimals`);
+    }
   }
 
   if (body.clientOpId) {

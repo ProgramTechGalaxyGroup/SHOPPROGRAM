@@ -53,6 +53,19 @@
     return ["piece"];
   }
 
+  function isFractionalUnit(unit) {
+    var normalized = unitKey(unit);
+    return normalized === "kg" || normalized === "gram" || normalized === "l" || normalized === "ml";
+  }
+
+  function normalizeQtyForUnit(value, unit) {
+    var qty = Math.max(0, numberValue(value));
+    if (isFractionalUnit(unit)) {
+      return Math.round(qty * 1000) / 1000;
+    }
+    return Math.floor(qty);
+  }
+
   function convertQty(qty, fromUnit, toUnit) {
     var value = numberValue(qty);
     var from = unitKey(fromUnit);
@@ -361,6 +374,9 @@
     }
     var value = Math.max(0, numberValue(input.value));
     if (roundValue) value = Math.round(value);
+    if (!roundValue && field === "qty") {
+      value = normalizeQtyForUnit(value, line.purchaseUnit || line.unit);
+    }
     line[field] = value;
     input.value = String(value);
   }
@@ -594,9 +610,9 @@
           itemType: "product",
           productId: line.itemId,
           productName: line.name,
-          qty: Math.floor(numberValue(line.qty)),
-          purchaseQty: Math.floor(numberValue(line.qty)),
-          purchaseUnit: line.purchaseUnit || "piece",
+          qty: normalizeQtyForUnit(line.qty, line.purchaseUnit || line.unit),
+          purchaseQty: normalizeQtyForUnit(line.qty, line.purchaseUnit || line.unit),
+          purchaseUnit: line.purchaseUnit || line.unit || "piece",
           purchaseUnitCost: Math.round(numberValue(line.unitCost)),
           unitCost: Math.round(numberValue(line.unitCost)),
         };
