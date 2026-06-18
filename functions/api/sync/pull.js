@@ -97,7 +97,7 @@ export const onRequestGet = async ({ env, request }) => {
       env.DB.prepare(
         `SELECT id, recipe_id, output_component_id, planned_output_qty,
                 actual_output_qty, output_unit, total_input_cost,
-                actual_cost_per_unit, note, created_at
+                actual_cost_per_unit, addons_json, note, created_at
          FROM production_batches
          WHERE created_at > ?
          ORDER BY created_at DESC LIMIT 500`

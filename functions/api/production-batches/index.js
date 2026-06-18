@@ -21,6 +21,17 @@ function safeParseInputs(text) {
   }
 }
 
+function safeParseAddOnIds(value) {
+  if (!value) return [];
+  const raw = Array.isArray(value) ? value : [];
+  const ids = raw.map((item) => {
+    if (typeof item === "string") return item;
+    if (item && typeof item === "object") return item.id || item.addOnId || "";
+    return "";
+  }).map((id) => String(id).trim()).filter(Boolean);
+  return Array.from(new Set(ids)).slice(0, 20);
+}
+
 export const onRequestGet = async ({ env, request }) => {
   await ensureProductionTables(env.DB);
   const url = new URL(request.url);
@@ -29,7 +40,8 @@ export const onRequestGet = async ({ env, request }) => {
     `SELECT pb.id, pb.recipe_id, pr.name AS recipe_name,
             pb.output_component_id, c.label AS output_label,
             pb.planned_output_qty, pb.actual_output_qty, pb.output_unit,
-            pb.total_input_cost, pb.actual_cost_per_unit, pb.note, pb.created_at
+            pb.total_input_cost, pb.actual_cost_per_unit, pb.addons_json,
+            pb.note, pb.created_at
      FROM production_batches pb
      LEFT JOIN production_recipes pr ON pr.id = pb.recipe_id
      LEFT JOIN components c ON c.id = pb.output_component_id
@@ -121,6 +133,24 @@ export const onRequestPost = async ({ env, request }) => {
 
   const ts = now();
   const batchId = body.id || uid("pb");
+  const addOnIds = safeParseAddOnIds(body.addOns || body.addOnIds || body.addons);
+  const addOnRows = [];
+  for (const addOnId of addOnIds) {
+    const addOn = await env.DB.prepare(
+      `SELECT id, label, price, group_key
+       FROM add_ons
+       WHERE id = ? AND is_active = 1`
+    ).bind(addOnId).first();
+    if (addOn) {
+      addOnRows.push({
+        id: addOn.id,
+        label: addOn.label || addOn.id,
+        price: Number(addOn.price) || 0,
+        group: addOn.group_key || "extras",
+      });
+    }
+  }
+  const addOnsJson = addOnRows.length ? JSON.stringify(addOnRows) : null;
   const totalInputCost = Math.round(inputRows.reduce((sum, item) => sum + item.qty * item.unitCost, 0));
   const actualCostPerUnit = actualOutputQty > 0 ? Math.round(totalInputCost / actualOutputQty) : 0;
   const prevOutputQty = Number(output.stock_qty) || 0;
@@ -135,8 +165,8 @@ export const onRequestPost = async ({ env, request }) => {
     env.DB.prepare(
       `INSERT INTO production_batches
          (id, recipe_id, output_component_id, planned_output_qty, actual_output_qty,
-          output_unit, total_input_cost, actual_cost_per_unit, note, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          output_unit, total_input_cost, actual_cost_per_unit, addons_json, note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       batchId,
       recipe.id,
@@ -146,6 +176,7 @@ export const onRequestPost = async ({ env, request }) => {
       outputUnit,
       totalInputCost,
       actualCostPerUnit,
+      addOnsJson,
       body.note || null,
       ts
     )
@@ -210,7 +241,10 @@ export const onRequestPost = async ({ env, request }) => {
     actualOutputQty,
     outputUnit,
     deductedInputs: inputRows,
+    addOns: addOnRows,
+    addonsJson: addOnsJson,
     totalInputCost,
     actualCostPerUnit,
+    createdAt: ts,
   });
 };

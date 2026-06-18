@@ -1892,6 +1892,18 @@
 
   function normalizeProductionBatch(batch) {
     var base = batch || {};
+    var addOns = [];
+    if (Array.isArray(base.addOns)) {
+      addOns = base.addOns;
+    } else if (Array.isArray(base.addons)) {
+      addOns = base.addons;
+    } else if (typeof base.addonsJson === "string" || typeof base.addons_json === "string") {
+      try {
+        addOns = JSON.parse(base.addonsJson || base.addons_json || "[]");
+      } catch (error) {
+        addOns = [];
+      }
+    }
     return {
       id: base.id || "",
       recipeId: base.recipeId || base.recipe_id || "",
@@ -1903,6 +1915,15 @@
       outputUnit: base.outputUnit || base.output_unit || "",
       totalInputCost: Math.max(0, Number(base.totalInputCost != null ? base.totalInputCost : base.total_input_cost) || 0),
       actualCostPerUnit: Math.max(0, Number(base.actualCostPerUnit != null ? base.actualCostPerUnit : base.actual_cost_per_unit) || 0),
+      addOns: addOns.map(function (addOn) {
+        if (typeof addOn === "string") return { id: addOn, label: addOn, price: 0, group: "extras" };
+        return {
+          id: addOn.id || addOn.addOnId || "",
+          label: addOn.label || "",
+          price: Math.max(0, Number(addOn.price) || 0),
+          group: addOn.group || addOn.groupKey || "extras"
+        };
+      }).filter(function (addOn) { return !!addOn.id; }),
       note: base.note || "",
       createdAt: Number(base.createdAt != null ? base.createdAt : base.created_at) || 0
     };
@@ -2262,6 +2283,7 @@
 
   function App() {
     var initialState = useMemo(buildInitialState, []);
+    var [nowTick, setNowTick] = useState(Date.now());
     var [categories, setCategories] = useState(initialState.categories);
     var [addOns, setAddOns] = useState(initialState.addOns);
     var [components, setComponents] = useState(initialState.components);
@@ -2433,6 +2455,7 @@
     var [productionBatchDraft, setProductionBatchDraft] = useState({
       recipeId: "",
       actualOutputQty: "",
+      addOnIds: [],
       note: ""
     });
     var [lastProductionResult, setLastProductionResult] = useState(null);
@@ -2467,6 +2490,15 @@
     var lastSyncedPayloadRef = useRef("");
     var applyingRemoteSnapshotRef = useRef(false);
     var syncDebounceRef = useRef(null);
+
+    useEffect(function () {
+      var timer = window.setInterval(function () {
+        setNowTick(Date.now());
+      }, 30000);
+      return function () {
+        window.clearInterval(timer);
+      };
+    }, []);
 
     function buildPersistedStateSnapshot(includeFirebaseSettings) {
       var nextSettings = includeFirebaseSettings === false
@@ -6542,6 +6574,18 @@
       });
     }
 
+    function toggleProductionBatchAddOn(addOnId) {
+      setProductionBatchDraft(function (currentDraft) {
+        var currentIds = Array.isArray(currentDraft.addOnIds) ? currentDraft.addOnIds : [];
+        var exists = currentIds.indexOf(addOnId) !== -1;
+        return Object.assign({}, currentDraft, {
+          addOnIds: exists
+            ? currentIds.filter(function (id) { return id !== addOnId; })
+            : currentIds.concat([addOnId])
+        });
+      });
+    }
+
     function submitProductionBatch(event) {
       event.preventDefault();
       var recipe = productionRecipes.find(function (item) { return item.id === productionBatchDraft.recipeId; });
@@ -6554,12 +6598,40 @@
         window.alert(L("Sản lượng thực tế phải lớn hơn 0. / Actual output must be greater than 0."));
         return;
       }
+      var selectedAddOnIds = Array.isArray(productionBatchDraft.addOnIds) ? productionBatchDraft.addOnIds : [];
+      var selectedAddOns = selectedAddOnIds.map(function (id) {
+        return addOns.find(function (addOn) { return addOn.id === id; });
+      }).filter(Boolean);
+      var outputComponent = components.find(function (component) { return component.id === recipe.outputComponentId; });
+      var nowForConfirmation = Date.now();
+      var inputSummary = (recipe.inputs || []).map(function (input) {
+        var component = components.find(function (item) { return item.id === input.componentId; });
+        return "- " + (component ? L(component.label) : input.componentId) + ": " + input.qty + " " + input.unit;
+      }).join("\n");
+      var addOnSummary = selectedAddOns.length
+        ? selectedAddOns.map(function (addOn) { return "- " + L(addOn.label) + (Number(addOn.price) ? " +" + formatCurrency(addOn.price) : ""); }).join("\n")
+        : L("Không có add-ons / No add-ons");
+      var confirmMessage = [
+        L("Xác nhận tạo mẻ sơ chế? / Confirm production batch?"),
+        "",
+        L("Thời gian / Time") + ": " + formatDateTime(nowForConfirmation),
+        L("Công thức / Recipe") + ": " + recipe.name,
+        L("Output / Output") + ": " + (outputComponent ? L(outputComponent.label) : recipe.outputComponentId) + " +" + actualOutputQty + " " + recipe.outputUnit,
+        "",
+        L("Inputs sẽ trừ / Inputs to deduct") + ":",
+        inputSummary || L("Không có input / No inputs"),
+        "",
+        L("Add-ons sẽ lưu / Add-ons to save") + ":",
+        addOnSummary
+      ].join("\n");
+      if (!window.confirm(confirmMessage)) return;
       fetch("/api/production-batches", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productionRecipeId: recipe.id,
           actualOutputQuantity: actualOutputQty,
+          addOnIds: selectedAddOnIds,
           note: productionBatchDraft.note || "",
           clientOpId: uid("op")
         })
@@ -6590,11 +6662,11 @@
             recipeId: recipe.id,
             recipeName: recipe.name,
             outputLabel: outputComponentForBatch ? outputComponentForBatch.label : outputComponentId,
-            createdAt: Date.now()
+            createdAt: data.createdAt || Date.now()
           }));
           setProductionBatches(function (current) { return [batch].concat(current).slice(0, 100); });
           setLastProductionResult(data);
-          setProductionBatchDraft({ recipeId: recipe.id, actualOutputQty: recipe.plannedOutputQty, note: "" });
+          setProductionBatchDraft({ recipeId: recipe.id, actualOutputQty: recipe.plannedOutputQty, addOnIds: [], note: "" });
           pushToast("success", L("Đã tạo mẻ sơ chế. / Production batch completed."));
         });
       }).catch(function (error) {
@@ -8331,6 +8403,9 @@
       var selectedProductionRecipe = productionRecipes.find(function (recipe) {
         return recipe.id === productionBatchDraft.recipeId;
       }) || null;
+      var selectedProductionBatchAddOnIds = Array.isArray(productionBatchDraft.addOnIds)
+        ? productionBatchDraft.addOnIds
+        : [];
 
       return html`
         <section className="settings-layout">
@@ -8966,6 +9041,33 @@
                       </label>
                     </div>
 
+                    <div className="empty-state align-left">
+                      <strong>${L("Ngày giờ tạo mẻ / Batch time")}:</strong> ${formatDateTime(nowTick)}
+                    </div>
+
+                    <div className="section-top" style=${{ marginTop: 8 }}>
+                      <div>
+                        <p className="eyebrow">${L("Add-ons / Add-ons")}</p>
+                        <h3 className="template-preview-title">${L("Ghi kèm mẻ sơ chế / Save with this batch")}</h3>
+                        <small>${L("Dữ liệu add-ons sẽ được lưu snapshot theo mẻ, không bị đổi khi sửa add-ons sau này. / Add-ons are saved as a batch snapshot.")}</small>
+                      </div>
+                    </div>
+                    <div className="addon-row">
+                      ${addOns.length ? addOns.map(function (addOn) {
+                        var active = selectedProductionBatchAddOnIds.indexOf(addOn.id) !== -1;
+                        return html`
+                          <button
+                            key=${addOn.id}
+                            type="button"
+                            className=${"addon-chip" + (active ? " is-active" : "")}
+                            onClick=${function () { toggleProductionBatchAddOn(addOn.id); }}
+                          >
+                            ${L(addOn.label)}${Number(addOn.price) ? " +" + formatCurrency(addOn.price) : ""}
+                          </button>
+                        `;
+                      }) : html`<span className="muted-copy">${L("Chưa có add-ons. / No add-ons yet.")}</span>`}
+                    </div>
+
                     ${selectedProductionRecipe ? html`
                       <div className="split-grid">
                         <div className="empty-state align-left">
@@ -8981,6 +9083,15 @@
                             var component = components.find(function (item) { return item.id === input.componentId; });
                             return (component ? L(component.label) : input.componentId) + " " + input.qty + input.unit;
                           }).join(", ")}
+                        </div>
+                        <div className="empty-state align-left">
+                          <strong>${L("Add-ons đã chọn / Selected Add-ons")}:</strong>
+                          ${selectedProductionBatchAddOnIds.length
+                            ? selectedProductionBatchAddOnIds.map(function (id) {
+                              var addOn = addOns.find(function (item) { return item.id === id; });
+                              return addOn ? L(addOn.label) : id;
+                            }).join(", ")
+                            : L("Không có / None")}
                         </div>
                       </div>
                     ` : null}
@@ -9012,6 +9123,11 @@
                           <div>
                             <strong>${batch.recipeName || batch.recipeId}</strong>
                             <p>${formatDateTime(batch.createdAt)} · ${(output ? L(output.label) : batch.outputComponentId)} +${batch.actualOutputQty} ${batch.outputUnit}</p>
+                            ${(batch.addOns || []).length ? html`
+                              <p>${L("Add-ons / Add-ons")}: ${(batch.addOns || []).map(function (addOn) {
+                                return L(addOn.label || addOn.id);
+                              }).join(", ")}</p>
+                            ` : null}
                           </div>
                           <strong>${formatCurrency(batch.actualCostPerUnit || 0)} / ${batch.outputUnit}</strong>
                         </article>

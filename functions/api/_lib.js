@@ -423,6 +423,11 @@ export async function ensureProductionTables(db) {
       created_at           INTEGER NOT NULL
     )`
   ).run();
+  if (!(await columnExists(db, "production_batches", "addons_json"))) {
+    await db.prepare(
+      `ALTER TABLE production_batches ADD COLUMN addons_json TEXT`
+    ).run();
+  }
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_production_batches_recipe
      ON production_batches(recipe_id, created_at)`
