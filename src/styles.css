@@ -561,19 +561,33 @@ textarea:focus {
   min-width: 0;
 }
 
+.order-switcher-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
 .order-chip-board {
-  min-height: 132px;
-  padding: 18px 20px;
+  min-height: 118px;
+  aspect-ratio: 1 / 0.78;
+  padding: 14px;
   align-content: center;
+  justify-items: start;
 }
 
 .order-chip-board span {
   font-family: "Space Grotesk", sans-serif;
-  font-size: clamp(1.18rem, 1.6vw, 1.8rem);
+  font-size: clamp(0.98rem, 1.1vw, 1.28rem);
+  line-height: 1.1;
+}
+
+.order-chip-board .order-chip-id {
+  word-break: break-word;
 }
 
 .order-chip-board small {
-  font-size: 0.96rem;
+  font-size: 0.8rem;
 }
 
 .order-chip small {
@@ -582,6 +596,48 @@ textarea:focus {
 
 .order-chip.is-active {
   background: linear-gradient(135deg, #ffe2bf 0%, #ffd3a0 100%);
+}
+
+.order-chip-status-preparing {
+  border-color: #eac77a;
+  background: linear-gradient(135deg, #fff9e8 0%, #fff3d0 100%);
+}
+
+.order-chip-status-needs_action {
+  border-color: #ef9c7d;
+  background: linear-gradient(135deg, #fff0e9 0%, #ffe3d7 100%);
+}
+
+.order-chip-status-completed {
+  border-color: #9bd7a8;
+  background: linear-gradient(135deg, #effaf1 0%, #dff5e4 100%);
+}
+
+.pos-status-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.status-filter-btn {
+  padding: 9px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.status-filter-btn.is-active {
+  border-color: #e7a566;
+  background: linear-gradient(135deg, #ffe2bf 0%, #ffc47f 100%);
+  color: #4a2711;
+}
+
+.pos-pick-order-prompt {
+  min-height: 240px;
+  align-content: center;
 }
 
 .needs-action-chip {
@@ -1900,6 +1956,12 @@ textarea:focus {
   background: #fff6dc;
   color: #9a6507;
   border: 1px solid #eac77a;
+}
+
+.status-success {
+  background: #edf9ef;
+  color: #1f873a;
+  border: 1px solid #9bd7a8;
 }
 
 button:disabled,

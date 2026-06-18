@@ -143,6 +143,14 @@
     { value: "ewallet", label: "Ví điện tử / E-wallet" }
   ];
   var PAYMENT_METHOD_OTHER = { value: "other", label: "Khác / Other" };
+  var POS_ORDER_STATUS_FILTERS = [
+    { id: "all", label: "Tất cả / All" },
+    { id: "new", label: "Mới / New" },
+    { id: "preparing", label: "Đang chuẩn bị / Preparing" },
+    { id: "held", label: "Tạm giữ / Held" },
+    { id: "needs_action", label: "Cần xử lí / Needs Action" },
+    { id: "completed", label: "Hoàn thành / Completed" }
+  ];
   var COMPONENT_ITEM_TYPE_OPTIONS = [
     { value: "raw_material", label: "Nguyên liệu thô / Raw Material" },
     { value: "semi_finished", label: "Bán thành phẩm / Semi-finished" },
@@ -2375,6 +2383,8 @@
     var [expandedCategories, setExpandedCategories] = useState({});
     // Quick-add category form toggle on POS sidebar
     var [showQuickCategoryForm, setShowQuickCategoryForm] = useState(false);
+    var [orderStatusFilter, setOrderStatusFilter] = useState("all");
+    var [posOrderPicked, setPosOrderPicked] = useState(false);
     function toggleCategoryExpanded(id) {
       setExpandedCategories(function (cur) {
         var next = Object.assign({}, cur);
@@ -4161,11 +4171,17 @@
         return [newOrder].concat(currentOrders);
       });
       setActiveOrderId(newOrder.id);
+      setPosOrderPicked(true);
+      setOrderStatusFilter("new");
       setActiveView("pos");
     }
 
     function addProductToOrder(product) {
       if (!product || !product.id) return;
+      if (!posOrderPicked) {
+        window.alert(L("Chọn một đơn trước khi thêm sản phẩm. / Pick an order before adding products."));
+        return;
+      }
       updateActiveOrder(function (order) {
         var existingItem = (order.items || []).find(function (item) {
           return item.productId === product.id && (!item.addOnIds || item.addOnIds.length === 0);
@@ -4173,6 +4189,7 @@
 
         if (existingItem) {
           return Object.assign({}, order, {
+            status: order.status === "preparing" ? "preparing" : "open",
             items: order.items.map(function (item) {
               return item.id === existingItem.id
                 // B6: Number() guards against string concat from stale state.
@@ -4194,6 +4211,7 @@
         };
 
         return Object.assign({}, order, {
+          status: order.status === "preparing" ? "preparing" : "open",
           items: (order.items || []).concat(newItem)
         });
       });
@@ -4313,6 +4331,55 @@
         products: quantitiesByProduct,
         components: quantitiesByComponent
       };
+    }
+
+    function orderHasRecipeItems(order) {
+      return ((order && order.items) || []).some(function (item) {
+        var product = products.find(function (currentProduct) {
+          return currentProduct.id === item.productId;
+        });
+        return !!(product && product.isMixedDrink);
+      });
+    }
+
+    function getOrderWorkflowStatus(order) {
+      var status = order && order.status ? order.status : "open";
+      if (status === "saving") return "preparing";
+      if (status === "needs_action") return "needs_action";
+      if (status === "held") return "held";
+      if (status === "preparing") return "preparing";
+      if (status === "ready" || status === "completed") return "completed";
+      return "new";
+    }
+
+    function receiveActiveOrder() {
+      if (!activeOrder || !activeOrder.items || !activeOrder.items.length) {
+        window.alert(L("Chọn đơn có món trước khi nhận đơn. / Pick an order with items before accepting it."));
+        return;
+      }
+      if (activeOrder.status === "needs_action" || activeOrder.status === "saving") return;
+
+      var hasRecipeItems = orderHasRecipeItems(activeOrder);
+      updateActiveOrder(function (order) {
+        return Object.assign({}, order, {
+          status: hasRecipeItems ? "preparing" : "ready",
+          syncError: ""
+        });
+      });
+      pushToast(
+        "info",
+        hasRecipeItems
+          ? L("Đã nhận đơn pha chế. / Preparation started.")
+          : L("Đơn bán lẻ đã sẵn sàng hoàn tất. / Retail order is ready to complete.")
+      );
+    }
+
+    function finishPreparingOrder() {
+      if (!activeOrder || activeOrder.status !== "preparing") return;
+      updateActiveOrder(function (order) {
+        return Object.assign({}, order, { status: "ready" });
+      });
+      pushToast("success", L("Đơn đã chuẩn bị xong. / Order is ready."));
     }
 
     function holdOrder() {
@@ -4617,6 +4684,7 @@
           }
           return remaining;
         });
+        setPosOrderPicked(false);
         pushToast("success", L("Đã lưu hóa đơn / Sale saved"));
       }).catch(function (error) {
         var message = error && error.data && error.data.error
@@ -7485,12 +7553,24 @@
       var quickCashOptions = [50000, 100000, 200000, 500000];
       var orderNeedsAction = activeOrder.status === "needs_action";
       var orderSaving = activeOrder.status === "saving" || checkoutSaving;
-      var checkoutDisabled = orderSaving;
+      var activeOrderPicked = posOrderPicked && orders.some(function (order) { return order.id === activeOrderId; });
+      var checkoutDisabled = orderSaving || !activeOrderPicked;
+      var activeOrderHasRecipeItems = orderHasRecipeItems(activeOrder);
+      var activeWorkflowStatus = getOrderWorkflowStatus(activeOrder);
+      var filteredOrders = orders.filter(function (order) {
+        var workflowStatus = getOrderWorkflowStatus(order);
+        return orderStatusFilter === "all" || workflowStatus === orderStatusFilter;
+      });
       function getOpenOrderStatusLabel(order) {
         if (order.status === "needs_action") return L("Cần xử lí / Needs Action");
         if (order.status === "saving") return L("Đang lưu / Saving");
+        if (order.status === "preparing") return L("Đang chuẩn bị / Preparing");
+        if (order.status === "ready" || order.status === "completed") return L("Hoàn thành / Completed");
         if (order.status === "held") return L("Tạm giữ / Held");
-        return L("Đang mở / Open");
+        return L("Mới / New");
+      }
+      function getOrderStatusClass(order) {
+        return " order-chip-status-" + getOrderWorkflowStatus(order);
       }
       return html`
         <section className="pos-layout">
@@ -7683,23 +7763,45 @@
                 </div>
               </div>
 
-              <div className="order-switcher order-switcher-board">
-                ${orders.map(function (order) {
+              <div className="pos-status-filter">
+                ${POS_ORDER_STATUS_FILTERS.map(function (filter) {
+                  var active = orderStatusFilter === filter.id;
                   return html`
                     <button
-                      key=${order.id}
-                      className=${"order-chip order-chip-board" + (order.id === activeOrder.id ? " is-active" : "")}
-                      onClick=${function () {
-                        setActiveOrderId(order.id);
-                      }}
+                      key=${filter.id}
+                      className=${"status-filter-btn" + (active ? " is-active" : "")}
+                      onClick=${function () { setOrderStatusFilter(filter.id); }}
                     >
-                      <span>${order.id}</span>
-                      ${order.status === "needs_action"
-                        ? html`<small className="needs-action-chip">${getOpenOrderStatusLabel(order)}</small>`
-                        : html`<small>${getOpenOrderStatusLabel(order)}</small>`}
+                      ${L(filter.label)}
                     </button>
                   `;
                 })}
+              </div>
+
+              <div className="order-switcher order-switcher-board">
+                ${filteredOrders.length ? filteredOrders.map(function (order) {
+                  var itemCount = (order.items || []).reduce(function (sum, item) {
+                    return sum + (Number(item.qty) || 0);
+                  }, 0);
+                  return html`
+                    <button
+                      key=${order.id}
+                      className=${"order-chip order-chip-board" + getOrderStatusClass(order) + (order.id === activeOrder.id && activeOrderPicked ? " is-active" : "")}
+                      onClick=${function () {
+                        setActiveOrderId(order.id);
+                        setPosOrderPicked(true);
+                      }}
+                    >
+                      <span className="order-chip-id">${order.id}</span>
+                      <small className=${order.status === "needs_action" ? "needs-action-chip" : ""}>${getOpenOrderStatusLabel(order)}</small>
+                      <small>${formatQuantity(itemCount, 2)} ${L("món / items")}</small>
+                    </button>
+                  `;
+                }) : html`
+                  <div className="empty-state align-left">
+                    ${L("Không có đơn trong trạng thái này. / No orders in this status.")}
+                  </div>
+                `}
                 <button className="order-chip order-chip-create order-chip-board" onClick=${createNewOrder}>
                   <span>${L("+ Đơn mới / + New Order")}</span>
                   <small>${L("Tạo giỏ khác / Create another cart")}</small>
@@ -7707,7 +7809,7 @@
               </div>
             </section>
 
-            <section className="catalog-panel surface scanner-panel">
+            ${activeOrderPicked ? html`<section className="catalog-panel surface scanner-panel">
               <div className="section-top">
                 <div>
                   <p className="eyebrow">${L("Tìm & Thêm / Find & Add")}</p>
@@ -7799,7 +7901,15 @@
                   `;
                 })}
               </div>
-            </section>
+            </section>` : html`
+              <section className="catalog-panel surface scanner-panel pos-pick-order-prompt">
+                <p className="eyebrow">${L("Chọn đơn / Pick Order")}</p>
+                <h2 className="section-title">${L("Bấm vào một ô bill để thêm sản phẩm / Tap an order card to add products")}</h2>
+                <div className="empty-state align-left">
+                  ${L("Khu quét barcode và thêm sản phẩm sẽ chỉ mở sau khi bạn chọn một đơn đang thao tác. / Barcode scan and product adding will open after you pick an active order.")}
+                </div>
+              </section>
+            `}
           </div>
 
           <aside className="order-panel surface">
@@ -7818,11 +7928,35 @@
                       ${L("Đang lưu vào Supabase... / Saving to Supabase...")}
                     </div>
                   ` : null}
+                  ${activeWorkflowStatus === "preparing" && !orderSaving ? html`
+                    <div className="status-pill status-warning" style=${{ marginTop: 8 }}>
+                      ${L("Đang chuẩn bị / Preparing")}
+                    </div>
+                  ` : null}
+                  ${activeWorkflowStatus === "completed" && !orderSaving ? html`
+                    <div className="status-pill status-success" style=${{ marginTop: 8 }}>
+                      ${L("Hoàn thành / Completed")}
+                    </div>
+                  ` : null}
+                  ${!activeOrderPicked ? html`
+                    <div className="status-pill" style=${{ marginTop: 8 }}>
+                      ${L("Chưa chọn bill / No bill selected")}
+                    </div>
+                  ` : null}
                 </div>
                 <div className="item-badge">#${totals.itemCount} ${L("món / items")}</div>
               </div>
               ${(activeOrder.items && activeOrder.items.length > 0)
-                ? html`<button className="ghost-btn" onClick=${cancelOrder}>${L("Xóa món / Clear Items")}</button>`
+                ? (activeOrderPicked ? html`
+                    ${activeOrder.status === "preparing" ? html`
+                      <button className="primary-btn" onClick=${finishPreparingOrder}>${L("Hoàn tất chuẩn bị / Mark Ready")}</button>
+                    ` : (activeOrder.status !== "needs_action" && activeOrder.status !== "saving" && activeOrder.status !== "ready" ? html`
+                      <button className="primary-btn" onClick=${receiveActiveOrder}>
+                        ${activeOrderHasRecipeItems ? L("Nhận đơn / Accept Order") : L("Xác nhận retail / Confirm Retail")}
+                      </button>
+                    ` : null)}
+                    <button className="ghost-btn" onClick=${cancelOrder}>${L("Xóa món / Clear Items")}</button>
+                  ` : null)
                 : (orders.length > 1
                     ? html`<button className="ghost-btn" onClick=${cancelOrder}>${L("Xóa đơn / Remove Order")}</button>`
                     : null)}
