@@ -288,6 +288,11 @@ export async function ensureComponentsInventoryColumns(db) {
       `ALTER TABLE components ADD COLUMN cost_per_unit INTEGER NOT NULL DEFAULT 0`
     ).run();
   }
+  if (!(await columnExists(db, "components", "is_unlimited_stock"))) {
+    await db.prepare(
+      `ALTER TABLE components ADD COLUMN is_unlimited_stock INTEGER NOT NULL DEFAULT 0`
+    ).run();
+  }
   if (db && db.__provider === "supabase") {
     await db.prepare(
       `ALTER TABLE components ALTER COLUMN stock_qty TYPE numeric USING stock_qty::numeric`

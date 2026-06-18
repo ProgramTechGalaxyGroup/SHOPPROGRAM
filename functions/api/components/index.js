@@ -11,7 +11,8 @@ import {
 export const onRequestGet = async ({ env }) => {
   await ensureComponentsInventoryColumns(env.DB);
   const { results } = await env.DB.prepare(
-    `SELECT id, label, unit, note, stock_qty, min_stock, item_type, cost_per_unit, is_active, updated_at
+    `SELECT id, label, unit, note, stock_qty, min_stock, item_type, cost_per_unit,
+            is_unlimited_stock, is_active, updated_at
      FROM components
      WHERE is_active = 1
      ORDER BY label COLLATE NOCASE`
@@ -25,9 +26,14 @@ export const onRequestPost = async ({ env, request }) => {
   if (!body || !body.id || !body.label) return badRequest("id + label required");
   const itemType = normalizeInventoryItemType(body.itemType || body.item_type);
   const unit = normalizeUnit(body.unit || "");
+  const isUnlimitedStock = body.isUnlimitedStock === true ||
+    body.is_unlimited_stock === true ||
+    Number(body.isUnlimitedStock || body.is_unlimited_stock || 0) === 1;
   await env.DB.prepare(
-    `INSERT INTO components (id, label, unit, note, stock_qty, min_stock, item_type, cost_per_unit, is_active, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+    `INSERT INTO components
+       (id, label, unit, note, stock_qty, min_stock, item_type, cost_per_unit,
+        is_unlimited_stock, is_active, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
      ON CONFLICT(id) DO UPDATE SET
        label=excluded.label,
        unit=excluded.unit,
@@ -36,6 +42,7 @@ export const onRequestPost = async ({ env, request }) => {
        min_stock=excluded.min_stock,
        item_type=excluded.item_type,
        cost_per_unit=excluded.cost_per_unit,
+       is_unlimited_stock=excluded.is_unlimited_stock,
        is_active=1,
        updated_at=excluded.updated_at`
   ).bind(
@@ -47,6 +54,7 @@ export const onRequestPost = async ({ env, request }) => {
     Math.max(0, Number(body.minStock) || 0),
     itemType,
     Math.max(0, Math.round(Number(body.costPerUnit != null ? body.costPerUnit : body.cost_per_unit) || 0)),
+    isUnlimitedStock ? 1 : 0,
     now()
   ).run();
   return json({ ok: true, id: body.id });

@@ -34,7 +34,8 @@ export const onRequestGet = async ({ env, request }) => {
       // When `since=0` (first pull) we return EVERYTHING; otherwise only
       // rows touched after `since`.
       env.DB.prepare(
-        `SELECT id, label, unit, note, stock_qty, min_stock, item_type, cost_per_unit, is_active, updated_at
+        `SELECT id, label, unit, note, stock_qty, min_stock, item_type, cost_per_unit,
+                is_unlimited_stock, is_active, updated_at
          FROM components WHERE updated_at > ? OR is_active = 0`
       ).bind(since).all(),
 

@@ -77,7 +77,7 @@ export const onRequestPost = async ({ env, request }) => {
   if (!recipe || recipe.is_active === 0) return badRequest("production recipe not found or inactive");
 
   const output = await env.DB.prepare(
-    `SELECT id, label, unit, item_type, stock_qty, cost_per_unit
+    `SELECT id, label, unit, item_type, stock_qty, cost_per_unit, is_unlimited_stock
      FROM components
      WHERE id = ? AND is_active = 1`
   ).bind(recipe.output_component_id).first();
@@ -100,7 +100,7 @@ export const onRequestPost = async ({ env, request }) => {
       return badRequest("invalid recipe input");
     }
     const component = await env.DB.prepare(
-      `SELECT id, label, unit, stock_qty, cost_per_unit
+      `SELECT id, label, unit, stock_qty, cost_per_unit, is_unlimited_stock
        FROM components
        WHERE id = ? AND is_active = 1`
     ).bind(componentId).first();
@@ -110,7 +110,8 @@ export const onRequestPost = async ({ env, request }) => {
       return badRequest(`input unit must match ${componentId} unit: ${componentUnit || "unset"}`);
     }
     const have = Number(component.stock_qty) || 0;
-    if (have < qty) {
+    const isUnlimitedStock = Number(component.is_unlimited_stock) === 1;
+    if (!isUnlimitedStock && have < qty) {
       return badRequest("Insufficient stock", {
         code: "INSUFFICIENT_COMPONENT_STOCK",
         insufficient: [{
@@ -128,6 +129,7 @@ export const onRequestPost = async ({ env, request }) => {
       qty,
       unit: componentUnit,
       unitCost: Number(component.cost_per_unit) || 0,
+      isUnlimitedStock,
     });
   }
 
@@ -188,21 +190,23 @@ export const onRequestPost = async ({ env, request }) => {
         `UPDATE components
          SET stock_qty = stock_qty - ?,
              updated_at = ?
-         WHERE id = ?`
+         WHERE id = ? AND COALESCE(is_unlimited_stock, 0) = 0`
       ).bind(input.qty, ts, input.componentId)
     );
-    stmts.push(
-      componentMovementStmt(env.DB, {
-        componentId: input.componentId,
-        movementType: "production_input",
-        qtyChange: -input.qty,
-        unitCost: input.unitCost,
-        refType: "production_batch",
-        refId: batchId,
-        note: body.note || recipe.name || null,
-        createdAt: ts,
-      })
-    );
+    if (!input.isUnlimitedStock) {
+      stmts.push(
+        componentMovementStmt(env.DB, {
+          componentId: input.componentId,
+          movementType: "production_input",
+          qtyChange: -input.qty,
+          unitCost: input.unitCost,
+          refType: "production_batch",
+          refId: batchId,
+          note: body.note || recipe.name || null,
+          createdAt: ts,
+        })
+      );
+    }
   });
 
   stmts.push(

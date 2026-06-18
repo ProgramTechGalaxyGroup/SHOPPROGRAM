@@ -148,7 +148,7 @@ export async function normalizePurchasePayload(db, body, purchaseId, ts) {
       const componentId = String(raw.componentId || raw.itemId || "").trim();
       if (!componentId) throw new Error(`items[${i}].componentId required`);
       const component = await db.prepare(
-        `SELECT id, label, unit FROM components WHERE id = ? AND is_active = 1`
+        `SELECT id, label, unit, is_unlimited_stock FROM components WHERE id = ? AND is_active = 1`
       ).bind(componentId).first();
       if (!component) throw new Error(`component not found: ${componentId}`);
       const baseUnit = displayUnit(component.unit || raw.baseUnit || raw.unit || "gram");
@@ -170,6 +170,7 @@ export async function normalizePurchasePayload(db, body, purchaseId, ts) {
         purchaseQty,
         purchaseUnit,
         purchaseUnitCost,
+        isUnlimitedStock: Number(component.is_unlimited_stock) === 1,
       });
     } else {
       const productId = String(raw.productId || raw.itemId || "").trim();
@@ -339,23 +340,28 @@ export function purchaseStockStatements(db, prepared, note) {
     stmts.push(
       db.prepare(
         `UPDATE components
-         SET stock_qty = COALESCE(stock_qty, 0) + ?,
+         SET stock_qty = CASE
+               WHEN COALESCE(is_unlimited_stock, 0) = 1 THEN COALESCE(stock_qty, 0)
+               ELSE COALESCE(stock_qty, 0) + ?
+             END,
              unit = COALESCE(NULLIF(unit, ''), ?),
              cost_per_unit = ?,
              updated_at = ?
          WHERE id = ?`
       ).bind(row.qty, row.unit || null, row.unitCost, prepared.ts, row.componentId)
     );
-    stmts.push(componentMovementStmt(db, {
-      componentId: row.componentId,
-      movementType: "IN",
-      qtyChange: row.qty,
-      unitCost: row.unitCost,
-      refType: "purchase",
-      refId: prepared.purchaseId,
-      note: note || null,
-      createdAt: prepared.ts,
-    }));
+    if (!row.isUnlimitedStock) {
+      stmts.push(componentMovementStmt(db, {
+        componentId: row.componentId,
+        movementType: "IN",
+        qtyChange: row.qty,
+        unitCost: row.unitCost,
+        refType: "purchase",
+        refId: prepared.purchaseId,
+        note: note || null,
+        createdAt: prepared.ts,
+      }));
+    }
   });
 
   return stmts;

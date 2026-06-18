@@ -1851,6 +1851,9 @@
       minStock: Math.max(0, Number(baseComponent.minStock != null ? baseComponent.minStock : baseComponent.min_stock) || 0),
       itemType: normalizeComponentItemType(baseComponent.itemType || baseComponent.item_type),
       costPerUnit: Math.max(0, Math.round(Number(baseComponent.costPerUnit != null ? baseComponent.costPerUnit : baseComponent.cost_per_unit) || 0)),
+      isUnlimitedStock: baseComponent.isUnlimitedStock === true ||
+        baseComponent.is_unlimited_stock === true ||
+        Number(baseComponent.isUnlimitedStock != null ? baseComponent.isUnlimitedStock : baseComponent.is_unlimited_stock) === 1,
       active: baseComponent.active !== false && baseComponent.is_active !== 0
     });
   }
@@ -1956,12 +1959,13 @@
       var entry = recipeEntries[i];
       var sourceComponent = (componentList || []).find(function (component) { return component.id === entry.id; });
       if (!sourceComponent) return 0;
+      if (sourceComponent.isUnlimitedStock) continue;
       var qtyNeeded = Math.max(0.0001, getRecipeEntryStockQty(entry) || 1);
       var available = Math.max(0, Number(sourceComponent.stockQty) || 0);
       var possible = Math.floor(available / qtyNeeded);
       if (possible < minPossible) minPossible = possible;
     }
-    return minPossible === Infinity ? 0 : Math.max(0, minPossible);
+    return minPossible === Infinity ? 999999 : Math.max(0, minPossible);
   }
 
   function normalizeInvoiceTemplate(template, fallbackTemplate) {
@@ -2442,7 +2446,8 @@
       itemType: "raw_material",
       costPerUnit: 0,
       stockQty: 0,
-      minStock: 0
+      minStock: 0,
+      isUnlimitedStock: false
     });
     var [productionRecipeDraft, setProductionRecipeDraft] = useState({
       id: null,
@@ -2948,6 +2953,7 @@
                 minStock: Number(row.min_stock) || 0,
                 itemType: row.item_type || "raw_material",
                 costPerUnit: Number(row.cost_per_unit) || 0,
+                isUnlimitedStock: Number(row.is_unlimited_stock) === 1 || row.is_unlimited_stock === true,
                 active: row.is_active !== 0
               }));
             });
@@ -3510,6 +3516,7 @@
     }, [products]);
     var lowStockComponents = useMemo(function () {
       return components.filter(function (component) {
+        if (component.isUnlimitedStock) return false;
         var qty = Number(component.stockQty) || 0;
         var min = Number(component.minStock) || 0;
         return min > 0 && qty <= min && component.active !== false;
@@ -4292,6 +4299,8 @@
           var recipeEntries = getRecipeEntries(product);
           if (recipeEntries.length > 0) {
             recipeEntries.forEach(function(entry) {
+              var component = components.find(function (item) { return item.id === entry.id; });
+              if (component && component.isUnlimitedStock) return;
               var compQty = getRecipeEntryStockQty(entry) || 1;
               quantitiesByComponent[entry.id] = (quantitiesByComponent[entry.id] || 0) + (compQty * qty);
             });
@@ -4572,6 +4581,7 @@
         });
         setComponents(function (currentComponents) {
           return currentComponents.map(function (component) {
+            if (component.isUnlimitedStock) return component;
             var usedQty = Number(requiredQtyByComponent[component.id]) || 0;
             if (!usedQty) return component;
             var oldQty = Number(component.stockQty) || 0;
@@ -5169,6 +5179,7 @@
             cost_per_unit: Number(component.costPerUnit) || 0,
             stock_qty: Number(component.stockQty) || 0,
             min_stock: Number(component.minStock) || 0,
+            is_unlimited_stock: toCsvBoolean(!!component.isUnlimitedStock),
             supplier_id: "",
             active: toCsvBoolean(component.active !== false),
             created_at: "",
@@ -5590,6 +5601,7 @@
           note: component.note || "",
           stock_qty: Number(component.stockQty) || 0,
           min_stock: Number(component.minStock) || 0,
+          is_unlimited_stock: !!component.isUnlimitedStock,
           active: component.active !== false
         });
       }
@@ -6286,7 +6298,8 @@
         itemType: "raw_material",
         costPerUnit: 0,
         stockQty: 0,
-        minStock: 0
+        minStock: 0,
+        isUnlimitedStock: false
       });
     }
 
@@ -6301,7 +6314,8 @@
         itemType: normalizeComponentItemType(component.itemType),
         costPerUnit: Number(component.costPerUnit) || 0,
         stockQty: Number(component.stockQty) || 0,
-        minStock: Number(component.minStock) || 0
+        minStock: Number(component.minStock) || 0,
+        isUnlimitedStock: !!component.isUnlimitedStock
       });
       setActiveView("inventory");
       setInventorySection("components");
@@ -6329,6 +6343,7 @@
                   costPerUnit: Math.max(0, Math.round(Number(componentDraft.costPerUnit) || 0)),
                   stockQty: Math.max(0, Number(componentDraft.stockQty) || 0),
                   minStock: Math.max(0, Number(componentDraft.minStock) || 0),
+                  isUnlimitedStock: !!componentDraft.isUnlimitedStock,
                   active: true
                 })
               : component;
@@ -6352,6 +6367,7 @@
             costPerUnit: Math.max(0, Math.round(Number(componentDraft.costPerUnit) || 0)),
             stockQty: Math.max(0, Number(componentDraft.stockQty) || 0),
             minStock: Math.max(0, Number(componentDraft.minStock) || 0),
+            isUnlimitedStock: !!componentDraft.isUnlimitedStock,
             active: true
           });
         });
@@ -6368,7 +6384,8 @@
             itemType: normalizeComponentItemType(componentDraft.itemType),
             costPerUnit: Math.max(0, Math.round(Number(componentDraft.costPerUnit) || 0)),
             stockQty: Math.max(0, Number(componentDraft.stockQty) || 0),
-            minStock: Math.max(0, Number(componentDraft.minStock) || 0)
+            minStock: Math.max(0, Number(componentDraft.minStock) || 0),
+            isUnlimitedStock: !!componentDraft.isUnlimitedStock
           }
         });
         resetComponentDraft();
@@ -6387,7 +6404,8 @@
           itemType: normalizeComponentItemType(componentDraft.itemType),
           costPerUnit: Math.max(0, Math.round(Number(componentDraft.costPerUnit) || 0)),
           stockQty: Math.max(0, Number(componentDraft.stockQty) || 0),
-          minStock: Math.max(0, Number(componentDraft.minStock) || 0)
+          minStock: Math.max(0, Number(componentDraft.minStock) || 0),
+          isUnlimitedStock: !!componentDraft.isUnlimitedStock
         }
       });
 
@@ -6662,6 +6680,7 @@
             return current.map(function (component) {
               var input = deducted.find(function (item) { return item.componentId === component.id; });
               if (input) {
+                if (component.isUnlimitedStock || input.isUnlimitedStock) return component;
                 return Object.assign({}, component, {
                   stockQty: Math.max(0, (Number(component.stockQty) || 0) - (Number(input.qty) || 0))
                 });
@@ -6818,6 +6837,13 @@
         var updated = currentComponents.map(function (component) {
           if (component.id !== componentId) return component;
           found = true;
+          if (component.isUnlimitedStock) {
+            return Object.assign({}, component, {
+              unit: component.unit || componentUnit,
+              note: component.note || note,
+              active: true
+            });
+          }
           return Object.assign({}, component, {
             stockQty: (Number(component.stockQty) || 0) + componentQty,
             unit: component.unit || componentUnit,
@@ -6833,6 +6859,7 @@
             note: note,
             stockQty: componentQty,
             minStock: 0,
+            isUnlimitedStock: false,
             active: true
           });
         }
@@ -8424,6 +8451,9 @@
       var selectedProductionBatchAddOnIds = Array.isArray(productionBatchDraft.addOnIds)
         ? productionBatchDraft.addOnIds
         : [];
+      var selectedProductCategory = categories.find(function (category) {
+        return category.id === productDraft.category;
+      }) || null;
 
       return html`
         <section className="settings-layout">
@@ -8838,7 +8868,7 @@
                             ${components.map(function (component) {
                               return html`
                                 <option key=${component.id} value=${component.id}>
-                                  ${L(component.label)} · ${Number(component.stockQty) || 0} ${component.unit || ""}
+                                  ${L(component.label)} · ${component.isUnlimitedStock ? L("Không giới hạn / Unlimited") : ((Number(component.stockQty) || 0) + " " + (component.unit || ""))}
                                 </option>
                               `;
                             })}
@@ -9242,14 +9272,44 @@
                         <span>${L("Danh mục / Category")}</span>
                         <select value=${productDraft.category} onChange=${function (event) { updateProductDraft("category", event.target.value); }}>
                           ${categories.map(function (item) {
-                            return html`<option key=${item.id} value=${item.id}>${L(item.label)}</option>`;
+                            return html`<option key=${item.id} value=${item.id}>${item.icon || "🛒"} ${L(item.label)}</option>`;
                           })}
                         </select>
                       </label>
                       <label className="field">
                         <span>${L("Biểu tượng / Icon")}</span>
                         <input value=${productDraft.image} onInput=${function (event) { updateProductDraft("image", event.target.value); }} />
+                        <small>
+                          ${selectedProductCategory
+                            ? L("Icon danh mục / Category icon") + ": " + (selectedProductCategory.icon || "🛒")
+                            : L("Chọn danh mục để dùng nhanh icon. / Select a category to use its icon.")}
+                        </small>
                       </label>
+                      <div className="row-actions" style=${{ alignSelf: "end", flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          className="ghost-btn"
+                          disabled=${!selectedProductCategory}
+                          onClick=${function () {
+                            if (selectedProductCategory) updateProductDraft("image", selectedProductCategory.icon || "🛒");
+                          }}
+                        >
+                          ${L("Dùng icon danh mục / Use Category Icon")}
+                        </button>
+                        ${categories.slice(0, 8).map(function (category) {
+                          return html`
+                            <button
+                              key=${category.id}
+                              type="button"
+                              className=${"addon-chip" + (productDraft.image === category.icon ? " is-active" : "")}
+                              onClick=${function () { updateProductDraft("image", category.icon || "🛒"); }}
+                              title=${L(category.label)}
+                            >
+                              ${category.icon || "🛒"}
+                            </button>
+                          `;
+                        })}
+                      </div>
                     </div>
                   </fieldset>
 
@@ -9558,6 +9618,15 @@
                       <label className="field"><span>${L("Tồn kho thật / Real Stock")}</span><input type="number" min="0" step="0.1" value=${componentDraft.stockQty} onInput=${function (event) { updateComponentDraft("stockQty", event.target.value); }} /></label>
                       <label className="field"><span>${L("Cost / đơn vị / Cost per Unit")}</span><input type="number" min="0" step="1" value=${componentDraft.costPerUnit} onInput=${function (event) { updateComponentDraft("costPerUnit", event.target.value); }} /></label>
                       <label className="field"><span>${L("Mức cảnh báo / Min Stock")}</span><input type="number" min="0" step="0.1" value=${componentDraft.minStock} onInput=${function (event) { updateComponentDraft("minStock", event.target.value); }} /></label>
+                      <label className="toggle-card" style=${{ alignSelf: "end" }}>
+                        <input
+                          type="checkbox"
+                          checked=${!!componentDraft.isUnlimitedStock}
+                          onChange=${function (event) { updateComponentDraft("isUnlimitedStock", event.target.checked); }}
+                        />
+                        <span>${L("Không giới hạn tồn kho / Unlimited Stock")}</span>
+                        <small>${L("Dùng cho nước lọc, nước sôi, đá: không cảnh báo thiếu và không trừ tồn. / For water, boiled water, ice: no low-stock warning and no deduction.")}</small>
+                      </label>
                       <label className="field"><span>${L("Ghi chú / Note")}</span><input value=${componentDraft.note} onInput=${function (event) { updateComponentDraft("note", event.target.value); }} /></label>
                     </div>
                     <button type="submit" className="primary-btn">${componentDraft.id ? L("Lưu thành phần / Save Component") : L("Thêm thành phần / Add Component")}</button>
@@ -9568,7 +9637,13 @@
                           <article key=${component.id} className="list-row list-row-actions">
                             <div>
                               <strong>${L(component.label)}</strong>
-                              <p>${L(getComponentItemTypeLabel(component.itemType))} · ${component.unit || L("Chưa có đơn vị / No unit")} · ${L("Tồn thực / Real stock")}: ${Number(component.stockQty) || 0} · ${L("Cost")}: ${formatCurrency(component.costPerUnit || 0)}</p>
+                              <p>
+                                ${L(getComponentItemTypeLabel(component.itemType))} · ${component.unit || L("Chưa có đơn vị / No unit")} ·
+                                ${component.isUnlimitedStock
+                                  ? L("Tồn không giới hạn / Unlimited stock")
+                                  : L("Tồn thực / Real stock") + ": " + (Number(component.stockQty) || 0)}
+                                · ${L("Cost")}: ${formatCurrency(component.costPerUnit || 0)}
+                              </p>
                               ${component.note ? html`<p>${component.note}</p>` : null}
                             </div>
                           <div className="row-actions">
@@ -9743,6 +9818,9 @@
             return it.itemType === "component" && (it.componentId || it.itemId) === component.id;
           });
           if (!line) return component;
+          if (component.isUnlimitedStock) {
+            return Object.assign({}, component, { unit: component.unit || line.unit || "" });
+          }
           return Object.assign({}, component, {
             stockQty: (Number(component.stockQty) || 0) + (Number(line.qty) || 0),
             unit: component.unit || line.unit || ""
@@ -9873,7 +9951,9 @@
             componentId: type === "component" ? itemId : "",
             productName: type === "component" ? (component ? L(component.label) : itemId) : (product ? product.name : itemId),
             qty: 1,
-            maxStock: type === "component" ? (component ? Number(component.stockQty) || 0 : 0) : (product ? Number(product.stock) || 0 : 0)
+            maxStock: type === "component"
+              ? (component && component.isUnlimitedStock ? Number.POSITIVE_INFINITY : (component ? Number(component.stockQty) || 0 : 0))
+              : (product ? Number(product.stock) || 0 : 0)
           }])
         });
       });
@@ -9911,6 +9991,7 @@
       var insufficient = issueDraft.items.filter(function (it) {
         if (it.itemType === "component") {
           var c = components.find(function (x) { return x.id === it.componentId; });
+          if (c && c.isUnlimitedStock) return false;
           var componentStock = c ? Number(c.stockQty) || 0 : 0;
           return (Number(it.qty) || 0) > componentStock;
         }
@@ -9939,6 +10020,7 @@
       });
       setComponents(function (current) {
         return current.map(function (component) {
+          if (component.isUnlimitedStock) return component;
           var line = issueDraft.items.find(function (it) { return it.itemType === "component" && it.componentId === component.id; });
           if (!line) return component;
           return Object.assign({}, component, { stockQty: Math.max(0, (Number(component.stockQty) || 0) - (Number(line.qty) || 0)) });
@@ -10186,7 +10268,7 @@
                             <div>
                               <strong>🧺 ${L(component.label)}</strong>
                               <p style=${{ margin: "4px 0 0", color: "#7b6b5d", fontSize: "0.88rem" }}>
-                                ${component.id} · ${L("tồn")}: ${Number(component.stockQty) || 0} ${component.unit || ""}
+                                ${component.id} · ${L("tồn")}: ${component.isUnlimitedStock ? L("Không giới hạn / Unlimited") : ((Number(component.stockQty) || 0) + " " + (component.unit || ""))}
                               </p>
                             </div>
                             <span style=${{ color: "#de631d", fontWeight: 700, flexShrink: 0 }}>+ ${L("Thêm / Add")}</span>
@@ -10472,7 +10554,7 @@
                           <div>
                             <strong>🧺 ${L(component.label)}</strong>
                             <p style=${{ margin: "4px 0 0", color: "#7b6b5d", fontSize: "0.88rem" }}>
-                              ${component.id} · ${L("tồn")}: ${Number(component.stockQty) || 0} ${component.unit || ""}
+                              ${component.id} · ${L("tồn")}: ${component.isUnlimitedStock ? L("Không giới hạn / Unlimited") : ((Number(component.stockQty) || 0) + " " + (component.unit || ""))}
                             </p>
                           </div>
                           <span style=${{ color: "#de631d", fontWeight: 700, flexShrink: 0 }}>+ ${L("Thêm / Add")}</span>
@@ -10513,7 +10595,8 @@
                     var c = isComponentLine ? components.find(function (x) { return x.id === it.componentId; }) : null;
                     var issueUnit = isComponentLine ? (c ? c.unit : "") : (p ? p.unit : "");
                     var stock = isComponentLine ? (c ? Number(c.stockQty) || 0 : 0) : (p ? Number(p.stock) || 0 : 0);
-                    var over = (Number(it.qty) || 0) > stock;
+                    var unlimitedLine = isComponentLine && c && c.isUnlimitedStock;
+                    var over = !unlimitedLine && (Number(it.qty) || 0) > stock;
                     return html`
                       <article key=${lineKey} className="list-row list-row-actions">
                         <div>
@@ -10522,7 +10605,7 @@
                             <span className="stock-badge" style=${{ marginRight: 8 }}>
                               ${isComponentLine ? L("Thành phần / Component") : L("Sản phẩm / Product")}
                             </span>
-                            ${L("Tồn")}: ${stock}${over ? " ⚠ " + L("vượt tồn / over stock") : ""}
+                            ${L("Tồn")}: ${unlimitedLine ? L("Không giới hạn / Unlimited") : stock}${over ? " ⚠ " + L("vượt tồn / over stock") : ""}
                           </p>
                         </div>
                         <div className="row-actions">

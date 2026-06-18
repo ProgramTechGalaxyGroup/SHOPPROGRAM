@@ -188,7 +188,8 @@ export const onRequestPost = async ({ env, request }) => {
     const componentChecks = await Promise.all(
       [...requiredByComponent.keys()].map((componentId) =>
         env.DB.prepare(
-          `SELECT label AS name, COALESCE(stock_qty, 0) AS stock
+          `SELECT label AS name, COALESCE(stock_qty, 0) AS stock,
+                  COALESCE(is_unlimited_stock, 0) AS is_unlimited_stock
            FROM components WHERE id = ?`
         ).bind(componentId).first()
       )
@@ -208,6 +209,7 @@ export const onRequestPost = async ({ env, request }) => {
     });
     [...requiredByComponent.entries()].forEach(([componentId, need], idx) => {
       const row = componentChecks[idx];
+      if (row && Number(row.is_unlimited_stock) === 1) return;
       const have = row ? Number(row.stock) || 0 : 0;
       if (have < need) {
         insufficient.push({
@@ -380,7 +382,7 @@ export const onRequestPost = async ({ env, request }) => {
         `UPDATE components
          SET stock_qty = MAX(0, COALESCE(stock_qty, 0) - ?),
              updated_at = ?
-         WHERE id = ?`
+         WHERE id = ? AND COALESCE(is_unlimited_stock, 0) = 0`
       ).bind(qty, ts, componentId)
     );
   }
