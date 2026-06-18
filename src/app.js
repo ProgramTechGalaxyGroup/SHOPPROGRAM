@@ -4348,7 +4348,8 @@
       if (status === "needs_action") return "needs_action";
       if (status === "held") return "held";
       if (status === "preparing") return "preparing";
-      if (status === "ready" || status === "completed") return "completed";
+      if (status === "ready") return "ready";
+      if (status === "completed") return "completed";
       return "new";
     }
 
@@ -7557,20 +7558,39 @@
       var checkoutDisabled = orderSaving || !activeOrderPicked;
       var activeOrderHasRecipeItems = orderHasRecipeItems(activeOrder);
       var activeWorkflowStatus = getOrderWorkflowStatus(activeOrder);
+      var startOfToday = new Date();
+      startOfToday = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate()).getTime();
+      var endOfToday = startOfToday + 24 * 60 * 60 * 1000 - 1;
+      var completedSalesToday = dedupeSalesByOrderId((sales || []).map(normalizeSaleRecord).filter(function (sale) {
+        var createdAt = Number(sale.createdAt) || 0;
+        return !isKnownTechnicalTestSale(sale) &&
+          isSaleRevenueEligible(sale) &&
+          createdAt >= startOfToday &&
+          createdAt <= endOfToday;
+      }));
       var filteredOrders = orders.filter(function (order) {
         var workflowStatus = getOrderWorkflowStatus(order);
-        return orderStatusFilter === "all" || workflowStatus === orderStatusFilter;
+        return orderStatusFilter === "all" || (orderStatusFilter !== "completed" && workflowStatus === orderStatusFilter);
       });
+      var completedSaleCards = (orderStatusFilter === "all" || orderStatusFilter === "completed")
+        ? completedSalesToday
+        : [];
       function getOpenOrderStatusLabel(order) {
         if (order.status === "needs_action") return L("Cần xử lí / Needs Action");
         if (order.status === "saving") return L("Đang lưu / Saving");
         if (order.status === "preparing") return L("Đang chuẩn bị / Preparing");
-        if (order.status === "ready" || order.status === "completed") return L("Hoàn thành / Completed");
+        if (order.status === "ready") return L("Sẵn sàng / Ready");
+        if (order.status === "completed") return L("Hoàn thành / Completed");
         if (order.status === "held") return L("Tạm giữ / Held");
         return L("Mới / New");
       }
       function getOrderStatusClass(order) {
         return " order-chip-status-" + getOrderWorkflowStatus(order);
+      }
+      function getCompletedSaleItemCount(sale) {
+        return ((sale && sale.items) || []).reduce(function (sum, item) {
+          return sum + (Number(item.qty) || 0);
+        }, 0);
       }
       return html`
         <section className="pos-layout">
@@ -7769,7 +7789,7 @@
                   return html`
                     <button
                       key=${filter.id}
-                      className=${"status-filter-btn" + (active ? " is-active" : "")}
+                      className=${"status-filter-btn status-filter-" + filter.id + (active ? " is-active" : "")}
                       onClick=${function () { setOrderStatusFilter(filter.id); }}
                     >
                       ${L(filter.label)}
@@ -7797,11 +7817,26 @@
                       <small>${formatQuantity(itemCount, 2)} ${L("món / items")}</small>
                     </button>
                   `;
-                }) : html`
+                }) : null}
+                ${completedSaleCards.map(function (sale) {
+                  var saleId = sale.serverId || sale.id || sale.orderId || "";
+                  return html`
+                    <article
+                      key=${"completed-" + saleId}
+                      className="order-chip order-chip-board order-chip-status-completed order-chip-readonly"
+                      title=${L("Hóa đơn đã hoàn thành trong ngày / Completed sale today")}
+                    >
+                      <span className="order-chip-id">${sale.orderId || saleId}</span>
+                      <small>${L("Hoàn thành / Completed")}</small>
+                      <small>${formatCurrency(sale.total)} · ${formatQuantity(getCompletedSaleItemCount(sale), 2)} ${L("món / items")}</small>
+                    </article>
+                  `;
+                })}
+                ${(!filteredOrders.length && !completedSaleCards.length) ? html`
                   <div className="empty-state align-left">
                     ${L("Không có đơn trong trạng thái này. / No orders in this status.")}
                   </div>
-                `}
+                ` : null}
                 <button className="order-chip order-chip-create order-chip-board" onClick=${createNewOrder}>
                   <span>${L("+ Đơn mới / + New Order")}</span>
                   <small>${L("Tạo giỏ khác / Create another cart")}</small>
