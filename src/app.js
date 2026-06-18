@@ -3087,12 +3087,36 @@
         pushToast("success", labelForOp(payload));
       }
       function handleFailure(payload) {
+        var failureBody = payload && payload.body ? payload.body : {};
+        var failureError = String(payload && payload.error || "");
+        var isRecipeStockAdjustFailure =
+          payload &&
+          payload.endpoint &&
+          payload.endpoint.indexOf("/inventory/adjust") !== -1 &&
+          failureError.indexOf("recipe-based product stock is derived from components") !== -1;
+        if (isRecipeStockAdjustFailure) {
+          try {
+            var outbox = JSON.parse(window.localStorage.getItem("shopflow-outbox") || "[]");
+            if (Array.isArray(outbox)) {
+              var nextOutbox = outbox.filter(function (op) {
+                return op.clientOpId !== failureBody.clientOpId;
+              });
+              window.localStorage.setItem("shopflow-outbox", JSON.stringify(nextOutbox));
+            }
+            var pendingKey = "shopflow-pending-stock-edits";
+            var pending = JSON.parse(window.localStorage.getItem(pendingKey) || "{}");
+            if (failureBody.productId && pending[failureBody.productId]) {
+              delete pending[failureBody.productId];
+              window.localStorage.setItem(pendingKey, JSON.stringify(pending));
+            }
+          } catch (_) {}
+          return;
+        }
         if (payload && payload.endpoint && payload.endpoint.indexOf("/sales") !== -1) {
-          var body = payload.body || {};
           setSales(function (currentSales) {
             return currentSales.map(function (sale) {
-              var sameClientOp = body.clientOpId && sale.clientOpId === body.clientOpId;
-              var sameOrder = body.orderId && sale.orderId === body.orderId;
+              var sameClientOp = failureBody.clientOpId && sale.clientOpId === failureBody.clientOpId;
+              var sameOrder = failureBody.orderId && sale.orderId === failureBody.orderId;
               if (!sameClientOp && !sameOrder) return sale;
               return normalizeSaleRecord(Object.assign({}, sale, {
                 syncStatus: "error",
@@ -6926,7 +6950,7 @@
       // form we must ALSO enqueue a /inventory/adjust so the on-hand qty
       // actually persists to D1. Without this, toast says "Saved" but F5
       // shows the old stock value.
-      if (newStockValue !== oldStockValue) {
+      if (selectedInventoryMode === "stock" && newStockValue !== oldStockValue) {
         // Track via pendingStockEdits so handlePulled guards against the
         // pull-race the same way inline edits do.
         try {
@@ -6945,6 +6969,15 @@
             reason: "Cap nhat tu Form sua SP"
           }
         });
+      } else if (selectedInventoryMode === "recipe") {
+        try {
+          var pendingKey = "shopflow-pending-stock-edits";
+          var pending = JSON.parse(window.localStorage.getItem(pendingKey) || "{}");
+          if (pending[productId]) {
+            delete pending[productId];
+            window.localStorage.setItem(pendingKey, JSON.stringify(pending));
+          }
+        } catch (_) {}
       }
 
       resetProductDraft();
@@ -7069,6 +7102,14 @@
       var entry = pending[productId];
       if (!entry) return;
 
+      var targetProduct = products.find(function (product) { return product.id === productId; });
+      if (!targetProduct || targetProduct.inventoryMode !== "stock") {
+        delete pending[productId];
+        try { window.localStorage.setItem(pendingKey, JSON.stringify(pending)); }
+        catch (_) {}
+        return;
+      }
+
       // Already in-flight? Don't double-enqueue.
       if (entry.status === "sent") return;
 
@@ -7090,6 +7131,46 @@
           reason: "Chinh tay tu Inventory UI"
         }
       });
+    }
+
+    function pruneRecipeStockAdjustments() {
+      var recipeIds = products
+        .filter(function (product) { return product.inventoryMode === "recipe"; })
+        .map(function (product) { return product.id; });
+      if (!recipeIds.length) return;
+      var recipeSet = {};
+      recipeIds.forEach(function (id) { recipeSet[id] = true; });
+
+      try {
+        var pendingKey = "shopflow-pending-stock-edits";
+        var pending = JSON.parse(window.localStorage.getItem(pendingKey) || "{}");
+        var pendingChanged = false;
+        recipeIds.forEach(function (id) {
+          if (pending[id]) {
+            delete pending[id];
+            pendingChanged = true;
+          }
+        });
+        if (pendingChanged) {
+          window.localStorage.setItem(pendingKey, JSON.stringify(pending));
+        }
+      } catch (_) {}
+
+      try {
+        var outbox = JSON.parse(window.localStorage.getItem("shopflow-outbox") || "[]");
+        if (!Array.isArray(outbox)) return;
+        var nextOutbox = outbox.filter(function (op) {
+          var endpoint = String(op && op.endpoint || "");
+          var productId = op && op.body ? op.body.productId : "";
+          return !(endpoint.indexOf("/inventory/adjust") !== -1 && recipeSet[productId]);
+        });
+        if (nextOutbox.length !== outbox.length) {
+          window.localStorage.setItem("shopflow-outbox", JSON.stringify(nextOutbox));
+          if (window.ShopFlowSync && typeof window.ShopFlowSync.getStatus === "function") {
+            setSyncStatus(window.ShopFlowSync.getStatus());
+          }
+        }
+      } catch (_) {}
     }
 
     // Drain ALL pending stock edits — called once at startup and on
@@ -7120,6 +7201,10 @@
       window.addEventListener("beforeunload", onBeforeUnload);
       return function () { window.removeEventListener("beforeunload", onBeforeUnload); };
     }, []);
+
+    useEffect(function () {
+      pruneRecipeStockAdjustments();
+    }, [products]);
 
     function toggleProductSelection(productId) {
       setSelectedProductIds(function (currentIds) {
