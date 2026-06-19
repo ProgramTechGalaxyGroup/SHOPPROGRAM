@@ -1456,7 +1456,8 @@
     return {
       order: normalizeOrder({
         id: buildOrderId(dateKey, nextSequence),
-        createdAt: createdAt
+        createdAt: createdAt,
+        orderNumberSource: "local"
       }),
       nextSequenceByDate: nextSequenceByDate
     };
@@ -1475,8 +1476,16 @@
       createdAt: baseOrder.createdAt || Date.now(),
       customerName: baseOrder.customerName || "Khách lẻ / Walk-in",
       paymentMethod: normalizePaymentMethod(baseOrder.paymentMethod),
-      cashReceived: Number(baseOrder.cashReceived) || 0
+      cashReceived: Number(baseOrder.cashReceived) || 0,
+      orderNumberSource: baseOrder.orderNumberSource || baseOrder.order_number_source || "local",
+      reservedSaleId: baseOrder.reservedSaleId || baseOrder.reserved_sale_id || ""
     };
+  }
+
+  function canonicalOrderIdFromSaleId(saleId) {
+    var match = String(saleId || "").match(/^HD-(\d{4})(\d{2})(\d{2})-(\d+)$/i);
+    if (!match) return "";
+    return match[3] + "/" + match[2] + "/" + match[1] + "-" + String(Number(match[4]) || 0).padStart(3, "0");
   }
 
   function normalizeSaleRecord(sale) {
@@ -1490,16 +1499,17 @@
     var fixedPaymentMethod = isKnownPaymentFix ? "cash" : normalizePaymentMethod(baseSale.paymentMethod || baseSale.payment_method);
     var normalizedTotal = Number(baseSale.total) || 0;
     var normalizedId = baseSale.id || uid("sale");
+    var canonicalOrderId = canonicalOrderIdFromSaleId(normalizedId);
     var rawSyncStatus = baseSale.syncStatus || baseSale.sync_status || "";
     var normalizedSyncStatus = rawSyncStatus || (/^HD-/i.test(String(normalizedId)) ? "synced" : "pending");
     return Object.assign({}, baseSale, {
       id: normalizedId,
-      orderId: baseSale.orderId || baseSale.order_id || "",
+      orderId: canonicalOrderId || baseSale.orderId || baseSale.order_id || "",
       clientOpId: baseSale.clientOpId || baseSale.client_op_id || "",
       serverId: baseSale.serverId || baseSale.server_id || (/^HD-/i.test(String(normalizedId)) ? normalizedId : ""),
       syncStatus: normalizedSyncStatus,
       syncError: baseSale.syncError || baseSale.sync_error || "",
-      createdAt: Number(baseSale.createdAt || baseSale.created_at) || Date.now(),
+      createdAt: Number(baseSale.createdAt || baseSale.created_at) || 0,
       total: normalizedTotal,
       subtotal: Number(baseSale.subtotal) || 0,
       discount: Number(baseSale.discount) || 0,
@@ -1514,7 +1524,8 @@
       paymentStatus: isKnownPaymentFix ? "paid" : (baseSale.paymentStatus || baseSale.payment_status || "paid"),
       orderStatus: baseSale.orderStatus || baseSale.order_status || "completed",
       note: baseSale.note || "",
-      items: Array.isArray(baseSale.items) ? baseSale.items : []
+      items: Array.isArray(baseSale.items) ? baseSale.items : [],
+      itemCount: Number(baseSale.itemCount || baseSale.item_count) || 0
     });
   }
 
@@ -2508,6 +2519,8 @@
     var lastSyncedPayloadRef = useRef("");
     var applyingRemoteSnapshotRef = useRef(false);
     var syncDebounceRef = useRef(null);
+    var orderNumberReservationsRef = useRef({});
+    var initialOrderReservationStartedRef = useRef(false);
 
     useEffect(function () {
       var timer = window.setInterval(function () {
@@ -2516,6 +2529,16 @@
       return function () {
         window.clearInterval(timer);
       };
+    }, []);
+
+    useEffect(function () {
+      if (initialOrderReservationStartedRef.current) return;
+      initialOrderReservationStartedRef.current = true;
+      orders.forEach(function (order) {
+        if (order && order.orderNumberSource !== "server") {
+          reserveServerOrderNumber(order.id);
+        }
+      });
     }, []);
 
     function buildPersistedStateSnapshot(includeFirebaseSettings) {
@@ -3040,18 +3063,20 @@
               var items = [];
               if (row.items_json) {
                 try {
-                  var parsed = JSON.parse(row.items_json);
+                  var parsed = Array.isArray(row.items_json)
+                    ? row.items_json
+                    : JSON.parse(row.items_json);
                   if (Array.isArray(parsed)) {
                     items = parsed.map(function (it) {
                       return {
                         id: it.id,
-                        productId: it.productId,
-                        name: it.name,
+                        productId: it.productId || it.product_id,
+                        name: it.name || it.product_name,
                         qty: Number(it.qty) || 0,
-                        price: Number(it.price) || 0,
-                        addonsJson: it.addonsJson,
-                        addonsTotal: Number(it.addonsTotal) || 0,
-                        lineTotal: Number(it.lineTotal) || 0
+                        price: Number(it.price || it.unit_price) || 0,
+                        addonsJson: it.addonsJson || it.addons_json,
+                        addonsTotal: Number(it.addonsTotal || it.addons_total) || 0,
+                        lineTotal: Number(it.lineTotal || it.line_total) || 0
                       };
                     });
                   }
@@ -3061,7 +3086,7 @@
               byId[row.id] = normalizeSaleRecord(Object.assign({}, byId[row.id] || {}, {
                 id: row.id,
                 orderId: row.order_id || row.orderId || (byId[row.id] && byId[row.id].orderId) || "",
-                createdAt: Number(row.created_at) || (byId[row.id] && byId[row.id].createdAt) || Date.now(),
+                createdAt: Number(row.created_at) || (byId[row.id] && byId[row.id].createdAt) || 0,
                 total: Number(row.total) || 0,
                 subtotal: Number(row.subtotal) || 0,
                 discount: Number(row.discount) || 0,
@@ -3077,7 +3102,8 @@
                 syncStatus: "synced",
                 serverId: row.id,
                 note: row.note || "",
-                items: items.length > 0 ? items : (byId[row.id] ? byId[row.id].items : [])
+                items: items.length > 0 ? items : (byId[row.id] ? byId[row.id].items : []),
+                itemCount: Number(row.item_count) || (byId[row.id] ? Number(byId[row.id].itemCount) || 0 : 0)
               }));
             });
             var merged = Object.keys(byId).map(function (id) { return byId[id]; }).filter(function (sale) {
@@ -4164,6 +4190,39 @@
       return [createdFallback.order];
     }
 
+    function reserveServerOrderNumber(localOrderId) {
+      if (!localOrderId || orderNumberReservationsRef.current[localOrderId]) {
+        return Promise.resolve(null);
+      }
+      orderNumberReservationsRef.current[localOrderId] = true;
+      return syncApi("/orders/next", { method: "POST", body: {} }).then(function (response) {
+        if (!response || !response.orderId || !response.saleId) {
+          throw new Error("Server did not return a reserved bill number");
+        }
+        setOrders(function (currentOrders) {
+          return currentOrders.map(function (order) {
+            if (order.id !== localOrderId) return order;
+            return Object.assign({}, order, {
+              id: response.orderId,
+              reservedSaleId: response.saleId,
+              orderNumberSource: "server"
+            });
+          });
+        });
+        setActiveOrderId(function (currentId) {
+          return currentId === localOrderId ? response.orderId : currentId;
+        });
+        delete orderNumberReservationsRef.current[localOrderId];
+        return response;
+      }).catch(function (error) {
+        delete orderNumberReservationsRef.current[localOrderId];
+        if (window && window.console) {
+          window.console.warn("Could not reserve a shared bill number; checkout will allocate one.", error);
+        }
+        return null;
+      });
+    }
+
     function createNewOrder() {
       var createdOrderState = createOrder(orderSequenceByDate);
       var newOrder = createdOrderState.order;
@@ -4175,6 +4234,7 @@
       setPosOrderPicked(true);
       setOrderStatusFilter("new");
       setActiveView("pos");
+      reserveServerOrderNumber(newOrder.id);
     }
 
     function addProductToOrder(product) {
@@ -4441,6 +4501,7 @@
     function buildSalePayload(orderSnapshot, saleTotals, saleClientOpId) {
       return {
         clientOpId: saleClientOpId,
+        id: orderSnapshot.reservedSaleId || undefined,
         orderId: orderSnapshot.id,
         customerName: orderSnapshot.customerName || "",
         subtotal: saleTotals.subtotal,
@@ -4607,7 +4668,7 @@
 
         var saleRecord = {
           id: serverId,
-          orderId: orderSnapshot.id,
+          orderId: response.orderId || canonicalOrderIdFromSaleId(serverId) || orderSnapshot.id,
           clientOpId: saleClientOpId,
           serverId: serverId,
           syncStatus: "synced",
@@ -7701,7 +7762,11 @@
           isSaleRevenueEligible(sale) &&
           createdAt >= startOfToday &&
           createdAt <= endOfToday;
-      }));
+      })).sort(function (a, b) {
+        var createdDiff = (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0);
+        if (createdDiff) return createdDiff;
+        return String(b.orderId || b.id || "").localeCompare(String(a.orderId || a.id || ""));
+      });
       var filteredOrders = orders.filter(function (order) {
         var workflowStatus = getOrderWorkflowStatus(order);
         return orderStatusFilter === "all" || (orderStatusFilter !== "completed" && workflowStatus === orderStatusFilter);
@@ -7722,7 +7787,9 @@
         return " order-chip-status-" + getOrderWorkflowStatus(order);
       }
       function getCompletedSaleItemCount(sale) {
-        return ((sale && sale.items) || []).reduce(function (sum, item) {
+        var items = (sale && sale.items) || [];
+        if (!items.length) return Number(sale && (sale.itemCount || sale.item_count)) || 0;
+        return items.reduce(function (sum, item) {
           return sum + (Number(item.qty) || 0);
         }, 0);
       }

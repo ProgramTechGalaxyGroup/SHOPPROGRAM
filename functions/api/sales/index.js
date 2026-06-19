@@ -1,5 +1,5 @@
 import {
-  json, readJson, badRequest, now, uid,
+  json, readJson, badRequest, now, uid, dateKey,
   isDuplicateOp, recordOpStmt, runIdempotentBatch, nextDocId,
   inventoryDeltaStmt, movementStmt, getProductCost,
   ensureProductsInventoryModeColumn, ensureComponentsInventoryColumns,
@@ -37,6 +37,12 @@ function getRecipeComponentStockQty(entry) {
   return netQty / usableRate;
 }
 
+function orderIdFromSaleId(saleId) {
+  const match = String(saleId || "").match(/^HD-(\d{4})(\d{2})(\d{2})-(\d+)$/i);
+  if (!match) return "";
+  return `${match[3]}/${match[2]}/${match[1]}-${String(Number(match[4]) || 0).padStart(3, "0")}`;
+}
+
 // GET /api/sales?from=&to=&limit=
 export const onRequestGet = async ({ env, request }) => {
   const url = new URL(request.url);
@@ -48,7 +54,9 @@ export const onRequestGet = async ({ env, request }) => {
   if (from) { where.push("created_at >= ?"); binds.push(from); }
   if (to)   { where.push("created_at <= ?"); binds.push(to); }
   const sql = `
-    SELECT * FROM sales
+    SELECT s.*,
+           COALESCE((SELECT SUM(si.qty) FROM sale_items si WHERE si.sale_id = s.id), 0) AS item_count
+    FROM sales s
     ${where.length ? "WHERE " + where.join(" AND ") : ""}
     ORDER BY created_at DESC
     LIMIT ?
@@ -106,7 +114,10 @@ export const onRequestPost = async ({ env, request }) => {
 
   if (body.clientOpId) {
     const dup = await isDuplicateOp(env.DB, body.clientOpId);
-    if (dup) return json({ ok: true, duplicate: true, id: dup });
+    if (dup) {
+      const existing = await env.DB.prepare("SELECT order_id FROM sales WHERE id = ?").bind(dup).first();
+      return json({ ok: true, duplicate: true, id: dup, orderId: existing ? existing.order_id : orderIdFromSaleId(dup) });
+    }
   }
 
   // -------- B1: Server-side stock guard & BOM Expansion --------
@@ -295,7 +306,12 @@ export const onRequestPost = async ({ env, request }) => {
   }
 
   const ts = now();
-  const saleId = body.id || await nextDocId(env.DB, "HD", ts);
+  const requestedSaleId = String(body.id || "");
+  const requestedIdMatch = requestedSaleId.match(/^HD-(\d{8})-\d{3,}$/i);
+  const saleId = requestedIdMatch && requestedIdMatch[1] === dateKey(ts)
+    ? requestedSaleId
+    : await nextDocId(env.DB, "HD", ts);
+  const canonicalOrderId = orderIdFromSaleId(saleId);
 
   // Snapshot costs for gross-profit reporting.
   const enriched = await Promise.all(body.items.map(async (it) => ({
@@ -317,7 +333,7 @@ export const onRequestPost = async ({ env, request }) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', 'completed', ?, ?)`
     ).bind(
       saleId,
-      body.orderId || null,
+      canonicalOrderId || body.orderId || null,
       body.customerName || null,
       serverSubtotal,
       serverVat,
@@ -394,11 +410,20 @@ export const onRequestPost = async ({ env, request }) => {
   // rolls back the loser's whole batch and we surface a "duplicate" reply.
   const outcome = await runIdempotentBatch(env.DB, stmts, body.clientOpId);
   if (outcome.duplicate) {
-    return json({ ok: true, duplicate: true, id: outcome.refId });
+    const existing = outcome.refId
+      ? await env.DB.prepare("SELECT order_id FROM sales WHERE id = ?").bind(outcome.refId).first()
+      : null;
+    return json({
+      ok: true,
+      duplicate: true,
+      id: outcome.refId,
+      orderId: existing ? existing.order_id : orderIdFromSaleId(outcome.refId)
+    });
   }
   return json({
     ok: true,
     id: saleId,
+    orderId: canonicalOrderId || body.orderId || null,
     serverTotal,
     serverSubtotal,
     serverVat,

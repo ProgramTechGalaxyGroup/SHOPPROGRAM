@@ -25,6 +25,8 @@
 (function () {
   var OUTBOX_KEY    = "shopflow-outbox";
   var LAST_SYNC_KEY = "shopflow-last-sync-at";
+  var SCHEMA_VERSION_KEY = "shopflow-sync-schema-version";
+  var SCHEMA_VERSION = "2026-06-19-sale-items-v1";
   var API_BASE      = "/api";
 
   // ---------- storage helpers ----------
@@ -241,6 +243,16 @@
     window.addEventListener("offline", function () {
       setStatus({ online: false });
     });
+
+    // Force one full refresh after a payload-shape change. This repairs old
+    // cached sales that did not include sale_items/item_count.
+    try {
+      if (localStorage.getItem(SCHEMA_VERSION_KEY) !== SCHEMA_VERSION) {
+        state.lastSyncAt = 0;
+        setLastSyncAt(0);
+        localStorage.setItem(SCHEMA_VERSION_KEY, SCHEMA_VERSION);
+      }
+    } catch (_) {}
 
     // First pull when API is reachable.
     pull(state.lastSyncAt || 0).catch(function () {});

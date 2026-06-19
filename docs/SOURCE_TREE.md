@@ -29,6 +29,7 @@ SHOPPROGRAM/
 │       ├── inventory/
 │       ├── purchases/
 │       ├── issues/
+│       ├── orders/
 │       ├── sales/
 │       ├── suppliers/
 │       ├── reports/
@@ -92,6 +93,7 @@ SHOPPROGRAM/
 | `inventory/` | Tồn kho, kiểm kê, chuyển thành phần, movement ledger |
 | `purchases/` | Phiếu nhập |
 | `issues/` | Phiếu xuất |
+| `orders/` | Cấp số bill dùng chung theo ngày trước khi thao tác đơn |
 | `sales/` | Lưu/lấy hóa đơn, order items, payment method |
 | `reports/` | Dashboard summary, low stock |
 | `settings/` | Store settings, invoice/template settings |
