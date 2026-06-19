@@ -68,7 +68,17 @@ export const onRequestGet = async ({ env, request }) => {
            s.id, s.order_id, s.created_at, s.total, s.payment_method, s.customer_name,
            s.subtotal, s.vat_amount, s.discount, s.paid, s.change_amount,
            s.cashier_name, s.payment_status, s.order_status, s.note,
-           COALESCE((SELECT SUM(sic.qty) FROM sale_items sic WHERE sic.sale_id = s.id), 0) AS item_count,
+           COALESCE((
+             SELECT SUM(
+               CASE
+                 WHEN LOWER(COALESCE(pic.unit, '')) IN ('g', 'gr', 'gram', 'kg', 'ml', 'l', 'lit', 'liter') THEN 1
+                 ELSE sic.qty
+               END
+             )
+             FROM sale_items sic
+             LEFT JOIN products pic ON pic.id = sic.product_id
+             WHERE sic.sale_id = s.id
+           ), 0) AS item_count,
            (
              SELECT json_group_array(
                json_object(
@@ -77,12 +87,15 @@ export const onRequestGet = async ({ env, request }) => {
                  'name', si.product_name,
                  'qty', si.qty,
                  'price', si.unit_price,
+                 'unit', COALESCE(pi.unit, ''),
                  'addonsJson', si.addons_json,
                  'addonsTotal', si.addons_total,
                  'lineTotal', si.line_total
                )
              )
-             FROM sale_items si WHERE si.sale_id = s.id
+             FROM sale_items si
+             LEFT JOIN products pi ON pi.id = si.product_id
+             WHERE si.sale_id = s.id
            ) as items_json
          FROM sales s 
          WHERE s.created_at > ? 

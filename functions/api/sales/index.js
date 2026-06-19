@@ -55,7 +55,17 @@ export const onRequestGet = async ({ env, request }) => {
   if (to)   { where.push("created_at <= ?"); binds.push(to); }
   const sql = `
     SELECT s.*,
-           COALESCE((SELECT SUM(si.qty) FROM sale_items si WHERE si.sale_id = s.id), 0) AS item_count
+           COALESCE((
+             SELECT SUM(
+               CASE
+                 WHEN LOWER(COALESCE(p.unit, '')) IN ('g', 'gr', 'gram', 'kg', 'ml', 'l', 'lit', 'liter') THEN 1
+                 ELSE si.qty
+               END
+             )
+             FROM sale_items si
+             LEFT JOIN products p ON p.id = si.product_id
+             WHERE si.sale_id = s.id
+           ), 0) AS item_count
     FROM sales s
     ${where.length ? "WHERE " + where.join(" AND ") : ""}
     ORDER BY created_at DESC

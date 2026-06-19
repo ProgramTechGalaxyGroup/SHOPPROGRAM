@@ -1482,6 +1482,10 @@
     };
   }
 
+  function isOrderNumberLocked(order) {
+    return !!(order && (order.reservedSaleId || order.orderNumberSource === "server"));
+  }
+
   function canonicalOrderIdFromSaleId(saleId) {
     var match = String(saleId || "").match(/^HD-(\d{4})(\d{2})(\d{2})-(\d+)$/i);
     if (!match) return "";
@@ -1599,18 +1603,40 @@
     }, 0);
   }
 
+  function getItemLineGross(item, addOnOptions) {
+    var basePrice = Number(item && item.price) || 0;
+    var qty = Number(item && item.qty) || 0;
+    var linePrice = basePrice + (Number(getItemAddonTotal(item || {}, addOnOptions)) || 0);
+    return Math.max(0, Math.round(linePrice * qty));
+  }
+
+  function getItemDiscountAmount(item, addOnOptions) {
+    var gross = getItemLineGross(item, addOnOptions);
+    var rawValue = Number(item && item.discountValue) || 0;
+    if (!rawValue || gross <= 0) return 0;
+    var discountType = item && item.discountType === "amount" ? "amount" : "percent";
+    var discount = discountType === "amount"
+      ? rawValue
+      : gross * (Math.min(Math.max(rawValue, 0), 100) / 100);
+    return Math.min(gross, Math.max(0, Math.round(discount)));
+  }
+
+  function getItemLineNet(item, addOnOptions) {
+    return Math.max(0, getItemLineGross(item, addOnOptions) - getItemDiscountAmount(item, addOnOptions));
+  }
+
   function calculateOrder(order, addOnOptions) {
     var safeOrder = order || normalizeOrder({ createdAt: Date.now() });
     var subtotal = (safeOrder.items || []).reduce(function (sum, item) {
       // B6: coerce numbers to avoid string concatenation if localStorage
       // restored strings.
-      var basePrice = Number(item.price) || 0;
-      var qty = Number(item.qty) || 0;
-      var linePrice = basePrice + (Number(getItemAddonTotal(item, addOnOptions)) || 0);
-      return sum + linePrice * qty;
+      return sum + getItemLineGross(item, addOnOptions);
     }, 0);
     subtotal = Math.round(subtotal);
-    var discount = Number(safeOrder.discountAmount) || 0;
+    var itemDiscount = (safeOrder.items || []).reduce(function (sum, item) {
+      return sum + getItemDiscountAmount(item, addOnOptions);
+    }, 0);
+    var discount = itemDiscount + (Number(safeOrder.discountAmount) || 0);
     // Tương thích ngược với đơn hàng cũ còn dùng discountPct
     if (!discount && safeOrder.discountPct) {
       discount = Math.round(subtotal * (Number(safeOrder.discountPct) / 100));
@@ -1842,18 +1868,27 @@
     return netQty / usableRate;
   }
 
+  function isProductImageUrl(value) {
+    var imageValue = String(value || "").trim();
+    return /^(https?:\/\/|data:image\/|blob:|\.\/|\/|assets\/|images\/)/i.test(imageValue);
+  }
+
   function normalizeProduct(product) {
     var baseProduct = product || {};
     var explicitInventoryMode = baseProduct.inventoryMode || baseProduct.inventory_mode || "";
     var normalizedInventoryMode = explicitInventoryMode === "recipe" || explicitInventoryMode === "stock"
       ? explicitInventoryMode
       : "";
+    var rawImage = baseProduct.imageUrl || baseProduct.image_url || baseProduct.photoUrl || baseProduct.photo_url || baseProduct.image || "";
     var normalizedBarcode = getScannableBarcode(
       baseProduct.barcode,
       [baseProduct.id, baseProduct.name, baseProduct.category, baseProduct.barcode].join("|")
     );
     return Object.assign({}, baseProduct, {
       barcode: normalizedBarcode,
+      image: rawImage,
+      imageUrl: isProductImageUrl(rawImage) ? rawImage : "",
+      imageIcon: isProductImageUrl(rawImage) ? "" : (rawImage || "🍊"),
       componentIds: Array.isArray(baseProduct.componentIds)
         ? baseProduct.componentIds.map(normalizeRecipeEntry).filter(function (entry) { return entry.id; })
         : [],
@@ -2044,6 +2079,7 @@
       var qty = Number(item.qty) || 0;
       var lineTotal = unitPrice * qty;
       var addonRow = addons ? "<div class='addon'>+ " + esc(addons) + "</div>" : "";
+      var noteRow = item.note ? "<div class='addon'>Ghi chú: " + esc(item.note) + "</div>" : "";
       var unitText = showUnitPrice
         ? (qty + " × " + formatCurrency(unitPrice))
         : ("SL " + qty);
@@ -2051,6 +2087,7 @@
         "<div class='item'>" +
           "<div class='item-name'>" + esc(item.name) + "</div>" +
           addonRow +
+          noteRow +
           "<div class='item-row'>" +
             "<span>" + esc(unitText) + "</span>" +
             "<strong>" + formatCurrency(lineTotal) + "</strong>" +
@@ -2397,6 +2434,8 @@
     var [showQuickCategoryForm, setShowQuickCategoryForm] = useState(false);
     var [orderStatusFilter, setOrderStatusFilter] = useState("all");
     var [posOrderPicked, setPosOrderPicked] = useState(false);
+    var [checkoutPanelOpen, setCheckoutPanelOpen] = useState(false);
+    var [productCustomizer, setProductCustomizer] = useState(null);
     function toggleCategoryExpanded(id) {
       setExpandedCategories(function (cur) {
         var next = Object.assign({}, cur);
@@ -3074,6 +3113,7 @@
                         name: it.name || it.product_name,
                         qty: Number(it.qty) || 0,
                         price: Number(it.price || it.unit_price) || 0,
+                        unit: it.unit || "",
                         addonsJson: it.addonsJson || it.addons_json,
                         addonsTotal: Number(it.addonsTotal || it.addons_total) || 0,
                         lineTotal: Number(it.lineTotal || it.line_total) || 0
@@ -3852,9 +3892,9 @@
         return;
       }
 
-      addProductToOrder(matchedProduct);
+      handleProductAdd(matchedProduct);
       setBarcodeInput("");
-      setScanMessage(L("Đã thêm sản phẩm từ barcode: / Added product from barcode: ") + matchedProduct.name);
+      setScanMessage(L("Đã chọn sản phẩm từ barcode: / Selected product from barcode: ") + matchedProduct.name);
     }
 
     // Unified product-lookup handler used by the merged POS input.
@@ -3879,9 +3919,9 @@
         }) || null;
       }
       if (byCode) {
-        addProductToOrder(byCode);
+        handleProductAdd(byCode);
         setBarcodeInput("");
-        setScanMessage(L("Đã thêm / Added") + ": " + byCode.name);
+        setScanMessage(L("Đã chọn / Selected") + ": " + byCode.name);
         return true;
       }
       // 2. Substring match on name.
@@ -3893,10 +3933,10 @@
         setScanMessage(L("Không tìm thấy sản phẩm: ") + value + " / No product matched: " + value);
         return false;
       }
-      addProductToOrder(hits[0]);
+      handleProductAdd(hits[0]);
       setBarcodeInput("");
       setScanMessage(
-        L("Đã thêm / Added") + ": " + hits[0].name +
+        L("Đã chọn / Selected") + ": " + hits[0].name +
         (hits.length > 1 ? " (" + hits.length + " " + L("kết quả / matches") + ")" : "")
       );
       return true;
@@ -4194,6 +4234,10 @@
       if (!localOrderId || orderNumberReservationsRef.current[localOrderId]) {
         return Promise.resolve(null);
       }
+      var currentOrder = orders.find(function (order) { return order.id === localOrderId; });
+      if (isOrderNumberLocked(currentOrder)) {
+        return Promise.resolve(null);
+      }
       orderNumberReservationsRef.current[localOrderId] = true;
       return syncApi("/orders/next", { method: "POST", body: {} }).then(function (response) {
         if (!response || !response.orderId || !response.saleId) {
@@ -4202,6 +4246,7 @@
         setOrders(function (currentOrders) {
           return currentOrders.map(function (order) {
             if (order.id !== localOrderId) return order;
+            if (isOrderNumberLocked(order)) return order;
             return Object.assign({}, order, {
               id: response.orderId,
               reservedSaleId: response.saleId,
@@ -4232,9 +4277,121 @@
       });
       setActiveOrderId(newOrder.id);
       setPosOrderPicked(true);
+      setCheckoutPanelOpen(false);
       setOrderStatusFilter("new");
       setActiveView("pos");
       reserveServerOrderNumber(newOrder.id);
+    }
+
+    function normalizeAddOnOption(option) {
+      if (typeof option === "string") {
+        return getAddonById(option, addOns) || { id: option, label: option, price: 0, group: "extras" };
+      }
+      var safeOption = option || {};
+      var optionId = safeOption.id || safeOption.addOnId || safeOption.addon_id || "";
+      var existing = optionId ? getAddonById(optionId, addOns) : null;
+      return Object.assign({}, existing || {}, {
+        id: optionId,
+        label: safeOption.label || safeOption.name || (existing && existing.label) || optionId,
+        price: Number(safeOption.price != null ? safeOption.price : (existing && existing.price)) || 0,
+        group: safeOption.group || safeOption.groupKey || (existing && existing.group) || "extras"
+      });
+    }
+
+    function getProductAddonOptions(product) {
+      var productOptions = [];
+      if (product && Array.isArray(product.addOns)) productOptions = product.addOns;
+      if (product && Array.isArray(product.addons)) productOptions = product.addons;
+      if (productOptions.length) {
+        return productOptions.map(normalizeAddOnOption).filter(function (option) { return !!option.id; });
+      }
+      return (addOns || []).slice();
+    }
+
+    function shouldCustomizeProduct(product) {
+      if (!product || !product.id) return false;
+      if (product.inventoryMode === "recipe" || product.isMixedDrink) return true;
+      return getProductAddonOptions(product).length > 0 && product.inventoryMode !== "stock";
+    }
+
+    function openProductCustomizer(product) {
+      if (!product || !product.id) return;
+      if (!posOrderPicked) {
+        window.alert(L("Chọn một đơn trước khi thêm sản phẩm. / Pick an order before adding products."));
+        return;
+      }
+      setProductCustomizer({
+        product: product,
+        addOnIds: [],
+        note: ""
+      });
+    }
+
+    function handleProductAdd(product) {
+      if (shouldCustomizeProduct(product)) {
+        openProductCustomizer(product);
+        return;
+      }
+      addProductToOrder(product);
+    }
+
+    function toggleCustomizerAddon(addOnId) {
+      setProductCustomizer(function (current) {
+        if (!current) return current;
+        var currentIds = current.addOnIds || [];
+        var hasAddon = currentIds.indexOf(addOnId) !== -1;
+        var nextIds;
+        var addOn = getAddonById(addOnId, getProductAddonOptions(current.product)) || getAddonById(addOnId, addOns);
+
+        if (addOn && addOn.group !== "extras") {
+          nextIds = currentIds.filter(function (currentId) {
+            var currentAddon = getAddonById(currentId, getProductAddonOptions(current.product)) || getAddonById(currentId, addOns);
+            return !(currentAddon && currentAddon.group === addOn.group);
+          });
+        } else {
+          nextIds = currentIds.slice();
+        }
+
+        if (!hasAddon) {
+          nextIds.push(addOnId);
+        } else {
+          nextIds = nextIds.filter(function (currentId) {
+            return currentId !== addOnId;
+          });
+        }
+
+        return Object.assign({}, current, { addOnIds: nextIds });
+      });
+    }
+
+    function addCustomizedProductToOrder() {
+      if (!productCustomizer || !productCustomizer.product) return;
+      var product = productCustomizer.product;
+      var safeNote = String(productCustomizer.note || "").trim();
+      var safeAddOnIds = (productCustomizer.addOnIds || []).slice();
+
+      updateActiveOrder(function (order) {
+        var newItem = {
+          id: uid("item"),
+          productId: product.id,
+          barcode: getScannableBarcode(product.barcode, [product.id, product.name, product.category].join("|")),
+          name: product.name,
+          unit: product.unit || "",
+          price: Number(product.price) || 0,
+          qty: 1,
+          addOnIds: safeAddOnIds,
+          note: safeNote,
+          discountType: "percent",
+          discountValue: 0
+        };
+
+        return Object.assign({}, order, {
+          status: order.status === "preparing" ? "preparing" : "open",
+          items: (order.items || []).concat(newItem)
+        });
+      });
+
+      setProductCustomizer(null);
     }
 
     function addProductToOrder(product) {
@@ -4268,7 +4425,10 @@
           unit: product.unit || "",
           price: Number(product.price) || 0,
           qty: 1,
-          addOnIds: []
+          addOnIds: [],
+          note: "",
+          discountType: "percent",
+          discountValue: 0
         };
 
         return Object.assign({}, order, {
@@ -4365,6 +4525,23 @@
       });
     }
 
+    function updateItemDiscount(itemId, field, value) {
+      updateActiveOrder(function (order) {
+        return Object.assign({}, order, {
+          items: (order.items || []).map(function (item) {
+            if (item.id !== itemId) return item;
+            var nextValue = field === "discountType"
+              ? (value === "amount" ? "amount" : "percent")
+              : Math.max(0, Number(value) || 0);
+            return Object.assign({}, item, {
+              discountType: field === "discountType" ? nextValue : (item.discountType || "percent"),
+              discountValue: field === "discountValue" ? nextValue : (Number(item.discountValue) || 0)
+            });
+          })
+        });
+      });
+    }
+
     function getOrderStockRequirements(items) {
       var quantitiesByProduct = {};
       var quantitiesByComponent = {};
@@ -4428,11 +4605,14 @@
           syncError: ""
         });
       });
+      if (!hasRecipeItems) {
+        setCheckoutPanelOpen(true);
+      }
       pushToast(
         "info",
         hasRecipeItems
           ? L("Đã nhận đơn pha chế. / Preparation started.")
-          : L("Đơn bán lẻ đã sẵn sàng hoàn tất. / Retail order is ready to complete.")
+          : L("Đơn bán lẻ chuyển thẳng sang thanh toán. / Retail order moved to checkout.")
       );
     }
 
@@ -4516,13 +4696,17 @@
           var addonTotal = getItemAddonTotal(item, addOns);
           var unitPrice = (Number(item.price) || 0) + addonTotal;
           var qty = Number(item.qty) || 0;
+          var itemDiscount = getItemDiscountAmount(item, addOns);
           return {
             productId: item.productId,
             productName: item.name,
             qty: qty,
+            unit: item.unit || "",
             unitPrice: unitPrice,
             addonsTotal: addonTotal,
-            lineTotal: unitPrice * qty,
+            discountAmount: itemDiscount,
+            lineTotal: Math.max(0, Math.round((unitPrice * qty) - itemDiscount)),
+            note: item.note || "",
             addons: (item.addOnIds || []).map(function (id) {
               var a = getAddonById(id, addOns);
               return a ? { id: a.id, label: a.label, price: a.price } : { id: id };
@@ -4747,6 +4931,7 @@
           }
           return remaining;
         });
+        setCheckoutPanelOpen(false);
         setPosOrderPicked(false);
         pushToast("success", L("Đã lưu hóa đơn / Sale saved"));
       }).catch(function (error) {
@@ -5030,7 +5215,7 @@
                           return (addOn.label || addOn.name || addOn.id || "") + (Number(addOn.price) ? " +" + formatCurrency(addOn.price) : "");
                         }).join(" · ") : L("Không có add-ons / No add-ons")}</small>
                       </div>
-                      <div className="completed-sale-item-metric"><span>${L("SL / Qty")}</span><strong>${formatQuantity(qty, 3)}</strong></div>
+                      <div className="completed-sale-item-metric"><span>${L("SL / Qty")}</span><strong>${formatQuantity(qty, 3)}${item.unit ? " " + item.unit : ""}</strong></div>
                       <div className="completed-sale-item-metric"><span>${L("Đơn giá / Unit Price")}</span><strong>${formatCurrency(unitPrice)}</strong></div>
                       <div className="completed-sale-item-metric"><span>${L("Thành tiền / Amount")}</span><strong>${formatCurrency(lineTotal)}</strong></div>
                     </article>
@@ -7744,6 +7929,109 @@
       }
     }
 
+    function renderProductMedia(product) {
+      var icon = (product && (product.imageIcon || product.image)) || "🍊";
+      var imageUrl = product && product.imageUrl;
+      return html`
+        <div className="pos-product-media">
+          ${imageUrl ? html`
+            <img
+              src=${imageUrl}
+              alt=${product.name || ""}
+              loading="lazy"
+              onError=${function (event) {
+                event.currentTarget.style.display = "none";
+              }}
+            />
+          ` : null}
+          <span>${icon}</span>
+        </div>
+      `;
+    }
+
+    function renderProductCustomizerModal() {
+      if (!productCustomizer || !productCustomizer.product) return null;
+      var product = productCustomizer.product;
+      var availableAddOns = getProductAddonOptions(product);
+      var selectedIds = productCustomizer.addOnIds || [];
+      var selectedTotal = selectedIds.reduce(function (sum, addOnId) {
+        var addOn = getAddonById(addOnId, availableAddOns) || getAddonById(addOnId, addOns);
+        return sum + (addOn ? Number(addOn.price) || 0 : 0);
+      }, 0);
+      var unitTotal = (Number(product.price) || 0) + selectedTotal;
+
+      return html`
+        <div className="detail-modal-backdrop" role="presentation" onClick=${function () { setProductCustomizer(null); }}>
+          <section className="detail-modal surface product-customizer-modal" role="dialog" aria-modal="true" onClick=${function (event) { event.stopPropagation(); }}>
+            <div className="detail-modal-head">
+              <div>
+                <p className="eyebrow">${L("Tùy chỉnh món / Customize Item")}</p>
+                <h2>${product.imageIcon || ""} ${product.name}</h2>
+                <small>${formatCurrency(product.price)} · ${product.inventoryMode === "recipe" ? L("món pha chế / prepared item") : L("sản phẩm / product")}</small>
+              </div>
+              <button type="button" className="ghost-btn" onClick=${function () { setProductCustomizer(null); }}>×</button>
+            </div>
+
+            <div className="customizer-summary">
+              <span>${L("Tạm tính món / Item subtotal")}</span>
+              <strong>${formatCurrency(unitTotal)}</strong>
+            </div>
+
+            <div className="customizer-section">
+              <div className="section-top compact">
+                <div>
+                  <p className="eyebrow">${L("Add-ons")}</p>
+                  <h3>${L("Chọn thêm cho món / Select add-ons")}</h3>
+                </div>
+              </div>
+              ${availableAddOns.length ? html`
+                <div className="customizer-addon-grid">
+                  ${availableAddOns.map(function (addOn) {
+                    var active = selectedIds.indexOf(addOn.id) !== -1;
+                    return html`
+                      <button
+                        key=${addOn.id}
+                        type="button"
+                        className=${"addon-chip customizer-addon-chip" + (active ? " is-active" : "")}
+                        onClick=${function () { toggleCustomizerAddon(addOn.id); }}
+                      >
+                        <span>${L(addOn.label)}</span>
+                        ${addOn.price ? html`<strong>+${formatCurrency(addOn.price)}</strong>` : null}
+                      </button>
+                    `;
+                  })}
+                </div>
+              ` : html`
+                <div className="empty-state align-left">${L("Món này chưa có add-ons. / No add-ons configured for this item.")}</div>
+              `}
+            </div>
+
+            <label className="field customizer-note-field">
+              <span>${L("Ghi chú cho món / Item note")}</span>
+              <textarea
+                rows="3"
+                placeholder=${L("Ví dụ: ít ngọt, không đá, giao trước... / Example: less sweet, no ice, serve first...")}
+                value=${productCustomizer.note || ""}
+                onInput=${function (event) {
+                  var value = event.target.value;
+                  setProductCustomizer(function (current) {
+                    return current ? Object.assign({}, current, { note: value }) : current;
+                  });
+                }}
+              ></textarea>
+            </label>
+
+            <div className="button-row button-row-main customizer-actions">
+              <button type="button" className="ghost-btn" onClick=${function () { setProductCustomizer(null); }}>${L("Hủy / Cancel")}</button>
+              <button type="button" className="primary-btn" onClick=${addCustomizedProductToOrder}>
+                ${L("Thêm vào đơn / Add to Order")}
+              </button>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
     function renderPosView() {
       var changeDue = Math.max(0, (Number(activeOrder.cashReceived) || 0) - totals.total);
       var quickCashOptions = [50000, 100000, 200000, 500000];
@@ -7753,6 +8041,41 @@
       var checkoutDisabled = orderSaving || !activeOrderPicked;
       var activeOrderHasRecipeItems = orderHasRecipeItems(activeOrder);
       var activeWorkflowStatus = getOrderWorkflowStatus(activeOrder);
+      var recipeAwaitingAccept = activeOrderHasRecipeItems
+        && activeWorkflowStatus !== "preparing"
+        && activeWorkflowStatus !== "ready"
+        && activeWorkflowStatus !== "needs_action"
+        && activeWorkflowStatus !== "completed";
+      var recipePreparing = activeOrderHasRecipeItems && activeWorkflowStatus === "preparing";
+      function handleCheckoutPrimaryAction() {
+        if (orderNeedsAction) {
+          payNow();
+          return;
+        }
+        if (recipeAwaitingAccept) {
+          receiveActiveOrder();
+          setCheckoutPanelOpen(false);
+          return;
+        }
+        if (recipePreparing) {
+          finishPreparingOrder();
+          setCheckoutPanelOpen(false);
+          return;
+        }
+        if (checkoutPanelOpen) {
+          payNow();
+          return;
+        }
+        setCheckoutPanelOpen(true);
+      }
+      function getCheckoutPrimaryLabel() {
+        if (orderSaving) return L("Đang lưu... / Saving...");
+        if (orderNeedsAction) return L("Thử lại / Retry");
+        if (recipeAwaitingAccept) return L("Xác nhận đơn / Accept Order");
+        if (recipePreparing) return L("Hoàn tất chuẩn bị / Mark Ready");
+        if (checkoutPanelOpen) return L("Xác nhận thanh toán / Confirm Payment");
+        return L("Thanh toán / Checkout") + " (" + formatCurrency(totals.total) + ")";
+      }
       var startOfToday = new Date();
       startOfToday = new Date(startOfToday.getFullYear(), startOfToday.getMonth(), startOfToday.getDate()).getTime();
       var endOfToday = startOfToday + 24 * 60 * 60 * 1000 - 1;
@@ -7774,6 +8097,12 @@
       var completedSaleCards = (orderStatusFilter === "all" || orderStatusFilter === "completed")
         ? completedSalesToday
         : [];
+      var statusCounts = orders.reduce(function (counts, order) {
+        var status = getOrderWorkflowStatus(order);
+        counts[status] = (counts[status] || 0) + 1;
+        counts.all += 1;
+        return counts;
+      }, { all: completedSalesToday.length, new: 0, preparing: 0, held: 0, needs_action: 0, completed: completedSalesToday.length });
       function getOpenOrderStatusLabel(order) {
         if (order.status === "needs_action") return L("Cần xử lí / Needs Action");
         if (order.status === "saving") return L("Đang lưu / Saving");
@@ -7786,13 +8115,29 @@
       function getOrderStatusClass(order) {
         return " order-chip-status-" + getOrderWorkflowStatus(order);
       }
+      function getOrderCardActionLabel(order) {
+        if (order.id === activeOrder.id && activeOrderPicked) return L("Đang chọn / Selected");
+        var status = getOrderWorkflowStatus(order);
+        if (status === "held" || status === "preparing") return L("Tiếp tục / Continue");
+        return L("Chọn đơn / Select Order");
+      }
       function getCompletedSaleItemCount(sale) {
         var items = (sale && sale.items) || [];
         if (!items.length) return Number(sale && (sale.itemCount || sale.item_count)) || 0;
         return items.reduce(function (sum, item) {
-          return sum + (Number(item.qty) || 0);
+          return sum + (allowsFractionalQty(item.unit) ? 1 : (Number(item.qty) || 0));
         }, 0);
       }
+      var catalogProducts = (barcodeInput
+        ? products.filter(function (p) {
+            var q = barcodeInput.toLowerCase();
+            return (p.name && p.name.toLowerCase().indexOf(q) !== -1)
+                || (p.id && p.id.toLowerCase().indexOf(q) !== -1)
+                || (p.barcode && p.barcode.toLowerCase().indexOf(q) !== -1)
+                || (p.skuCode && String(p.skuCode).toLowerCase().indexOf(q) !== -1);
+          })
+        : filteredProducts
+      ).slice(0, 40);
       return html`
         <section className=${"pos-layout" + (activeOrderPicked ? "" : " is-order-overview")}>
           ${activeOrderPicked ? html`<aside className="pos-category-toolbar surface">
@@ -7863,93 +8208,7 @@
                   `;
                 });
               })()}
-
-              ${html`
-                <button
-                  className="category-pill category-pill-toolbar"
-                  onClick=${function () {
-                    setShowQuickCategoryForm(function (v) { return !v; });
-                    if (!showQuickCategoryForm) resetCategoryDraft();
-                  }}
-                  style=${{ justifyContent: "center", opacity: 0.7, borderStyle: "dashed" }}
-                >
-                  <span>${showQuickCategoryForm ? "✕" : "+"}</span>
-                  <span style=${{ flex: 1, textAlign: "left" }}>
-                    ${showQuickCategoryForm ? L("Đóng / Close") : L("Thêm danh mục / Add Category")}
-                  </span>
-                </button>
-              `}
-
-              ${showQuickCategoryForm ? html`
-                <form
-                  className="quick-cat-form"
-                  onSubmit=${function (e) {
-                    e.preventDefault();
-                    var label = buildBilingualLabel(categoryDraft.labelVi, categoryDraft.labelEn);
-                    if (!label.trim()) {
-                      window.alert(L("Nhập tên danh mục trước khi lưu. / Enter a category name before saving."));
-                      return;
-                    }
-                    submitCategory(e);
-                    setShowQuickCategoryForm(false);
-                  }}
-                  style=${{
-                    display: "grid",
-                    gap: "10px",
-                    padding: "14px",
-                    borderRadius: "18px",
-                    background: "rgba(255, 248, 240, 0.95)",
-                    border: "1px solid rgba(111, 84, 41, 0.12)"
-                  }}
-                >
-                  <input
-                    placeholder=${L("Mã danh mục / Category Code (VD: ORIA7000)")}
-                    value=${categoryDraft.code}
-                    onInput=${function (e) { updateCategoryDraft("code", e.target.value); }}
-                    style=${{ padding: "10px 14px", borderRadius: "12px", fontSize: "0.9rem" }}
-                  />
-                  <input
-                    placeholder=${L("Tên tiếng Việt / Vietnamese Name")}
-                    value=${categoryDraft.labelVi}
-                    onInput=${function (e) { updateCategoryDraft("labelVi", e.target.value); }}
-                    style=${{ padding: "10px 14px", borderRadius: "12px", fontSize: "0.9rem" }}
-                  />
-                  <input
-                    placeholder=${L("Tên tiếng Anh / English Name")}
-                    value=${categoryDraft.labelEn}
-                    onInput=${function (e) { updateCategoryDraft("labelEn", e.target.value); }}
-                    style=${{ padding: "10px 14px", borderRadius: "12px", fontSize: "0.9rem" }}
-                  />
-                  <div style=${{ display: "flex", gap: "8px", alignItems: "center" }}>
-                    <input
-                      placeholder=${L("Icon")}
-                      value=${categoryDraft.icon}
-                      onInput=${function (e) { updateCategoryDraft("icon", e.target.value); }}
-                      style=${{ width: "60px", padding: "10px", borderRadius: "12px", fontSize: "1.1rem", textAlign: "center", flex: "0 0 auto" }}
-                    />
-                    <button
-                      type="submit"
-                      className="primary-btn"
-                      style=${{ flex: 1, padding: "10px 14px", borderRadius: "12px", fontSize: "0.9rem" }}
-                    >
-                      ${L("Thêm / Add")}
-                    </button>
-                  </div>
-                </form>
-              ` : null}
             </div>
-            <button
-              type="button"
-              className="primary-btn pos-left-complete-btn"
-              disabled=${checkoutDisabled}
-              onClick=${payNow}
-            >
-              ${orderSaving
-                ? L("Đang lưu... / Saving...")
-                : orderNeedsAction
-                  ? L("Thử lại / Retry")
-                  : L("Hoàn thành đơn / Complete Order")}
-            </button>
           </aside>` : null}
 
           <div className="pos-main-stack">
@@ -7959,13 +8218,6 @@
                   <p className="eyebrow">${L("Đơn đang mở / Open Orders")}</p>
                   <h2 className="section-title">${L("Chọn bill đang thao tác / Pick Active Bill")}</h2>
                 </div>
-                ${activeOrderPicked ? html`
-                  <button className="ghost-btn" onClick=${function () {
-                    setPosOrderPicked(false);
-                    setPaymentMenuOpen(false);
-                    stopCameraScan();
-                  }}>${L("← Danh sách đơn / Orders")}</button>
-                ` : null}
               </div>
 
               <div className="pos-status-filter">
@@ -7978,6 +8230,7 @@
                       onClick=${function () { setOrderStatusFilter(filter.id); }}
                     >
                       ${L(filter.label)}
+                      <span className="status-filter-count">${statusCounts[filter.id] || 0}</span>
                     </button>
                   `;
                 })}
@@ -7995,11 +8248,13 @@
                       onClick=${function () {
                         setActiveOrderId(order.id);
                         setPosOrderPicked(true);
+                        setCheckoutPanelOpen(false);
                       }}
                     >
                       <span className="order-chip-id">${order.id}</span>
                       <small className=${order.status === "needs_action" ? "needs-action-chip" : ""}>${getOpenOrderStatusLabel(order)}</small>
                       <small>${formatQuantity(itemCount, 2)} ${L("món / items")}</small>
+                      <span className="order-card-action">${getOrderCardActionLabel(order)}</span>
                     </button>
                   `;
                 }) : null}
@@ -8016,6 +8271,7 @@
                       <span className="order-chip-id">${sale.orderId || saleId}</span>
                       <small>${L("Hoàn thành / Completed")}</small>
                       <small>${formatCurrency(sale.total)} · ${formatQuantity(getCompletedSaleItemCount(sale), 2)} ${L("món / items")}</small>
+                      <span className="order-card-action order-card-action-success">${L("Xem chi tiết / View Details")}</span>
                     </button>
                   `;
                 })}
@@ -8031,38 +8287,28 @@
               </div>
             </section>
 
-            ${activeOrderPicked ? html`<section className="catalog-panel surface scanner-panel">
-              <div className="section-top">
-                <div>
-                  <p className="eyebrow">${L("Tìm & Thêm / Find & Add")}</p>
-                  <h2 className="section-title">${L("Thêm sản phẩm vào đơn / Add Product to Order")}</h2>
-                </div>
-              </div>
-
-              <!-- UNIFIED LOOKUP: barcode hardware scan + tên SP + SKU (1 ô duy nhất) -->
-              <form className="scanner-form" onSubmit=${function (event) {
+            ${activeOrderPicked ? html`<section className="catalog-panel surface pos-catalog-panel">
+              <form className="pos-catalog-tools" onSubmit=${function (event) {
                 event.preventDefault();
                 handleUnifiedLookup(barcodeInput);
               }}>
-                <label className="field">
-                  <span>${L("Quét mã / Nhập tên SP / Nhập SKU rồi Enter / Scan, type name or SKU then Enter")}</span>
+                <label className="pos-search-field">
+                  <span>⌕</span>
                   <input
                     ref=${barcodeInputRef}
                     value=${barcodeInput}
-                    placeholder=${L("VD: OREO, DASANI, ORIA61001, 8938... / e.g. OREO, DASANI, ORIA61001, 8938...")}
+                    placeholder=${L("Tìm sản phẩm: tên món, thành phần, mã... / Search product: name, ingredient, code...")}
                     onInput=${function (event) {
                       setBarcodeInput(event.target.value);
                     }}
                   />
                 </label>
 
-                <div className="scanner-actions">
-                  <button type="submit" className="primary-btn">${L("Thêm vào đơn / Add to Order")}</button>
-                  ${cameraActive
-                    ? html`<button type="button" className="ghost-btn" onClick=${stopCameraScan}>${L("Dừng camera / Stop Camera")}</button>`
-                    : html`<button type="button" className="ghost-btn" onClick=${startCameraScan}>${L("Mở camera / Open Camera")}</button>`}
-                  ${barcodeInput ? html`<button type="button" className="ghost-btn" onClick=${function () { setBarcodeInput(""); setScanMessage(""); }}>${L("Xóa / Clear")}</button>` : null}
-                </div>
+                <button type="submit" className="ghost-btn pos-tool-btn">⌗ ${L("Quét mã / Scan")}</button>
+                ${cameraActive
+                  ? html`<button type="button" className="ghost-btn pos-tool-btn" onClick=${stopCameraScan}>${L("Dừng camera / Stop")}</button>`
+                  : html`<button type="button" className="ghost-btn pos-tool-btn" onClick=${startCameraScan}>📷 ${L("Mở camera / Camera")}</button>`}
+                ${barcodeInput ? html`<button type="button" className="ghost-btn pos-tool-btn" onClick=${function () { setBarcodeInput(""); setScanMessage(""); }}>${L("Xóa / Clear")}</button>` : null}
 
                 <input
                   ref=${barcodeCaptureInputRef}
@@ -8074,17 +8320,7 @@
                 />
               </form>
 
-              <div className="scanner-helper">
-                <div className="empty-state align-left">
-                  ${L("Máy quét USB hoặc bluetooth có thể quét trực tiếp vào POS ngay cả khi chưa focus ô nhập. Nhập tên/SKU → Enter để thêm thủ công. / USB or Bluetooth scanners scan straight into POS even when the input isn't focused. Type a name/SKU then Enter to add manually.")}
-                </div>
-                <div className="empty-state align-left">
-                  ${cameraScanSupported
-                    ? L("Nút Mở camera sẽ tự quét live nếu thiết bị hỗ trợ, hoặc tự chuyển sang chụp/chọn ảnh barcode khi cần. / The Open Camera button will use live scanning when supported, or switch to capturing/choosing a barcode image when needed.")
-                    : L("Nếu live camera không hỗ trợ, nút Mở camera sẽ chuyển sang chụp hoặc chọn ảnh barcode. / If live camera is unavailable, the Open Camera button will switch to capturing or choosing a barcode image.")}
-                </div>
-                ${scanMessage ? html`<div className="scanner-status">${scanMessage}</div>` : null}
-              </div>
+              ${scanMessage ? html`<div className="scanner-status pos-scan-status">${scanMessage}</div>` : null}
 
               ${cameraActive ? html`
                 <div className="scanner-video-shell">
@@ -8092,41 +8328,64 @@
                 </div>
               ` : null}
 
-              <!-- Live catalog filtered by what user is typing in the unified input -->
-              <div className="list-stack" style=${{ maxHeight: 360, overflowY: "auto", marginTop: 12 }}>
-                ${(barcodeInput
-                    ? products.filter(function (p) {
-                        var q = barcodeInput.toLowerCase();
-                        return (p.name && p.name.toLowerCase().indexOf(q) !== -1)
-                            || (p.id && p.id.toLowerCase().indexOf(q) !== -1)
-                            || (p.barcode && p.barcode.toLowerCase().indexOf(q) !== -1)
-                            || (p.skuCode && String(p.skuCode).toLowerCase().indexOf(q) !== -1);
-                      })
-                    : filteredProducts
-                  ).slice(0, 40).map(function (product) {
+              <div className="pos-product-grid">
+                ${catalogProducts.length ? catalogProducts.map(function (product) {
                   return html`
-                    <article key=${product.id} className="list-row list-row-actions">
-                      <div>
-                        <strong>${product.image} ${product.name}</strong>
-                        <p>${product.barcode}${product.unit ? " · " + product.unit : ""} · ${formatCurrency(product.price)}</p>
+                    <article key=${product.id} className="pos-product-card">
+                      ${renderProductMedia(product)}
+                      <div className="pos-product-copy">
+                        <h3>${product.name}</h3>
+                        <p>${product.description || product.barcode || product.skuCode || ""}</p>
                       </div>
-                      <div className="row-actions">
-                        <span
-                          className="stock-badge"
+                      <div className="pos-product-meta">
+                        <strong>${formatCurrency(product.price)}</strong>
+                        <small
                           title=${product.inventoryMode === "recipe" ? L("Tồn khả dụng tính từ nguyên liệu / Available units based on ingredients") : L("Tồn kho thật / Direct stock")}
                         >
-                          ${product.inventoryMode === "recipe" ? L("Có thể bán / Available") + ": " : L("Tồn / Stock") + ": "}${product.stock}
-                        </span>
-                        <button className="ghost-btn" onClick=${function () { addProductToOrder(product); }}>${L("Thêm / Add")}</button>
+                          ${product.inventoryMode === "recipe" ? L("Có thể bán / Available") : L("Tồn / Stock")}: ${formatQuantity(product.stock, 2)}
+                        </small>
                       </div>
+                      <button
+                        type="button"
+                        className="pos-add-btn"
+                        aria-label=${L("Thêm / Add") + " " + product.name}
+                        onClick=${function () { handleProductAdd(product); }}
+                      >
+                        +
+                      </button>
                     </article>
                   `;
-                })}
+                }) : html`
+                  <div className="empty-state align-left">${L("Không tìm thấy sản phẩm phù hợp. / No matching products.")}</div>
+                `}
               </div>
             </section>` : null}
           </div>
 
-          ${activeOrderPicked ? html`<aside className="order-panel surface">
+          ${activeOrderPicked && checkoutPanelOpen ? html`
+          <div
+            className="pos-payment-backdrop"
+            onClick=${function () {
+              setCheckoutPanelOpen(false);
+              setPaymentMenuOpen(false);
+            }}
+          ></div>` : null}
+          ${activeOrderPicked ? html`
+          <aside className=${"order-panel surface" + (checkoutPanelOpen ? " pos-payment-panel" : "")}>
+            ${checkoutPanelOpen ? html`
+              <div className="pos-payment-title">
+                <strong>${L("Thanh toán đơn hàng / Checkout")}</strong>
+                <button
+                  type="button"
+                  className="pos-payment-close"
+                  aria-label=${L("Đóng thanh toán / Close payment")}
+                  onClick=${function () {
+                    setCheckoutPanelOpen(false);
+                    setPaymentMenuOpen(false);
+                  }}
+                >×</button>
+              </div>
+            ` : null}
             <div className="order-panel-top">
               <div className="order-hero">
                 <div>
@@ -8166,7 +8425,7 @@
                       <button className="primary-btn" onClick=${finishPreparingOrder}>${L("Hoàn tất chuẩn bị / Mark Ready")}</button>
                     ` : (activeOrder.status !== "needs_action" && activeOrder.status !== "saving" && activeOrder.status !== "ready" ? html`
                       <button className="primary-btn" onClick=${receiveActiveOrder}>
-                        ${activeOrderHasRecipeItems ? L("Nhận đơn / Accept Order") : L("Xác nhận retail / Confirm Retail")}
+                        ${activeOrderHasRecipeItems ? L("Nhận đơn / Accept Order") : L("Thanh toán retail / Retail Checkout")}
                       </button>
                     ` : null)}
                     <button className="ghost-btn" onClick=${cancelOrder}>${L("Xóa món / Clear Items")}</button>
@@ -8180,6 +8439,10 @@
               ${activeOrder.items.length
                 ? activeOrder.items.map(function (item) {
                     var itemUnit = getOrderItemUnit(item);
+                    var itemDiscountType = item.discountType === "amount" ? "amount" : "percent";
+                    var itemDiscountValue = Number(item.discountValue) || 0;
+                    var itemDiscount = getItemDiscountAmount(item, addOns);
+                    var itemNetTotal = getItemLineNet(item, addOns);
                     return html`
                       <article key=${item.id} className="order-item">
                         <div className="order-item-head">
@@ -8237,7 +8500,30 @@
                           <button className="qty-btn" onClick=${function () {
                             adjustItemQty(item.id, 1);
                           }}>+</button>
-                          <span className="line-total">${formatCurrency((item.price + getItemAddonTotal(item, addOns)) * item.qty)}</span>
+                          <span className="line-total">${formatCurrency(itemNetTotal)}</span>
+                        </div>
+
+                        <div className="item-discount-row">
+                          <span>${L("Giảm giá món / Item discount")}</span>
+                          <div className="discount-mode-toggle">
+                            <button
+                              type="button"
+                              className=${"discount-mode-btn" + (itemDiscountType === "percent" ? " is-active" : "")}
+                              onClick=${function () { updateItemDiscount(item.id, "discountType", "percent"); }}
+                            >%</button>
+                            <button
+                              type="button"
+                              className=${"discount-mode-btn" + (itemDiscountType === "amount" ? " is-active" : "")}
+                              onClick=${function () { updateItemDiscount(item.id, "discountType", "amount"); }}
+                            >đ</button>
+                          </div>
+                          <${LocalNumberInput}
+                            min="0"
+                            step=${itemDiscountType === "percent" ? "1" : "1000"}
+                            value=${itemDiscountValue}
+                            onChange=${function (val) { updateItemDiscount(item.id, "discountValue", val); }}
+                          />
+                          <strong>${itemDiscount ? "-" + formatCurrency(itemDiscount) : formatCurrency(0)}</strong>
                         </div>
 
                         <div className="addon-row">
@@ -8257,6 +8543,12 @@
                             `;
                           })}
                         </div>
+                        ${item.note ? html`
+                          <div className="order-item-note">
+                            <strong>${L("Ghi chú / Note")}:</strong>
+                            <span>${item.note}</span>
+                          </div>
+                        ` : null}
                       </article>
                     `;
                   })
@@ -8395,12 +8687,10 @@
               <button
                 className="primary-btn checkout-btn"
                 disabled=${checkoutDisabled}
-                onClick=${payNow}
+                onClick=${handleCheckoutPrimaryAction}
                 title=${orderNeedsAction ? L("Thử lưu lại đơn này sau khi đã chỉnh sửa. / Retry saving this order after edits.") : ""}
               >
-                ${orderSaving
-                  ? L("Đang lưu... / Saving...")
-                  : (orderNeedsAction ? L("Thử lại / Retry") : L("Hoàn tất bán hàng / Complete Sale"))}
+                ${getCheckoutPrimaryLabel()}
               </button>
             </div>
 
@@ -8410,6 +8700,7 @@
               <button className="ghost-btn" onClick=${function () { printWithTemplate("Xuất hóa đơn VAT / Issue VAT Invoice"); }}>${L("Xuất hóa đơn VAT / Issue VAT Invoice")}</button>
             </div>
           </aside>` : null}
+          ${renderProductCustomizerModal()}
           ${renderCompletedSaleDetailModal()}
         </section>
       `;
@@ -8909,7 +9200,7 @@
                             return html`
                               <article key=${item.id} className="list-row list-row-actions stock-check-row">
                                 <div className="stock-check-meta">
-                                  <strong>${product.image} ${product.name}</strong>
+                                  <strong>${product.imageIcon || "🛒"} ${product.name}</strong>
                                   <p>${category ? L(category.label) : product.category} · ${product.barcode}</p>
                                 </div>
                                 <div className="row-actions stock-editor">
@@ -9003,7 +9294,7 @@
                                 />
                                 <span>${L("Chọn / Select")}</span>
                               </label>
-                              <strong>${product.image} ${product.name}</strong>
+                              <strong>${product.imageIcon || "🛒"} ${product.name}</strong>
                               <p>
                                 ${product.barcode} · ${category ? L(category.label) : product.category}
                                 ${product.inventoryMode === "recipe"
@@ -9626,12 +9917,16 @@
                         </select>
                       </label>
                       <label className="field">
-                        <span>${L("Biểu tượng / Icon")}</span>
-                        <input value=${productDraft.image} onInput=${function (event) { updateProductDraft("image", event.target.value); }} />
+                        <span>${L("Ảnh hoặc icon / Image URL or Icon")}</span>
+                        <input
+                          value=${productDraft.image}
+                          placeholder=${L("Dán URL ảnh hoặc nhập emoji / Paste image URL or enter emoji")}
+                          onInput=${function (event) { updateProductDraft("image", event.target.value); }}
+                        />
                         <small>
                           ${selectedProductCategory
-                            ? L("Icon danh mục / Category icon") + ": " + (selectedProductCategory.icon || "🛒")
-                            : L("Chọn danh mục để dùng nhanh icon. / Select a category to use its icon.")}
+                            ? L("Nếu chưa có ảnh, dùng icon danh mục / If no image, use category icon") + ": " + (selectedProductCategory.icon || "🛒")
+                            : L("URL ảnh sẽ hiện thành ô vuông trong POS. / Image URLs appear as square POS cards.")}
                         </small>
                       </label>
                       <div className="row-actions" style=${{ alignSelf: "end", flexWrap: "wrap" }}>
@@ -11761,7 +12056,7 @@
                       return html`
                         <article key=${product.id} className="list-row list-row-actions">
                           <div>
-                            <strong>${product.image} ${product.name}</strong>
+                            <strong>${product.imageIcon || "🛒"} ${product.name}</strong>
                             <p>${category ? L(category.label) : product.category}</p>
                           </div>
                           <div className="row-actions stock-editor">

@@ -302,6 +302,12 @@
       var node = template.content.firstElementChild.cloneNode(true);
       node.querySelector(".line-name").textContent = line.name;
       node.querySelector(".line-meta").textContent = line.meta + (line.unit ? " · " + line.unit : "");
+      if (options.showRequestedQty && numberValue(line.requestedQty) > 0) {
+        var badge = document.createElement("span");
+        badge.className = "request-qty-badge";
+        badge.textContent = "Yêu cầu " + formatter.format(numberValue(line.requestedQty)) + (line.unit ? " " + line.unit : "");
+        node.querySelector(".line-main").appendChild(badge);
+      }
       var qtyInput = node.querySelector(".line-qty");
       var unitField = node.querySelector(".line-unit-field");
       var unitSelect = node.querySelector(".line-unit");
@@ -424,6 +430,7 @@
       emptyText: "Chưa có sản phẩm nào đang được yêu cầu.",
       lockRemove: true,
       allowPurchaseUnit: true,
+      showRequestedQty: true,
     });
     updateReceiveTotals();
   }
@@ -445,7 +452,7 @@
       var card = document.createElement("button");
       card.type = "button";
       card.className = "request-item" + (request.id === state.selectedRequestId ? " is-active" : "");
-      card.innerHTML = '<div class="request-item-main"><strong></strong><small></small></div>';
+      card.innerHTML = '<div class="request-item-main"><strong></strong><small></small></div><span class="request-qty-badge"></span>';
       card.querySelector("strong").textContent = (request.requestTitle || request.id) + " · " + itemCount + " dòng";
       card.querySelector("small").textContent = [
         request.requestTitle ? "Mã: " + request.id : "",
@@ -453,6 +460,7 @@
         "SL yêu cầu " + formatter.format(qty),
         request.note || "",
       ].filter(Boolean).join(" · ");
+      card.querySelector(".request-qty-badge").textContent = formatter.format(qty) + " yêu cầu";
       card.addEventListener("click", function () {
         state.selectedRequestId = request.id;
         syncReceiveLines();

@@ -9,14 +9,14 @@ export const onRequestGet = async ({ env, params }) => {
     `SELECT sii.*,
             COALESCE(NULLIF(sii.product_name, ''), p.name, c.label, sii.product_id, sii.component_id) AS item_name,
             p.barcode AS barcode,
-            p.sku AS sku,
+            COALESCE(p.sku_code, p.id) AS sku,
             COALESCE(p.unit, c.unit) AS unit,
             c.item_type AS component_type
      FROM stock_issue_items sii
      LEFT JOIN products p ON p.id = sii.product_id
      LEFT JOIN components c ON c.id = sii.component_id
      WHERE sii.issue_id = ?
-     ORDER BY sii.rowid`
+     ORDER BY sii.id`
   ).bind(params.id).all();
   return json({
     ok: true,

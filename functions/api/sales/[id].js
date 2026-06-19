@@ -5,7 +5,11 @@ export const onRequestGet = async ({ env, params }) => {
     .bind(params.id).first();
   if (!head) return notFound();
   const { results: items } = await env.DB.prepare(
-    `SELECT * FROM sale_items WHERE sale_id = ? ORDER BY rowid`
+    `SELECT si.*, COALESCE(p.unit, '') AS unit
+     FROM sale_items si
+     LEFT JOIN products p ON p.id = si.product_id
+     WHERE si.sale_id = ?
+     ORDER BY si.id`
   ).bind(params.id).all();
   return json({ ok: true, sale: head, items: items || [] });
 };

@@ -20,12 +20,12 @@ export const onRequestGet = async ({ env, params }) => {
     `SELECT poi.*,
             COALESCE(NULLIF(poi.product_name, ''), p.name, poi.product_id) AS item_name,
             p.barcode AS barcode,
-            p.sku AS sku,
+            COALESCE(p.sku_code, p.id) AS sku,
             p.unit AS stock_unit
      FROM purchase_order_items poi
      LEFT JOIN products p ON p.id = poi.product_id
      WHERE poi.purchase_id = ?
-     ORDER BY poi.rowid`
+     ORDER BY poi.id`
   ).bind(params.id).all();
   const { results: componentItems } = await env.DB.prepare(
     `SELECT pci.*,
@@ -35,7 +35,7 @@ export const onRequestGet = async ({ env, params }) => {
      FROM purchase_component_items pci
      LEFT JOIN components c ON c.id = pci.component_id
      WHERE pci.purchase_id = ?
-     ORDER BY pci.rowid`
+     ORDER BY pci.id`
   ).bind(params.id).all();
   const items = (productItems || []).map((item) => ({
     ...item,
