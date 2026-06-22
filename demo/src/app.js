@@ -12677,6 +12677,7 @@
                 ${loginSubmitting ? L("Đang đăng nhập... / Logging in...") : L("Đăng nhập / Log In")}
               </button>
             </div>
+          </form>
         </div>
       `;
     }
@@ -13055,7 +13056,7 @@
 
               <div className="form-group" style=${{ marginBottom: 20 }}>
                 <label style=${{ display: "block", fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 6 }}>Số tiền mặt đếm thực tế (VND)</label>
-                <input type="number" id="closing-cash-input" className="form-control" defaultValue="${(activeShift.opening_cash || 0) + (activeShift.cashSales || 0)}" style=${{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ddd" }} />
+                <input type="number" id="closing-cash-input" className="form-control" defaultValue=${(activeShift.opening_cash || 0) + (activeShift.cashSales || 0)} style=${{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ddd" }} />
               </div>
 
               <div style=${{ display: "flex", gap: 12 }}>
