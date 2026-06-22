@@ -2535,9 +2535,11 @@
       fetch("/api/auth/logout", { method: "POST" })
         .then(function () {
           setCurrentUser(null);
+          setActiveView("pos");
         })
         .catch(function () {
           setCurrentUser(null);
+          setActiveView("pos");
         });
     }
 
@@ -8554,8 +8556,12 @@
       var completedSaleCards = (orderStatusFilter === "all" || orderStatusFilter === "completed")
         ? completedSalesToday
         : [];
-      var collapseOrderBoard = orderStatusFilter === "all" && !orderBoardExpanded;
-      var visibleOrderLimit = collapseOrderBoard ? ORDER_BOARD_COLLAPSED_LIMIT : Infinity;
+      var showCreateOrderCard = orderStatusFilter === "all" || orderStatusFilter === "new";
+      var collapseOrderBoard = !orderBoardExpanded;
+      var collapsedOrderCardLimit = Math.max(1, ORDER_BOARD_COLLAPSED_LIMIT - (showCreateOrderCard ? 1 : 0));
+      var visibleOrderLimit = collapseOrderBoard
+        ? collapsedOrderCardLimit
+        : Infinity;
       var displayedOrders = collapseOrderBoard ? filteredOrders.slice(0, visibleOrderLimit) : filteredOrders;
       var remainingSaleSlots = collapseOrderBoard ? Math.max(0, visibleOrderLimit - displayedOrders.length) : Infinity;
       var displayedCompletedSaleCards = collapseOrderBoard ? completedSaleCards.slice(0, remainingSaleSlots) : completedSaleCards;
@@ -8705,7 +8711,7 @@
               </div>
 
               <div className="order-switcher order-switcher-board">
-                ${(orderStatusFilter === "all" || orderStatusFilter === "new") ? html`
+                ${showCreateOrderCard ? html`
                   <button className="order-chip order-chip-create order-chip-board" onClick=${createNewOrder}>
                     <span>${L("+ Đơn mới / + New Order")}</span>
                     <small>${L("Tạo giỏ khác / Create another cart")}</small>
@@ -8754,7 +8760,7 @@
                     ${L("Không có đơn trong trạng thái này. / No orders in this status.")}
                   </div>
                 ` : null}
-                ${orderStatusFilter === "all" && totalBoardCards > ORDER_BOARD_COLLAPSED_LIMIT ? html`
+                ${totalBoardCards > collapsedOrderCardLimit ? html`
                   <button type="button" className="order-board-more-btn" onClick=${function () { setOrderBoardExpanded(!orderBoardExpanded); }}>
                     ${orderBoardExpanded
                       ? L("Thu gọn / Collapse")
@@ -12729,18 +12735,14 @@
 
           <div className="topbar-actions" style=${{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             ${currentUser ? html`
-              <div
-                className="lang-switch surface"
-                style=${{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px" }}
-              >
-                <span style=${{ fontSize: 14 }}>👤</span>
-                <small style=${{ color: "#7b6b5d", fontWeight: "bold" }}>
+              <div className="user-session-pill surface">
+                <span className="user-session-icon">👤</span>
+                <small className="user-session-name">
                   ${currentUser.email.split("@")[0]} (${currentUser.role})
                 </small>
                 <button
                   type="button"
-                  className="ghost-btn"
-                  style=${{ padding: "2px 6px", fontSize: 11, marginLeft: 4, cursor: "pointer", background: "#fde2e0", color: "#c0392b", border: "1px solid #fde2e0", borderRadius: 4 }}
+                  className="logout-btn"
                   onClick=${handleLogout}
                 >
                   ${L("Đăng xuất / Logout")}
