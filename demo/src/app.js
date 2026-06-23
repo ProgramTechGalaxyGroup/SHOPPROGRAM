@@ -12969,17 +12969,6 @@
                 </button>
               </div>
             ` : null}
-            <div
-              className="lang-switch surface"
-              title=${syncStatus.lastError ? syncStatus.lastError : (syncStatus.online ? "Supabase/API online" : "Offline")}
-              style=${{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px" }}
-            >
-            <span style=${{ fontSize: 14 }}>${syncStatus.online ? "🟢" : "🔴"}</span>
-            <small style=${{ color: "#7b6b5d" }}>
-              ${syncStatus.online ? "Supabase/API" : L("Ngoại tuyến / Offline")}
-              ${syncStatus.pending ? " · ⏳" + syncStatus.pending : ""}
-            </small>
-          </div>
 
           ${lowStockCount > 0 ? html`
             <button
