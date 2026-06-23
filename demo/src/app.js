@@ -2413,6 +2413,137 @@
     `;
   }
 
+  function KitchenView(props) {
+    var pushToast = props.pushToast;
+    var [kitchenOrders, setKitchenOrders] = useState([]);
+    
+    useEffect(function () {
+      function loadOrders() {
+        fetch("/api/kitchen/orders")
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              setKitchenOrders(data.orders || []);
+            }
+          });
+      }
+      loadOrders();
+      var interval = setInterval(loadOrders, 2000);
+      return function () { clearInterval(interval); };
+    }, []);
+
+    function changeStatus(orderId, newStatus) {
+      fetch("/api/kitchen/orders/status", {
+        method: "POST",
+        body: JSON.stringify({ orderId: orderId, status: newStatus })
+      }).then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (data.ok) {
+            if (pushToast) pushToast("success", "Đã cập nhật trạng thái đơn sang " + newStatus);
+            fetch("/api/kitchen/orders")
+              .then(function (res) { return res.json(); })
+              .then(function (data) {
+                if (data.ok) setKitchenOrders(data.orders || []);
+              });
+          }
+        });
+    }
+
+    return html`
+      <div style=${{ padding: 24 }}>
+        <h2 style=${{ fontFamily: "Space Grotesk, sans-serif", fontSize: "1.75rem", marginBottom: 20, color: "#5b3a20" }}>Màn hình Bếp / Pha Chế (Kitchen KDS)</h2>
+        <div style=${{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
+          ${kitchenOrders.length === 0 ? html`
+            <p style=${{ color: "#888", textAlign: "center", gridColumn: "1/-1", marginTop: 40 }}>Không có đơn nước nào cần chuẩn bị.</p>
+          ` : kitchenOrders.map(function (o) {
+            return html`
+              <div style=${{ background: "#fff", border: "2px solid " + (o.prep_status === 'preparing' ? '#f59e0b' : '#3b82f6'), borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+                <div style=${{ padding: "12px 16px", background: "#f8f9fa", borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
+                  <span style=${{ color: "#5b3a20" }}>Đơn #${o.order_id.split("-").pop()}</span>
+                  <span style=${{ fontSize: 12, color: "#888" }}>${o.customer_name}</span>
+                </div>
+                <div style=${{ padding: 16, flex: 1, color: "#333" }}>
+                  ${o.items.map(function (it) {
+                    return html`
+                      <div style=${{ marginBottom: 8, borderBottom: "1px dashed #eee", paddingBottom: 6 }}>
+                        <div style=${{ display: "flex", justifyContent: "space-between", fontWeight: 600 }}>
+                          <span>${it.productName || it.name}</span>
+                          <span>x${it.qty}</span>
+                        </div>
+                        ${it.addonsJson ? html`<small style=${{ color: "#f59e0b" }}>${it.addonsJson}</small>` : null}
+                      </div>
+                    `;
+                  })}
+                </div>
+                <div style=${{ padding: 12, display: "flex", gap: 8, background: "#f8f9fa" }}>
+                  ${o.prep_status === 'pending' ? html`
+                    <button className="btn btn-primary" style=${{ flex: 1, padding: 10, background: "#f59e0b", border: "none", color: "#000", fontWeight: 700, borderRadius: 6, cursor: "pointer" }} onClick=${function() { changeStatus(o.id, 'preparing'); }}>👨‍🍳 Nhận đơn</button>
+                  ` : html`
+                    <button className="btn btn-success" style=${{ flex: 1, padding: 10, background: "#10b981", border: "none", color: "#fff", fontWeight: 700, borderRadius: 6, cursor: "pointer" }} onClick=${function() { changeStatus(o.id, 'ready'); }}>✅ Đã làm xong</button>
+                  `}
+                </div>
+              </div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
+  function CustomerBoardView() {
+    var [preparingOrders, setPreparingOrders] = useState([]);
+    var [readyOrders, setReadyOrders] = useState([]);
+
+    useEffect(function () {
+      function loadSync() {
+        fetch("/api/sync/pull")
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              const sales = data.recentSales || [];
+              setPreparingOrders(sales.filter(s => s.prep_status === "pending" || s.prep_status === "preparing"));
+              setReadyOrders(sales.filter(s => s.prep_status === "ready"));
+            }
+          });
+      }
+      loadSync();
+      var interval = setInterval(loadSync, 2000);
+      return function () { clearInterval(interval); };
+    }, []);
+
+    return html`
+      <div style=${{ padding: 24, textAlign: "center" }}>
+        <h2 style=${{ fontFamily: "Space Grotesk, sans-serif", fontSize: "2.25rem", color: "#5b3a20", marginBottom: 32 }}>Bảng Gọi Số Thứ Tự Món</h2>
+        <div style=${{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
+          <div style=${{ background: "#fff", border: "1px solid #ddd", borderRadius: 16, padding: 32, boxShadow: "0 8px 24px rgba(0,0,0,0.05)" }}>
+            <h3 style=${{ color: "#f59e0b", fontSize: "1.5rem", marginBottom: 24 }}>⏳ Đang Pha Chế</h3>
+            <div style=${{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 12 }}>
+              ${preparingOrders.length === 0 ? html`<span style=${{ color: "#888", gridColumn: "1/-1" }}>Trống</span>` : preparingOrders.map(function (o) {
+                return html`
+                  <div style=${{ fontSize: "1.5rem", fontWeight: "bold", background: "#f8f9fa", padding: 12, border: "1px solid #eee", borderRadius: 8, color: "#333" }}>
+                    ${o.order_id.split("-").pop()}
+                  </div>
+                `;
+              })}
+            </div>
+          </div>
+          <div style=${{ background: "#e6f7ea", border: "1px solid #10b981", borderRadius: 16, padding: 32, boxShadow: "0 8px 24px rgba(0,0,0,0.05)" }}>
+            <h3 style=${{ color: "#10b981", fontSize: "1.5rem", marginBottom: 24 }}>✅ Mời Nhận Món</h3>
+            <div style=${{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 12 }}>
+              ${readyOrders.length === 0 ? html`<span style=${{ color: "#888", gridColumn: "1/-1" }}>Trống</span>` : readyOrders.map(function (o) {
+                return html`
+                  <div style=${{ fontSize: "1.5rem", fontWeight: "bold", background: "#fff", padding: 12, border: "2px solid #10b981", borderRadius: 8, color: "#10b981" }}>
+                    ${o.order_id.split("-").pop()}
+                  </div>
+                `;
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function App() {
     var initialState = useMemo(buildInitialState, []);
     var [nowTick, setNowTick] = useState(Date.now());
@@ -2511,6 +2642,43 @@
           });
       } else {
         setActiveShift(null);
+      }
+    }, [currentUser]);
+
+    // Poll for ready kitchen orders to notify cashier
+    useEffect(function () {
+      if (currentUser && (currentUser.role === "cashier" || currentUser.role === "manager" || currentUser.role === "admin")) {
+        var notifiedOrders = {};
+        var interval = setInterval(function () {
+          fetch("/api/sync/pull")
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+              if (data.ok) {
+                const ready = (data.recentSales || []).filter(s => s.prep_status === "ready");
+                ready.forEach(function (order) {
+                  if (!notifiedOrders[order.id]) {
+                    notifiedOrders[order.id] = true;
+                    // Play notification beep sound
+                    try {
+                      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                      const osc = audioCtx.createOscillator();
+                      const gain = audioCtx.createGain();
+                      osc.connect(gain);
+                      gain.connect(audioCtx.destination);
+                      osc.type = "sine";
+                      osc.frequency.value = 880;
+                      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                      osc.start();
+                      osc.stop(audioCtx.currentTime + 0.3);
+                    } catch(e){}
+                    pushToast("success", "🔔 Đơn #" + order.order_id.split("-").pop() + " đã pha chế xong!");
+                  }
+                });
+              }
+            });
+        }, 3000);
+        return function () { clearInterval(interval); };
       }
     }, [currentUser]);
 
@@ -12682,173 +12850,6 @@
       `;
     }
 
-    // Poll for ready kitchen orders to notify cashier
-    useEffect(function () {
-      if (currentUser && (currentUser.role === "cashier" || currentUser.role === "manager" || currentUser.role === "admin")) {
-        var notifiedOrders = {};
-        var interval = setInterval(function () {
-          fetch("/api/sync/pull")
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
-              if (data.ok) {
-                const ready = (data.recentSales || []).filter(s => s.prep_status === "ready");
-                ready.forEach(function (order) {
-                  if (!notifiedOrders[order.id]) {
-                    notifiedOrders[order.id] = true;
-                    // Play notification beep sound
-                    try {
-                      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                      const osc = audioCtx.createOscillator();
-                      const gain = audioCtx.createGain();
-                      osc.connect(gain);
-                      gain.connect(audioCtx.destination);
-                      osc.type = "sine";
-                      osc.frequency.value = 880;
-                      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-                      osc.start();
-                      osc.stop(audioCtx.currentTime + 0.3);
-                    } catch(e){}
-                    pushToast("success", "🔔 Đơn #" + order.order_id.split("-").pop() + " đã pha chế xong!");
-                  }
-                });
-              }
-            });
-        }, 3000);
-        return function () { clearInterval(interval); };
-      }
-    }, [currentUser]);
-
-    function renderKitchenView() {
-      var [kitchenOrders, setKitchenOrders] = useState([]);
-      
-      useEffect(function () {
-        if (activeView === "kitchen") {
-          var interval = setInterval(function () {
-            fetch("/api/kitchen/orders")
-              .then(function (res) { return res.json(); })
-              .then(function (data) {
-                if (data.ok) {
-                  setKitchenOrders(data.orders || []);
-                }
-              });
-          }, 2000);
-          return function () { clearInterval(interval); };
-        }
-      }, [activeView]);
-
-      function changeStatus(orderId, newStatus) {
-        fetch("/api/kitchen/orders/status", {
-          method: "POST",
-          body: JSON.stringify({ orderId: orderId, status: newStatus })
-        }).then(function (res) { return res.json(); })
-          .then(function (data) {
-            if (data.ok) {
-              pushToast("success", "Đã cập nhật trạng thái đơn sang " + newStatus);
-              fetch("/api/kitchen/orders")
-                .then(function (res) { return res.json(); })
-                .then(function (data) {
-                  if (data.ok) setKitchenOrders(data.orders || []);
-                });
-            }
-          });
-      }
-
-      return html`
-        <div style=${{ padding: 24 }}>
-          <h2 style=${{ fontFamily: "Space Grotesk, sans-serif", fontSize: "1.75rem", marginBottom: 20, color: "#5b3a20" }}>Màn hình Bếp / Pha Chế (Kitchen KDS)</h2>
-          <div style=${{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
-            ${kitchenOrders.length === 0 ? html`
-              <p style=${{ color: "#888", textAlign: "center", gridColumn: "1/-1", marginTop: 40 }}>Không có đơn nước nào cần chuẩn bị.</p>
-            ` : kitchenOrders.map(function (o) {
-              return html`
-                <div style=${{ background: "#fff", border: "2px solid " + (o.prep_status === 'preparing' ? '#f59e0b' : '#3b82f6'), borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
-                  <div style=${{ padding: "12px 16px", background: "#f8f9fa", borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
-                    <span style=${{ color: "#5b3a20" }}>Đơn #${o.order_id.split("-").pop()}</span>
-                    <span style=${{ fontSize: 12, color: "#888" }}>${o.customer_name}</span>
-                  </div>
-                  <div style=${{ padding: 16, flex: 1, color: "#333" }}>
-                    ${o.items.map(function (it) {
-                      return html`
-                        <div style=${{ marginBottom: 8, borderBottom: "1px dashed #eee", paddingBottom: 6 }}>
-                          <div style=${{ display: "flex", justifyContent: "space-between", fontWeight: 600 }}>
-                            <span>${it.productName || it.name}</span>
-                            <span>x${it.qty}</span>
-                          </div>
-                          ${it.addonsJson ? html`<small style=${{ color: "#f59e0b" }}>${it.addonsJson}</small>` : null}
-                        </div>
-                      `;
-                    })}
-                  </div>
-                  <div style=${{ padding: 12, display: "flex", gap: 8, background: "#f8f9fa" }}>
-                    ${o.prep_status === 'pending' ? html`
-                      <button className="btn btn-primary" style=${{ flex: 1, padding: 10, background: "#f59e0b", border: "none", color: "#000", fontWeight: 700, borderRadius: 6, cursor: "pointer" }} onClick=${function() { changeStatus(o.id, 'preparing'); }}>👨‍🍳 Nhận đơn</button>
-                    ` : html`
-                      <button className="btn btn-success" style=${{ flex: 1, padding: 10, background: "#10b981", border: "none", color: "#fff", fontWeight: 700, borderRadius: 6, cursor: "pointer" }} onClick=${function() { changeStatus(o.id, 'ready'); }}>✅ Đã làm xong</button>
-                    `}
-                  </div>
-                </div>
-              `;
-            })}
-          </div>
-        </div>
-      `;
-    }
-
-    function renderCustomerBoardView() {
-      var [preparingOrders, setPreparingOrders] = useState([]);
-      var [readyOrders, setReadyOrders] = useState([]);
-
-      useEffect(function () {
-        if (activeView === "customer_board") {
-          var interval = setInterval(function () {
-            fetch("/api/sync/pull")
-              .then(function (res) { return res.json(); })
-              .then(function (data) {
-                if (data.ok) {
-                  const sales = data.recentSales || [];
-                  setPreparingOrders(sales.filter(s => s.prep_status === "pending" || s.prep_status === "preparing"));
-                  setReadyOrders(sales.filter(s => s.prep_status === "ready"));
-                }
-              });
-          }, 2000);
-          return function () { clearInterval(interval); };
-        }
-      }, [activeView]);
-
-      return html`
-        <div style=${{ padding: 24, textAlign: "center" }}>
-          <h2 style=${{ fontFamily: "Space Grotesk, sans-serif", fontSize: "2.25rem", color: "#5b3a20", marginBottom: 32 }}>Bảng Gọi Số Thứ Tự Món</h2>
-          <div style=${{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
-            <div style=${{ background: "#fff", border: "1px solid #ddd", borderRadius: 16, padding: 32, boxShadow: "0 8px 24px rgba(0,0,0,0.05)" }}>
-              <h3 style=${{ color: "#f59e0b", fontSize: "1.5rem", marginBottom: 24 }}>⏳ Đang Pha Chế</h3>
-              <div style=${{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 12 }}>
-                ${preparingOrders.length === 0 ? html`<span style=${{ color: "#888", gridColumn: "1/-1" }}>Trống</span>` : preparingOrders.map(function (o) {
-                  return html`
-                    <div style=${{ fontSize: "1.5rem", fontWeight: "bold", background: "#f8f9fa", padding: 12, border: "1px solid #eee", borderRadius: 8, color: "#333" }}>
-                      ${o.order_id.split("-").pop()}
-                    </div>
-                  `;
-                })}
-              </div>
-            </div>
-            <div style=${{ background: "#e6f7ea", border: "1px solid #10b981", borderRadius: 16, padding: 32, boxShadow: "0 8px 24px rgba(0,0,0,0.05)" }}>
-              <h3 style=${{ color: "#10b981", fontSize: "1.5rem", marginBottom: 24 }}>✅ Mời Nhận Món</h3>
-              <div style=${{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 12 }}>
-                ${readyOrders.length === 0 ? html`<span style=${{ color: "#888", gridColumn: "1/-1" }}>Trống</span>` : readyOrders.map(function (o) {
-                  return html`
-                    <div style=${{ fontSize: "1.5rem", fontWeight: "bold", background: "#fff", padding: 12, border: "2px solid #10b981", borderRadius: 8, color: "#10b981" }}>
-                      ${o.order_id.split("-").pop()}
-                    </div>
-                  `;
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
     return html`
       <div className="app-shell">
         <${MenuDrawer}
@@ -13002,8 +13003,8 @@
           ${activeView === "pos" ? renderPosView() : null}
           ${activeView === "dashboard" ? renderDashboardView() : null}
           ${activeView === "inventory" ? renderInventoryView() : null}
-          ${activeView === "kitchen" ? renderKitchenView() : null}
-          ${activeView === "customer_board" ? renderCustomerBoardView() : null}
+          ${activeView === "kitchen" ? html`<${KitchenView} pushToast=${pushToast} />` : null}
+          ${activeView === "customer_board" ? html`<${CustomerBoardView} />` : null}
           ${activeView === "settings" ? renderSettingsView() : null}
         </main>
 
