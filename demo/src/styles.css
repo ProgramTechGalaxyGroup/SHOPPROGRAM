@@ -3143,3 +3143,45 @@ button[disabled] {
     grid-template-columns: 1fr;
   }
 }
+
+/* Responsive adjustments for Topbar */
+@media (max-width: 1250px) {
+  .topbar {
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+  }
+  
+  .search-box {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: none;
+    order: 3;
+  }
+
+  .topbar-main {
+    order: 1;
+  }
+
+  .topbar-actions {
+    order: 2;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .topbar-actions {
+    justify-content: flex-start;
+    width: 100%;
+    order: 3;
+  }
+  
+  .search-box {
+    order: 2;
+  }
+}

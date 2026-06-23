@@ -273,11 +273,31 @@
         const saleId = "HD-" + Date.now();
         const orderId = new Date().toISOString().slice(0, 10).replace(/-/g, "") + "-" + (sales.length + 1);
 
-        // Check if it contains drink recipes
+        // Check if it contains drink recipes (robust beverage detection)
         let hasRecipeItems = false;
         (body.items || []).forEach(it => {
           const pInfo = products.find(p => p.id === it.productId);
-          if (pInfo && pInfo.inventory_mode === "recipe") {
+          const name = String(it.productName || it.name || "").toLowerCase();
+          const category = String(it.category || (pInfo && pInfo.category) || "").toLowerCase();
+          
+          const isBeverage = category.includes("beverage") || 
+                             category.includes("juice") || 
+                             category.includes("tea") ||
+                             category.includes("coffee") ||
+                             category.includes("fresh") ||
+                             name.includes("nước") ||
+                             name.includes("sinh tố") ||
+                             name.includes("trà") ||
+                             name.includes("cà phê") ||
+                             name.includes("milo") ||
+                             name.includes("dasani") ||
+                             name.includes("juice") ||
+                             name.includes("cam") ||
+                             name.includes("bơ") ||
+                             name.includes("dừa") ||
+                             (pInfo && pInfo.inventory_mode === "recipe");
+
+          if (isBeverage) {
             hasRecipeItems = true;
           }
 

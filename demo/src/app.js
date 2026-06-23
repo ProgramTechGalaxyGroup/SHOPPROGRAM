@@ -2417,6 +2417,28 @@
     var pushToast = props.pushToast;
     var [kitchenOrders, setKitchenOrders] = useState([]);
     
+    // Play notification sound on new kitchen order
+    var prevLengthRef = useRef(0);
+    useEffect(function () {
+      if (kitchenOrders.length > prevLengthRef.current) {
+        try {
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type = "sine";
+          osc.frequency.value = 523.25; // C5 note
+          gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.4);
+        } catch(e){}
+        if (pushToast) pushToast("info", "🔔 Có đơn nước mới cần pha chế!");
+      }
+      prevLengthRef.current = kitchenOrders.length;
+    }, [kitchenOrders, pushToast]);
+
     useEffect(function () {
       function loadOrders() {
         fetch("/api/kitchen/orders")
