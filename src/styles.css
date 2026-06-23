@@ -796,14 +796,16 @@ textarea:focus {
 
 .order-switcher-board {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(206px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 320px));
   overflow-x: hidden;
   padding: 2px;
   gap: 12px;
   align-items: stretch;
+  justify-content: start;
 }
 
 .order-chip-board {
+  width: 100%;
   min-height: 118px;
   aspect-ratio: auto;
   padding: 14px;
@@ -902,6 +904,69 @@ textarea:focus {
 .order-chip-status-completed {
   border-color: #9bd7a8;
   background: linear-gradient(135deg, #effaf1 0%, #dff5e4 100%);
+}
+
+.recipe-component-palette {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.recipe-component-helper {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.recipe-component-group {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(229, 213, 199, 0.82);
+  border-radius: 18px;
+  background: rgba(255, 250, 244, 0.78);
+}
+
+.recipe-component-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.recipe-component-group-head strong {
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.recipe-component-group-head span {
+  display: inline-grid;
+  min-width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 999px;
+  background: #fff1df;
+  color: var(--brand);
+  font-weight: 900;
+}
+
+.recipe-component-chips {
+  gap: 8px;
+}
+
+.recipe-component-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.recipe-component-chip small {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+  color: var(--muted);
+  font-size: 0.72em;
 }
 
 .pos-status-filter {
@@ -1424,6 +1489,41 @@ textarea:focus {
 .sales-history-scroll::-webkit-scrollbar-thumb {
   background: rgba(181, 103, 51, 0.42);
   border-radius: 999px;
+}
+
+.purchase-history-toolbar {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.65fr) minmax(150px, 0.65fr) minmax(240px, 1.4fr) minmax(180px, 0.85fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin: 16px 0 10px;
+}
+
+.purchase-history-toolbar .field {
+  margin: 0;
+}
+
+.purchase-history-toolbar input,
+.purchase-history-toolbar select {
+  min-height: 54px;
+  border-radius: 18px;
+}
+
+.purchase-history-clear {
+  min-height: 54px;
+  white-space: nowrap;
+}
+
+.purchase-history-count {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.purchase-item-names {
+  margin-top: 6px;
+  color: #9a4d1d;
+  font-weight: 800;
 }
 
 .settings-nav-btn {
@@ -2255,6 +2355,7 @@ textarea:focus {
   .invoice-template-grid,
   .export-table-grid,
   .conversion-board,
+  .purchase-history-toolbar,
   .settings-layout,
   .payment-grid,
   .payment-grid-single {
