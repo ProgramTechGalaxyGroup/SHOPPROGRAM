@@ -448,6 +448,34 @@ export const onRequestPost = async ({ env, request }) => {
     : await nextDocId(env.DB, "HD", ts);
   const canonicalOrderId = orderIdFromSaleId(saleId);
 
+  if (!isCompleted) {
+    const existingTerminal = await env.DB.prepare(
+      `SELECT id, order_id, order_status, payment_status, total, paid
+       FROM sales
+       WHERE id = ? OR order_id = ?
+       ORDER BY
+         CASE WHEN id = ? THEN 0 ELSE 1 END,
+         updated_at DESC,
+         created_at DESC
+       LIMIT 1`
+    ).bind(
+      saleId,
+      canonicalOrderId || body.orderId || "",
+      saleId
+    ).first();
+    const existingStatus = String(existingTerminal && existingTerminal.order_status || "").toLowerCase();
+    if (existingStatus === "completed" || existingStatus === "cancelled") {
+      return json({
+        ok: true,
+        id: existingTerminal.id,
+        orderId: existingTerminal.order_id || canonicalOrderId || body.orderId || null,
+        ignored: true,
+        orderStatus: existingTerminal.order_status,
+        paymentStatus: existingTerminal.payment_status,
+      });
+    }
+  }
+
   // Snapshot costs for gross-profit reporting.
   const enriched = await Promise.all(body.items.map(async (it) => ({
     ...it,

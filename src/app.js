@@ -3059,6 +3059,10 @@
 
     function syncOpenOrder(order) {
       if (!order.reservedSaleId) return Promise.resolve(null);
+      var workflowStatus = getOrderWorkflowStatus(order);
+      if (workflowStatus === "completed" || (order && order.status === "saving")) {
+        return Promise.resolve(null);
+      }
       var payload = buildOpenOrderSalePayload(order);
       return syncApi("/sales", {
         method: "POST",
@@ -3084,7 +3088,7 @@
             var lastState = JSON.parse(lastStateStr);
             if (lastState && lastState.reservedSaleId) {
               var isCompleted = sales.some(function (s) {
-                return s.id === lastState.reservedSaleId || s.orderId === orderId;
+                return isSaleRevenueEligible(s) && (s.id === lastState.reservedSaleId || s.orderId === orderId);
               });
               if (!isCompleted) {
                 syncApi("/sales", {
@@ -3110,6 +3114,7 @@
       // 2. Detect created or modified orders to sync
       orders.forEach(function (order) {
         if (!order.reservedSaleId) return;
+        if (order.status === "saving" || getOrderWorkflowStatus(order) === "completed") return;
 
         var orderStr = JSON.stringify(order);
         var lastSyncedStr = lastSyncedOrderStatesRef.current[order.id] || "";
@@ -3560,6 +3565,10 @@
         if (payload && payload.endpoint && payload.endpoint.indexOf("/sales") !== -1) {
           var responseId = payload.response && payload.response.id;
           var body = payload.body || {};
+          var savedAsCompleted = String(body.orderStatus || body.order_status || "completed").toLowerCase() === "completed";
+          if (!savedAsCompleted) {
+            return;
+          }
           setSales(function (currentSales) {
             var updated = currentSales.map(function (sale) {
               var sameClientOp = body.clientOpId && sale.clientOpId === body.clientOpId;
@@ -4077,6 +4086,10 @@
         return t >= range.from && t <= range.to;
       });
       var paidSalesInRange = revenueSalesInRange.filter(isSaleRevenueEligible);
+      var paidSaleOrderIdsInRange = new Set();
+      paidSalesInRange.forEach(function (sale) {
+        if (sale.orderId) paidSaleOrderIdsInRange.add(sale.orderId);
+      });
       var rangeDuration = Math.max(1, (Number(range.to) || Date.now()) - (Number(range.from) || 0) + 1);
       var previousRange = {
         from: Math.max(0, (Number(range.from) || 0) - rangeDuration),
@@ -4165,6 +4178,7 @@
         addStatus("completed", "Hoàn thành / Completed", "success", sale.total);
       });
       (orders || []).forEach(function (order) {
+        if (paidSaleOrderIdsInRange.has(order.id)) return;
         var t = Number(order.createdAt) || Date.now();
         if (t < range.from || t > range.to) return;
         var status = getOrderWorkflowStatus(order);
@@ -4193,6 +4207,7 @@
           sale: sale
         };
       }).concat((orders || []).filter(function (order) {
+        if (paidSaleOrderIdsInRange.has(order.id)) return false;
         var t = Number(order.createdAt) || Date.now();
         return t >= range.from && t <= range.to;
       }).map(function (order) {
@@ -8604,7 +8619,12 @@
         if (createdDiff) return createdDiff;
         return String(b.orderId || b.id || "").localeCompare(String(a.orderId || a.id || ""));
       });
+      var completedSaleOrderIdsToday = new Set();
+      completedSalesToday.forEach(function (sale) {
+        if (sale.orderId) completedSaleOrderIdsToday.add(sale.orderId);
+      });
       var filteredOrders = orders.filter(function (order) {
+        if (completedSaleOrderIdsToday.has(order.id)) return false;
         var workflowStatus = getOrderWorkflowStatus(order);
         return orderStatusFilter === "all" || (orderStatusFilter !== "completed" && workflowStatus === orderStatusFilter);
       });
