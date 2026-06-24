@@ -86,7 +86,7 @@ export const onRequestGet = async ({ env, request }) => {
   const url = new URL(request.url);
   const from = Number(url.searchParams.get("from"));
   const to = Number(url.searchParams.get("to"));
-  const limit = Math.min(Number(url.searchParams.get("limit")) || 100, 1000);
+  const limit = Math.min(Number(url.searchParams.get("limit")) || 100, 20000);
   const where = [];
   const binds = [];
   if (from) { where.push("created_at >= ?"); binds.push(from); }

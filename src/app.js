@@ -2445,6 +2445,13 @@
     var [orders, setOrders] = useState(initialState.orders);
     var [activeOrderId, setActiveOrderId] = useState(initialState.activeOrderId || initialState.orders[0].id);
     var [completedSaleDetail, setCompletedSaleDetail] = useState(null);
+    var [orderHistoryModalOpen, setOrderHistoryModalOpen] = useState(false);
+    var [orderHistoryRows, setOrderHistoryRows] = useState([]);
+    var [orderHistoryLoading, setOrderHistoryLoading] = useState(false);
+    var [orderHistoryError, setOrderHistoryError] = useState("");
+    var [orderHistoryRange, setOrderHistoryRange] = useState("all");
+    var [orderHistoryCustomFrom, setOrderHistoryCustomFrom] = useState("");
+    var [orderHistoryCustomTo, setOrderHistoryCustomTo] = useState("");
     var [language, setLanguage] = useState(initialState.language || "vi");
     var [orderSequenceByDate, setOrderSequenceByDate] = useState(initialState.orderSequenceByDate || {});
     var [settings, setSettings] = useState(initialState.settings);
@@ -5661,6 +5668,79 @@
         });
     }
 
+    function openOrderHistoryModal() {
+      setOrderHistoryModalOpen(true);
+      setOrderHistoryLoading(true);
+      setOrderHistoryError("");
+      syncApi("/sales?limit=20000")
+        .then(function (data) {
+          var rows = Array.isArray(data && data.sales) ? data.sales : [];
+          setOrderHistoryRows(rows.map(normalizeSaleRecord));
+        })
+        .catch(function (error) {
+          setOrderHistoryRows((sales || []).map(normalizeSaleRecord));
+          setOrderHistoryError(
+            L("Không tải được toàn bộ lịch sử từ server, đang dùng dữ liệu hiện có trên máy. / Could not load full server history, using local data.")
+            + (error && error.message ? " (" + error.message + ")" : "")
+          );
+        })
+        .finally(function () {
+          setOrderHistoryLoading(false);
+        });
+    }
+
+    function closeOrderHistoryModal() {
+      setOrderHistoryModalOpen(false);
+      setOrderHistoryError("");
+    }
+
+    function getOrderHistoryRangeBounds() {
+      var now = new Date();
+      var startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      var endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).getTime();
+      if (orderHistoryRange === "today") {
+        return { from: startOfToday, to: endOfToday, label: "Hôm nay / Today" };
+      }
+      if (orderHistoryRange === "month") {
+        return {
+          from: new Date(now.getFullYear(), now.getMonth(), 1).getTime(),
+          to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).getTime(),
+          label: "Tháng này / This month"
+        };
+      }
+      if (orderHistoryRange === "year") {
+        return {
+          from: new Date(now.getFullYear(), 0, 1).getTime(),
+          to: new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999).getTime(),
+          label: "Năm nay / This year"
+        };
+      }
+      if (orderHistoryRange === "custom") {
+        return {
+          from: orderHistoryCustomFrom ? new Date(orderHistoryCustomFrom + "T00:00:00").getTime() : 0,
+          to: orderHistoryCustomTo ? new Date(orderHistoryCustomTo + "T23:59:59.999").getTime() : Date.now(),
+          label: "Tùy chọn / Custom"
+        };
+      }
+      return { from: 0, to: Number.MAX_SAFE_INTEGER, label: "Tất cả / All" };
+    }
+
+    function getOrderHistoryModalRows() {
+      var range = getOrderHistoryRangeBounds();
+      var sourceRows = orderHistoryRows.length ? orderHistoryRows : (sales || []);
+      return dedupeSalesByOrderId(sourceRows.map(normalizeSaleRecord).filter(function (sale) {
+        return !isKnownTechnicalTestSale(sale);
+      }))
+        .filter(isSaleRevenueEligible)
+        .filter(function (sale) {
+          var createdAt = Number(sale.createdAt || sale.created_at) || 0;
+          return createdAt >= range.from && createdAt <= range.to;
+        })
+        .sort(function (a, b) {
+          return (Number(b.createdAt || b.created_at) || 0) - (Number(a.createdAt || a.created_at) || 0);
+        });
+    }
+
     function getCompletedSaleItemAddons(item) {
       var rawAddons = item && (item.addons_json || item.addons || item.addOns);
       var parsed = [];
@@ -5752,6 +5832,113 @@
                 }) : html`<div className="empty-state align-left">${L("Hóa đơn chưa có chi tiết món. / No item detail is available.")}</div>`}
               </div>
             ` : null}
+          </section>
+        </div>
+      `;
+    }
+
+    function renderOrderHistoryModal() {
+      if (!orderHistoryModalOpen) return null;
+      var rangeOptions = [
+        { id: "all", label: "Tất cả / All" },
+        { id: "today", label: "Ngày / Day" },
+        { id: "month", label: "Tháng / Month" },
+        { id: "year", label: "Năm / Year" },
+        { id: "custom", label: "Tùy chọn / Custom" }
+      ];
+      var rows = getOrderHistoryModalRows();
+      var range = getOrderHistoryRangeBounds();
+      var totalRevenue = rows.reduce(function (sum, sale) {
+        return sum + (Number(sale.total) || 0);
+      }, 0);
+
+      return html`
+        <div className="detail-modal-backdrop" role="presentation" onClick=${closeOrderHistoryModal}>
+          <section className="detail-modal surface order-history-modal" role="dialog" aria-modal="true" onClick=${function (event) { event.stopPropagation(); }}>
+            <div className="detail-modal-head">
+              <div>
+                <p className="eyebrow">${L("Lịch sử đơn hàng / Order History")}</p>
+                <h3 className="section-title">${L("Tất cả hóa đơn / All Orders")}</h3>
+                <small>${L(range.label)}</small>
+              </div>
+              <div className="row-actions">
+                <button className="ghost-btn" onClick=${openOrderHistoryModal} disabled=${orderHistoryLoading}>
+                  ${orderHistoryLoading ? L("Đang tải... / Loading...") : L("Tải lại / Refresh")}
+                </button>
+                <button className="ghost-btn" onClick=${closeOrderHistoryModal}>${L("Đóng / Close")}</button>
+              </div>
+            </div>
+
+            <div className="order-history-controls">
+              <div className="dashboard-range-tabs order-history-range-tabs">
+                ${rangeOptions.map(function (opt) {
+                  var active = orderHistoryRange === opt.id;
+                  return html`
+                    <button
+                      key=${opt.id}
+                      className=${"dashboard-range-btn" + (active ? " is-active" : "")}
+                      onClick=${function () { setOrderHistoryRange(opt.id); }}
+                    >${L(opt.label)}</button>
+                  `;
+                })}
+              </div>
+              ${orderHistoryRange === "custom" ? html`
+                <div className="field-grid dashboard-custom-range order-history-custom-range">
+                  <label className="field">
+                    <span>${L("Từ ngày / From")}</span>
+                    <input type="date" value=${orderHistoryCustomFrom} onInput=${function (e) { setOrderHistoryCustomFrom(e.target.value); }} />
+                  </label>
+                  <label className="field">
+                    <span>${L("Đến ngày / To")}</span>
+                    <input type="date" value=${orderHistoryCustomTo} onInput=${function (e) { setOrderHistoryCustomTo(e.target.value); }} />
+                  </label>
+                </div>
+              ` : null}
+            </div>
+
+            <div className="order-history-summary">
+              <article>
+                <span>${L("Số đơn / Orders")}</span>
+                <strong>${rows.length}</strong>
+              </article>
+              <article>
+                <span>${L("Tổng doanh thu / Revenue")}</span>
+                <strong>${formatCurrency(totalRevenue)}</strong>
+              </article>
+            </div>
+
+            ${orderHistoryError ? html`<div className="empty-state align-left danger-text">${orderHistoryError}</div>` : null}
+            ${orderHistoryLoading ? html`<div className="empty-state align-left">${L("Đang tải lịch sử... / Loading order history...")}</div>` : null}
+
+            <div className="order-history-list">
+              ${!orderHistoryLoading && rows.length ? rows.map(function (sale) {
+                var saleId = sale.id || sale.serverId || sale.orderId;
+                var orderCode = sale.orderId || sale.order_id || sale.id;
+                var createdAt = Number(sale.createdAt || sale.created_at) || 0;
+                var paymentMethod = normalizePaymentMethod(sale.paymentMethod || sale.payment_method);
+                return html`
+                  <article className="order-history-row" key=${saleId + "-" + orderCode}>
+                    <time>${formatDateTime(createdAt)}</time>
+                    <div className="order-history-main">
+                      <strong>${orderCode}</strong>
+                      <p>${sale.customerName || sale.customer_name || L("Khách lẻ / Walk-in")} · ${L(getPaymentMethodLabel(paymentMethod))}</p>
+                    </div>
+                    <strong className="order-history-total">${formatCurrency(sale.total || 0)}</strong>
+                    <span className="dashboard-status-chip order-history-status">${L("Hoàn thành / Completed")}</span>
+                    <div className="row-actions">
+                      <button className="ghost-btn" onClick=${function () {
+                        closeOrderHistoryModal();
+                        openCompletedSaleDetail(sale);
+                      }}>${L("Xem / View")}</button>
+                      <button className="ghost-btn" onClick=${function () { reprintSale(sale, false); }}>${L("In lại / Reprint")}</button>
+                    </div>
+                  </article>
+                `;
+              }) : null}
+              ${!orderHistoryLoading && !rows.length ? html`
+                <div className="empty-state align-left">${L("Không có hóa đơn trong khoảng lọc này. / No orders in this range.")}</div>
+              ` : null}
+            </div>
           </section>
         </div>
       `;
@@ -8764,6 +8951,9 @@
                   <p className="eyebrow">${L("Đơn đang mở / Open Orders")}</p>
                   <h2 className="section-title">${L("Chọn bill đang thao tác / Pick Active Bill")}</h2>
                 </div>
+                <button className="ghost-btn" onClick=${openOrderHistoryModal}>
+                  ${L("Xem lịch sử đơn hàng / View Order History")}
+                </button>
               </div>
 
               <div className="pos-status-filter">
@@ -9272,7 +9462,6 @@
             </div>
           </aside>` : null}
           ${renderProductCustomizerModal()}
-          ${renderCompletedSaleDetailModal()}
         </section>
       `;
     }
@@ -9537,6 +9726,9 @@
                 <div>
                   <h2 className="section-title">${L("Lịch sử đơn hàng / Order History")}</h2>
                 </div>
+                <button className="ghost-btn" onClick=${openOrderHistoryModal}>
+                  ${L("Xem lịch sử tất cả / View All History")}
+                </button>
               </div>
               <div className="dashboard-timeline">
                 ${dashboardMetrics.recentOrders.length ? dashboardMetrics.recentOrders.map(function (entry) {
@@ -13027,6 +13219,9 @@
           ${activeView === "inventory" ? renderInventoryView() : null}
           ${activeView === "settings" ? renderSettingsView() : null}
         </main>
+
+        ${renderCompletedSaleDetailModal()}
+        ${renderOrderHistoryModal()}
 
         <!-- Toast stack — fixed bottom-right, stacks vertically, auto-dismiss -->
         <div
