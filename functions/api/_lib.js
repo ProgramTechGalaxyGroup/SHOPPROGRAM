@@ -1,12 +1,11 @@
 // Shared helpers for Pages Functions API routes.
 
 export function json(data, init = {}) {
+  const headers = new Headers(init.headers || {});
+  headers.set("Content-Type", "application/json; charset=utf-8");
   return new Response(JSON.stringify(data), {
     status: init.status || 200,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      ...(init.headers || {}),
-    },
+    headers,
   });
 }
 
