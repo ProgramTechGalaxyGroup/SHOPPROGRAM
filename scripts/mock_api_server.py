@@ -14,9 +14,10 @@ import hashlib
 import base64
 import time
 import re
+import sys
 from urllib.parse import urlparse, parse_qs
 
-PORT = 8085
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8080
 
 TOKEN_SECRET = "shopprogram_jwt_secret_key_2026"
 SALT = "shopprogram_salt_2026"

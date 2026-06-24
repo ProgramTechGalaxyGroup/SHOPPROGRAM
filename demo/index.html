@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Fruit House POS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="src/styles.css?v=37" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>Vui long bat JavaScript de su dung he thong POS.</noscript>
+
+    <script>
+      window.onerror = function(message, source, lineno, colno, error) {
+        var errDiv = document.getElementById('debug-error-overlay');
+        if (!errDiv) {
+          errDiv = document.createElement('div');
+          errDiv.id = 'debug-error-overlay';
+          errDiv.style.position = 'fixed';
+          errDiv.style.inset = '0';
+          errDiv.style.background = '#fff0f0';
+          errDiv.style.color = '#c0392b';
+          errDiv.style.padding = '24px';
+          errDiv.style.zIndex = '999999';
+          errDiv.style.fontFamily = 'monospace';
+          errDiv.style.overflow = 'auto';
+          errDiv.style.fontSize = '14px';
+          errDiv.style.lineHeight = '1.5';
+          document.body.appendChild(errDiv);
+          errDiv.innerHTML = '<h2>🚨 Lỗi Runtime Javascript (Javascript Runtime Error)</h2>';
+        }
+        errDiv.innerHTML += '<p><strong>Message:</strong> ' + message + '<br>' +
+                            '<strong>Source:</strong> ' + source + '<br>' +
+                            '<strong>Line:</strong> ' + lineno + ', <strong>Col:</strong> ' + colno + '</p>';
+        if (error && error.stack) {
+          errDiv.innerHTML += '<pre style="background:#f9e1e1; padding:12px; border-radius:6px; border:1px solid #f2c2c2;">' + error.stack + '</pre>';
+        }
+        return false;
+      };
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event.reason;
+        var errDiv = document.getElementById('debug-error-overlay');
+        if (!errDiv) {
+          errDiv = document.createElement('div');
+          errDiv.id = 'debug-error-overlay';
+          errDiv.style.position = 'fixed';
+          errDiv.style.inset = '0';
+          errDiv.style.background = '#fff0f0';
+          errDiv.style.color = '#c0392b';
+          errDiv.style.padding = '24px';
+          errDiv.style.zIndex = '999999';
+          errDiv.style.fontFamily = 'monospace';
+          errDiv.style.overflow = 'auto';
+          errDiv.style.fontSize = '14px';
+          errDiv.style.lineHeight = '1.5';
+          document.body.appendChild(errDiv);
+          errDiv.innerHTML = '<h2>🚨 Lỗi Promise không được xử lý (Unhandled Promise Rejection)</h2>';
+        }
+        errDiv.innerHTML += '<p><strong>Reason:</strong> ' + (reason && reason.message ? reason.message : String(reason)) + '</p>';
+        if (reason && reason.stack) {
+          errDiv.innerHTML += '<pre style="background:#f9e1e1; padding:12px; border-radius:6px; border:1px solid #f2c2c2;">' + reason.stack + '</pre>';
+        }
+      });
+    </script>
+
+    <script src="src/lib/react.production.min.js"></script>
+    <script src="src/lib/react-dom.production.min.js"></script>
+    <script src="src/lib/htm.umd.js"></script>
+    <script src="src/lib/firebase-app-compat.js"></script>
+    <script src="src/lib/firebase-firestore-compat.js"></script>
+    <script src="src/lib/JsBarcode.all.min.js"></script>
+    <script src="src/lib/zxing-browser.min.js"></script>
+    <script src="src/lib/jszip.min.js"></script>
+    <script src="src/lib/jspdf.umd.min.js"></script>
+    <script src="src/mock_api.js?v=37"></script>
+    <script src="src/sync.js?v=37"></script>
+    <script src="src/app.js?v=37"></script>
+  </body>
+</html>
