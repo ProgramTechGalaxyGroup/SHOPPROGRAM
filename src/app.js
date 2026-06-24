@@ -2476,7 +2476,7 @@
     var [loginSubmitting, setLoginSubmitting] = useState(false);
 
     useEffect(function () {
-      fetch("/api/auth/me")
+      fetch("/api/auth/me", { credentials: "same-origin" })
         .then(function (res) {
           if (res.ok) {
             return res.json().then(function (data) {
@@ -2509,6 +2509,7 @@
       setLoginSubmitting(true);
       fetch("/api/auth/login", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: loginEmail, password: loginPassword })
       })
@@ -2532,7 +2533,7 @@
     }
 
     function handleLogout() {
-      fetch("/api/auth/logout", { method: "POST" })
+      fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" })
         .then(function () {
           setCurrentUser(null);
           setActiveView("pos");
@@ -5397,6 +5398,22 @@
         setPosOrderPicked(false);
         pushToast("success", L("Đã lưu hóa đơn / Sale saved"));
       }).catch(function (error) {
+        if (error && error.status === 401) {
+          setCurrentUser(null);
+          setLoginError(L("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để lưu hóa đơn. / Session expired. Please log in again to save the sale."));
+          pushToast("error", L("Cần đăng nhập lại để lưu hóa đơn. / Please log in again to save the sale."));
+          setOrders(function (currentOrders) {
+            return currentOrders.map(function (order) {
+              return order.id === orderSnapshot.id
+                ? Object.assign({}, order, {
+                    status: orderSnapshot.status === "saving" ? "open" : orderSnapshot.status,
+                    syncError: L("Phiên đăng nhập đã hết hạn. Đăng nhập lại rồi bấm Thử lại. / Session expired. Log in again, then retry.")
+                  })
+                : order;
+            });
+          });
+          return;
+        }
         var message = error && error.data && error.data.error
           ? error.data.error
           : (error && error.message ? error.message : L("Không lưu được đơn hàng. / Could not save this order."));
