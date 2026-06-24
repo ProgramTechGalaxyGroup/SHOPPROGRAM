@@ -4878,30 +4878,34 @@
       });
     }
 
+    function createOrderLineFromProduct(product, options) {
+      var safeOptions = options || {};
+      return {
+        id: uid("item"),
+        productId: product.id,
+        barcode: getScannableBarcode(product.barcode, [product.id, product.name, product.category].join("|")),
+        name: product.name,
+        unit: product.unit || "",
+        price: Number(product.price) || 0,
+        qty: normalizeQtyForUnit(safeOptions.qty == null ? 1 : safeOptions.qty, product.unit || ""),
+        addOnIds: Array.isArray(safeOptions.addOnIds) ? safeOptions.addOnIds.slice() : [],
+        note: String(safeOptions.note || "").trim(),
+        discountType: "percent",
+        discountValue: 0
+      };
+    }
+
     function addCustomizedProductToOrder() {
       if (!productCustomizer || !productCustomizer.product) return;
       var product = productCustomizer.product;
-      var safeNote = String(productCustomizer.note || "").trim();
-      var safeAddOnIds = (productCustomizer.addOnIds || []).slice();
 
       updateActiveOrder(function (order) {
-        var newItem = {
-          id: uid("item"),
-          productId: product.id,
-          barcode: getScannableBarcode(product.barcode, [product.id, product.name, product.category].join("|")),
-          name: product.name,
-          unit: product.unit || "",
-          price: Number(product.price) || 0,
-          qty: 1,
-          addOnIds: safeAddOnIds,
-          note: safeNote,
-          discountType: "percent",
-          discountValue: 0
-        };
-
         return Object.assign({}, order, {
           status: order.status === "preparing" ? "preparing" : "open",
-          items: (order.items || []).concat(newItem)
+          items: (order.items || []).concat(createOrderLineFromProduct(product, {
+            addOnIds: productCustomizer.addOnIds || [],
+            note: productCustomizer.note || ""
+          }))
         });
       });
 
@@ -4915,39 +4919,9 @@
         return;
       }
       updateActiveOrder(function (order) {
-        var existingItem = (order.items || []).find(function (item) {
-          return item.productId === product.id && (!item.addOnIds || item.addOnIds.length === 0);
-        });
-
-        if (existingItem) {
-          return Object.assign({}, order, {
-            status: order.status === "preparing" ? "preparing" : "open",
-            items: order.items.map(function (item) {
-              return item.id === existingItem.id
-                // B6: Number() guards against string concat from stale state.
-                ? Object.assign({}, item, { qty: (Number(item.qty) || 0) + 1 })
-                : item;
-            })
-          });
-        }
-
-        var newItem = {
-          id: uid("item"),
-          productId: product.id,
-          barcode: getScannableBarcode(product.barcode, [product.id, product.name, product.category].join("|")),
-          name: product.name,
-          unit: product.unit || "",
-          price: Number(product.price) || 0,
-          qty: 1,
-          addOnIds: [],
-          note: "",
-          discountType: "percent",
-          discountValue: 0
-        };
-
         return Object.assign({}, order, {
           status: order.status === "preparing" ? "preparing" : "open",
-          items: (order.items || []).concat(newItem)
+          items: (order.items || []).concat(createOrderLineFromProduct(product))
         });
       });
     }
@@ -4961,7 +4935,8 @@
               return item;
             }
 
-            return Object.assign({}, item, { qty: (Number(item.qty) || 0) + deltaNum });
+            var nextQty = (Number(item.qty) || 0) + deltaNum;
+            return Object.assign({}, item, { qty: normalizeQtyForUnit(nextQty, getOrderItemUnit(item)) });
           })
           .filter(function (item) {
             return (Number(item.qty) || 0) > 0;
@@ -4973,6 +4948,7 @@
 
     // Direct qty edit (used by the new POS input box).
     function setItemQty(itemId, qty) {
+      if (qty === "" || qty === null || qty === undefined) return;
       updateActiveOrder(function (order) {
         var nextItems = (order.items || [])
           .map(function (item) {
@@ -9077,9 +9053,9 @@
               ` : null}
 
               <div className="pos-product-grid">
-                ${catalogProducts.length ? catalogProducts.map(function (product) {
+                ${catalogProducts.length ? catalogProducts.map(function (product, productIndex) {
                   return html`
-                    <article key=${product.id} className="pos-product-card">
+                    <article key=${[product.id, product.barcode, productIndex].filter(Boolean).join("-")} className="pos-product-card">
                       ${renderProductMedia(product)}
                       <div className="pos-product-copy">
                         <h3>${product.name}</h3>
@@ -9206,7 +9182,7 @@
                               </div>
                             ` : null}
                           </div>
-                          <button className="ghost-btn danger-text" onClick=${function () {
+                          <button type="button" className="ghost-btn danger-text" onClick=${function () {
                             removeItem(item.id);
                           }}>
                             ${L("Xóa / Remove")}
@@ -9214,7 +9190,7 @@
                         </div>
 
                         <div className="qty-row">
-                          <button className="qty-btn" onClick=${function () {
+                          <button type="button" className="qty-btn" onClick=${function () {
                             adjustItemQty(item.id, -1);
                           }}>-</button>
                           <${LocalNumberInput}
@@ -9232,28 +9208,15 @@
                             }}
                             value=${item.qty}
                             onChange=${function(val) {
-                              var normalized = val === "" ? "" : normalizeQtyForUnit(val, itemUnit);
-                              updateActiveOrder(function(order) {
-                                var newItems = order.items.map(function(it) {
-                                  if (it.id === item.id) return Object.assign({}, it, { qty: normalized });
-                                  return it;
-                                });
-                                return Object.assign({}, order, { items: newItems });
-                              });
+                              setItemQty(item.id, val);
                             }}
                             onBlur=${function(e) {
                               if (e.target.value === "" || Number(e.target.value) <= 0) {
-                                updateActiveOrder(function(order) {
-                                  var newItems = order.items.map(function(it) {
-                                    if (it.id === item.id) return Object.assign({}, it, { qty: normalizeQtyForUnit(qtyInputMin(itemUnit), itemUnit) });
-                                    return it;
-                                  });
-                                  return Object.assign({}, order, { items: newItems });
-                                });
+                                setItemQty(item.id, qtyInputMin(itemUnit));
                               }
                             }}
                           />
-                          <button className="qty-btn" onClick=${function () {
+                          <button type="button" className="qty-btn" onClick=${function () {
                             adjustItemQty(item.id, 1);
                           }}>+</button>
                           <span className=${"line-total" + (itemDiscount ? " has-discount" : "")}>
