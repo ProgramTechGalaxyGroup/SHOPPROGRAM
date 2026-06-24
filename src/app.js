@@ -1503,11 +1503,44 @@
     };
   }
 
+  function buildStableOrderItemId(orderId, item, index) {
+    var baseItem = item || {};
+    var explicitId = baseItem.id || baseItem.orderItemId || baseItem.order_item_id || baseItem.lineId || baseItem.line_id;
+    if (explicitId) return String(explicitId);
+    var base = [
+      orderId || "order",
+      baseItem.productId || baseItem.product_id || "product",
+      baseItem.name || baseItem.product_name || "",
+      index + 1
+    ].join("-");
+    return "item-" + slugify(base);
+  }
+
+  function normalizeOrderItem(item, orderId, index) {
+    var baseItem = item || {};
+    return Object.assign({}, baseItem, {
+      id: buildStableOrderItemId(orderId, baseItem, index || 0),
+      productId: baseItem.productId || baseItem.product_id || "",
+      barcode: baseItem.barcode || "",
+      name: baseItem.name || baseItem.productName || baseItem.product_name || "",
+      unit: baseItem.unit || "",
+      price: Number(baseItem.price != null ? baseItem.price : baseItem.unit_price) || 0,
+      qty: Number(baseItem.qty) || 0,
+      addOnIds: Array.isArray(baseItem.addOnIds) ? baseItem.addOnIds.slice() : [],
+      note: baseItem.note || "",
+      discountType: baseItem.discountType === "amount" || baseItem.discount_type === "amount" ? "amount" : "percent",
+      discountValue: Number(baseItem.discountValue != null ? baseItem.discountValue : baseItem.discount_value) || 0
+    });
+  }
+
   function normalizeOrder(order) {
     var baseOrder = order || {};
+    var orderId = baseOrder.id || buildOrderId(getOrderDateKey(baseOrder.createdAt || Date.now()), 1);
     return {
-      id: baseOrder.id || buildOrderId(getOrderDateKey(baseOrder.createdAt || Date.now()), 1),
-      items: Array.isArray(baseOrder.items) ? baseOrder.items : [],
+      id: orderId,
+      items: Array.isArray(baseOrder.items)
+        ? baseOrder.items.map(function (item, index) { return normalizeOrderItem(item, orderId, index); })
+        : [],
       takeAway: !!baseOrder.takeAway,
       discountAmount: Number(baseOrder.discountAmount) || 0,
       status: baseOrder.status || "open",
@@ -1677,7 +1710,8 @@
     var itemDiscount = (safeOrder.items || []).reduce(function (sum, item) {
       return sum + getItemDiscountAmount(item, addOnOptions);
     }, 0);
-    var discount = itemDiscount + (Number(safeOrder.discountAmount) || 0);
+    var orderDiscount = Math.max(0, Math.round(Number(safeOrder.discountAmount) || 0));
+    var discount = itemDiscount + orderDiscount;
     // Tương thích ngược với đơn hàng cũ còn dùng discountPct
     if (!discount && safeOrder.discountPct) {
       discount = Math.round(subtotal * (Number(safeOrder.discountPct) / 100));
@@ -1696,6 +1730,8 @@
     return {
       subtotal: subtotal,
       discount: discount,
+      itemDiscount: itemDiscount,
+      orderDiscount: orderDiscount,
       vat: vat,
       total: total,
       itemCount: itemCount
@@ -3161,7 +3197,7 @@
             try {
               var parsed = Array.isArray(row.items_json) ? row.items_json : JSON.parse(row.items_json);
               if (Array.isArray(parsed)) {
-                items = parsed.map(function (it) {
+                items = parsed.map(function (it, index) {
                   var addOnIds = [];
                   var addonsJson = it.addonsJson || it.addons_json;
                   if (addonsJson) {
@@ -3173,6 +3209,7 @@
                     } catch (_) {}
                   }
                   return {
+                    id: buildStableOrderItemId(row.order_id || row.orderId || row.id || "", it, index),
                     productId: it.productId || it.product_id,
                     name: it.name || it.product_name,
                     qty: Number(it.qty) || 0,
@@ -3449,9 +3486,9 @@
                     ? row.items_json
                     : JSON.parse(row.items_json);
                   if (Array.isArray(parsed)) {
-                    items = parsed.map(function (it) {
+                    items = parsed.map(function (it, index) {
                       return {
-                        id: it.id,
+                        id: buildStableOrderItemId(row.order_id || row.orderId || row.id || "", it, index),
                         productId: it.productId || it.product_id,
                         name: it.name || it.product_name,
                         qty: Number(it.qty) || 0,
@@ -5176,7 +5213,8 @@
         customerName: orderSnapshot.customerName || "",
         subtotal: saleTotals.subtotal,
         vatAmount: saleTotals.vat,
-        discount: saleTotals.discount,
+        discount: Number(saleTotals.orderDiscount) || 0,
+        itemDiscountTotal: Number(saleTotals.itemDiscount) || 0,
         total: saleTotals.total,
         paid: Number(orderSnapshot.cashReceived) || 0,
         changeAmount: Math.max(0, (Number(orderSnapshot.cashReceived) || 0) - (Number(saleTotals.total) || 0)),
@@ -9361,7 +9399,7 @@
                 />
               </label>
               <label className="field discount-box">
-                <span>${L("Giảm giá / Discount")}</span>
+                <span>${L("Giảm toàn đơn / Order Discount")}</span>
                 <${LocalNumberInput}
                   min="0"
                   value=${activeOrder.discountAmount}
@@ -9396,8 +9434,11 @@
                  row anymore. The displayed amount IS what the customer pays. -->
             <div className="summary-list">
               <div><span>${L("Số món / Items")}</span><strong>${totals.itemCount}</strong></div>
-              ${totals.discount > 0
-                ? html`<div><span>${L("Giảm giá / Discount")}</span><strong>-${formatCurrency(totals.discount)}</strong></div>`
+              ${totals.itemDiscount > 0
+                ? html`<div><span>${L("Giảm từng món / Item Discounts")}</span><strong>-${formatCurrency(totals.itemDiscount)}</strong></div>`
+                : null}
+              ${totals.orderDiscount > 0
+                ? html`<div><span>${L("Giảm toàn đơn / Order Discount")}</span><strong>-${formatCurrency(totals.orderDiscount)}</strong></div>`
                 : null}
               <div className="summary-total"><span>${L("Tổng cộng / Total")}</span><strong>${formatCurrency(totals.total)}</strong></div>
               <div style=${{ fontSize: 11, fontStyle: "italic", color: "#7b6b5d", marginTop: -4 }}>

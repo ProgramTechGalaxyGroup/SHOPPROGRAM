@@ -399,6 +399,7 @@ export const onRequestPost = async ({ env, request, data }) => {
   // are read from the database, then recomputed server-side so the checkout
   // total matches the POS UI without allowing tampered prices.
   let serverSubtotal = 0;
+  let lineDiscountTotal = 0;
   for (const it of body.items) {
     const qty = Number(it.qty) || 0;
     const info = productInfoMap.get(it.productId);
@@ -435,8 +436,24 @@ export const onRequestPost = async ({ env, request, data }) => {
       lineTotal,
       Math.max(0, Math.round(Number(it.discountAmount || it.discount_amount) || 0))
     );
+    lineDiscountTotal += it.__discountAmount;
   }
-  const discount = Math.max(0, Math.round(Number(body.discount) || 0));
+  const requestedOrderDiscount = Math.max(0, Math.round(Number(body.discount) || 0));
+  let discount = Math.min(serverSubtotal, lineDiscountTotal + requestedOrderDiscount);
+  // Compatibility with older POS tabs: they sent `discount` as
+  // item-discount + order-discount while also sending line discount amounts.
+  // If the posted total proves that shape, keep the client-implied total
+  // discount instead of subtracting line discounts twice.
+  const clientTotal = Number(body.total);
+  if (Number.isFinite(clientTotal)) {
+    const clientImpliedDiscount = Math.min(
+      serverSubtotal,
+      Math.max(0, Math.round(serverSubtotal - clientTotal))
+    );
+    if (lineDiscountTotal > 0 && Math.abs(clientImpliedDiscount - requestedOrderDiscount) <= 1) {
+      discount = clientImpliedDiscount;
+    }
+  }
   const VAT_RATE = Number.isFinite(Number(body.vatRate)) ? Number(body.vatRate) : 0.08;
   const serverTotal = Math.max(0, serverSubtotal - discount);
   const serverVat = VAT_RATE > 0
