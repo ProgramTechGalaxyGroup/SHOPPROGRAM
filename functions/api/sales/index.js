@@ -605,6 +605,7 @@ export const onRequestPost = async ({ env, request, data }) => {
 
   enriched.forEach((it) => {
     const qty = Number(it.qty) || 0;
+    const lineId = String(it.lineId || it.id || "").trim() || uid("si");
 
     stmts.push(
       env.DB.prepare(
@@ -613,7 +614,7 @@ export const onRequestPost = async ({ env, request, data }) => {
             addons_json, addons_total, line_total, discount_amount, unit_cost)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(
-        uid("si"),
+        lineId,
         saleId,
         it.productId || null,
         it.productName || it.name || "",

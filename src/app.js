@@ -1516,6 +1516,17 @@
     return "item-" + slugify(base);
   }
 
+  function buildFallbackOrderItemId(orderId, item, index) {
+    var baseItem = Object.assign({}, item || {}, {
+      id: "",
+      orderItemId: "",
+      order_item_id: "",
+      lineId: "",
+      line_id: ""
+    });
+    return buildStableOrderItemId(orderId, baseItem, index);
+  }
+
   function normalizeOrderItem(item, orderId, index) {
     var baseItem = item || {};
     return Object.assign({}, baseItem, {
@@ -1533,13 +1544,31 @@
     });
   }
 
+  function ensureUniqueOrderItemIds(items, orderId) {
+    var seen = {};
+    return (items || []).map(function (item, index) {
+      var currentId = String(item && item.id || "");
+      var nextId = currentId;
+      if (!nextId || seen[nextId]) {
+        nextId = buildFallbackOrderItemId(orderId, item, index);
+      }
+      while (seen[nextId]) {
+        nextId = buildFallbackOrderItemId(orderId, item, index) + "-" + (index + 1);
+      }
+      seen[nextId] = true;
+      return nextId === currentId ? item : Object.assign({}, item, { id: nextId });
+    });
+  }
+
   function normalizeOrder(order) {
     var baseOrder = order || {};
     var orderId = baseOrder.id || buildOrderId(getOrderDateKey(baseOrder.createdAt || Date.now()), 1);
     return {
       id: orderId,
       items: Array.isArray(baseOrder.items)
-        ? baseOrder.items.map(function (item, index) { return normalizeOrderItem(item, orderId, index); })
+        ? ensureUniqueOrderItemIds(baseOrder.items.map(function (item, index) {
+            return normalizeOrderItem(item, orderId, index);
+          }), orderId)
         : [],
       takeAway: !!baseOrder.takeAway,
       discountAmount: Number(baseOrder.discountAmount) || 0,
@@ -3224,6 +3253,14 @@
               }
             } catch (_) {}
           }
+          items = ensureUniqueOrderItemIds(items, row.order_id || row.orderId || row.id || "");
+          var itemDiscountTotal = items.reduce(function (sum, item) {
+            return sum + getItemDiscountAmount(item, addOns);
+          }, 0);
+          var orderLevelDiscount = Math.max(
+            0,
+            Math.round((Number(row.discount) || 0) - itemDiscountTotal)
+          );
           
           var note = row.note || "";
           var status = "open";
@@ -3248,7 +3285,7 @@
             id: row.order_id || row.orderId || "",
             items: items,
             takeAway: false,
-            discountAmount: Number(row.discount) || 0,
+            discountAmount: orderLevelDiscount,
             status: status,
             syncError: "",
             syncRetryCount: 0,
@@ -5013,12 +5050,15 @@
     }
 
     function toggleAddon(itemId, addOnId) {
+      if (!itemId) return;
       updateActiveOrder(function (order) {
+        var updated = false;
         return Object.assign({}, order, {
           items: (order.items || []).map(function (item) {
-            if (item.id !== itemId) {
+            if (updated || item.id !== itemId) {
               return item;
             }
+            updated = true;
 
             var currentIds = item.addOnIds || [];
             var hasAddon = currentIds.indexOf(addOnId) !== -1;
@@ -5053,10 +5093,13 @@
     }
 
     function updateItemDiscount(itemId, field, value) {
+      if (!itemId) return;
       updateActiveOrder(function (order) {
+        var updated = false;
         return Object.assign({}, order, {
           items: (order.items || []).map(function (item) {
-            if (item.id !== itemId) return item;
+            if (updated || item.id !== itemId) return item;
+            updated = true;
             var nextValue = field === "discountType"
               ? (value === "amount" ? "amount" : "percent")
               : Math.max(0, Number(value) || 0);
@@ -5226,6 +5269,8 @@
           var qty = Number(item.qty) || 0;
           var itemDiscount = getItemDiscountAmount(item, addOns);
           return {
+            id: item.id,
+            lineId: item.id,
             productId: item.productId,
             productName: item.name,
             qty: qty,
