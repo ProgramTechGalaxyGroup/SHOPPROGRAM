@@ -2617,6 +2617,54 @@
     var [shiftNote, setShiftNote] = useState("");
     var [shiftError, setShiftError] = useState("");
     var [closingShift, setClosingShift] = useState(false);
+    var sessionWarningShownRef = useRef(false);
+
+    function handleSessionExpired(message) {
+      setCurrentUser(null);
+      setActiveShift(null);
+      setClosingShift(false);
+      setLoginError(message || L("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục đồng bộ. / Session expired. Please log in again to continue syncing."));
+      pushToast("error", L("Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại. / Session expired — please log in again."));
+    }
+
+    function applySessionUser(user) {
+      if (!user) return;
+      setCurrentUser(user);
+      var expiresAt = Number(user.expiresAt || 0);
+      if (expiresAt) {
+        var remainingMs = expiresAt - Date.now();
+        if (remainingMs > 0 && remainingMs < 30 * 60 * 1000 && !sessionWarningShownRef.current) {
+          sessionWarningShownRef.current = true;
+          pushToast("info", L("Phiên đăng nhập sắp hết hạn. Nếu lưu không được, hãy đăng nhập lại. / Session will expire soon. Log in again if saving stops."));
+        }
+        if (remainingMs >= 30 * 60 * 1000) {
+          sessionWarningShownRef.current = false;
+        }
+      }
+    }
+
+    function checkSessionStatus(options) {
+      options = options || {};
+      return fetch("/api/auth/me", { credentials: "include" })
+        .then(function (res) {
+          return res.json().catch(function () { return {}; }).then(function (data) {
+            if (res.ok && data.ok && data.user) {
+              applySessionUser(data.user);
+              return true;
+            }
+            if (!options.silent && currentUser) {
+              handleSessionExpired();
+            }
+            return false;
+          });
+        })
+        .catch(function () {
+          if (!options.silent) {
+            pushToast("error", L("Không kiểm tra được phiên đăng nhập. Kiểm tra mạng rồi thử lại. / Could not verify session. Check the network and try again."));
+          }
+          return false;
+        });
+    }
 
     useEffect(function () {
       fetch("/api/auth/me", { credentials: "include" })
@@ -2624,7 +2672,7 @@
           if (res.ok) {
             return res.json().then(function (data) {
               if (data.ok && data.user) {
-                setCurrentUser(data.user);
+                applySessionUser(data.user);
               }
               setAuthLoading(false);
             });
@@ -2643,6 +2691,26 @@
       }
       setActiveShift(null);
       setClosingShift(false);
+    }, [currentUser]);
+
+    useEffect(function () {
+      if (!currentUser) return undefined;
+      var timer = window.setInterval(function () {
+        checkSessionStatus({ silent: false });
+      }, 5 * 60 * 1000);
+      function onFocus() {
+        checkSessionStatus({ silent: false });
+      }
+      function onVisibilityChange() {
+        if (!document.hidden) checkSessionStatus({ silent: false });
+      }
+      window.addEventListener("focus", onFocus);
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      return function () {
+        window.clearInterval(timer);
+        window.removeEventListener("focus", onFocus);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      };
     }, [currentUser]);
 
     function getFirstAllowedView(role) {
@@ -3826,9 +3894,7 @@
         var failureError = String(payload && payload.error || "");
         var failureStatus = payload && payload.status ? Number(payload.status) : 0;
         if (failureStatus === 401 || failureError === "Unauthorized") {
-          setCurrentUser(null);
-          setLoginError(L("Phiên đăng nhập đã hết hạn. Đăng nhập lại để đồng bộ thay đổi. / Session expired. Log in again to sync changes."));
-          pushToast("error", L("Phiên đăng nhập hết hạn — vui lòng đăng nhập lại. / Session expired — please log in again."));
+          handleSessionExpired(L("Phiên đăng nhập đã hết hạn. Đăng nhập lại để đồng bộ thay đổi. / Session expired. Log in again to sync changes."));
           return;
         }
         var isRecipeStockAdjustFailure =
@@ -5664,9 +5730,7 @@
         pushToast("success", L("Đã lưu hóa đơn / Sale saved"));
       }).catch(function (error) {
         if (error && error.status === 401) {
-          setCurrentUser(null);
-          setLoginError(L("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để lưu hóa đơn. / Session expired. Please log in again to save the sale."));
-          pushToast("error", L("Cần đăng nhập lại để lưu hóa đơn. / Please log in again to save the sale."));
+          handleSessionExpired(L("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để lưu hóa đơn. / Session expired. Please log in again to save the sale."));
           setOrders(function (currentOrders) {
             return currentOrders.map(function (order) {
               return order.id === orderSnapshot.id

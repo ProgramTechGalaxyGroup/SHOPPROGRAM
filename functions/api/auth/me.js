@@ -10,6 +10,7 @@ export const onRequestGet = async (context) => {
     user: {
       email: user.email,
       role: user.role,
+      expiresAt: user.exp || null,
     },
   });
 };

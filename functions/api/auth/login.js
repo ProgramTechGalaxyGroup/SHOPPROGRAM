@@ -1,6 +1,7 @@
 import { json, badRequest, readJson, hashPassword, createSignedToken } from "../_lib.js";
 
 const SALT = "shopprogram_salt_2026";
+const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
 const ACCOUNTS = {
   "admin@shopprogram.local": {
@@ -44,14 +45,15 @@ export const onRequestPost = async ({ request, env }) => {
     return badRequest("Invalid credentials");
   }
 
-  // Create session payload with 24h expiration
-  const exp = Date.now() + 24 * 60 * 60 * 1000;
+  // Create session payload with a 7-day expiration so active shops do not get
+  // kicked out in the middle of normal operations.
+  const exp = Date.now() + SESSION_MAX_AGE_SECONDS * 1000;
   const token = await createSignedToken({ email, role: account.role, exp }, env.TOKEN_SECRET);
 
   const headers = new Headers();
   headers.append(
     "Set-Cookie",
-    `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; Max-Age=86400; SameSite=Lax`
+    `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; Max-Age=${SESSION_MAX_AGE_SECONDS}; SameSite=Lax`
   );
 
   return json({
@@ -59,6 +61,7 @@ export const onRequestPost = async ({ request, env }) => {
     user: {
       email,
       role: account.role,
+      expiresAt: exp,
     },
   }, { headers });
 };
