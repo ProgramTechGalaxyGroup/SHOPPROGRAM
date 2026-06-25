@@ -2862,6 +2862,7 @@
     var [dashboardCustomFrom, setDashboardCustomFrom] = useState("");
     var [dashboardCustomTo, setDashboardCustomTo] = useState("");
     var [dashboardRevenueMode, setDashboardRevenueMode] = useState("chart");
+    var [dashboardTopCategory, setDashboardTopCategory] = useState("all");
     // POS category sidebar: which parent categories are currently expanded.
     // Object map { [parentId]: true }. Starts empty (all collapsed).
     var [expandedCategories, setExpandedCategories] = useState({});
@@ -4456,13 +4457,22 @@
           percent: revenue > 0 ? Math.round(item.revenue / revenue * 1000) / 10 : 0
         });
       });
-      // Top selling products in range
+      // Top selling products in range. Category filter is display-only and
+      // keeps revenue/order totals untouched.
       var byProduct = {};
       paidSalesInRange.forEach(function (s) {
         (s.items || []).forEach(function (it) {
           var key = it.productId || it.name;
           var product = products.find(function (p) { return p.id === it.productId; });
-          if (!byProduct[key]) byProduct[key] = { name: it.name, qty: 0, revenue: 0, image: product && (product.imageIcon || product.image || product.imageUrl) };
+          var productCategory = product && product.category;
+          if (!categoryMatchesSelected(productCategory, dashboardTopCategory, categories)) return;
+          if (!byProduct[key]) byProduct[key] = {
+            name: it.name,
+            qty: 0,
+            revenue: 0,
+            image: product && (product.imageIcon || product.image || product.imageUrl),
+            category: productCategory || ""
+          };
           byProduct[key].qty += Number(it.qty) || 0;
           byProduct[key].revenue += (Number(it.qty) || 0) * (Number(it.price) || 0);
         });
@@ -4565,7 +4575,7 @@
         recentOrders: recentOrders,
         recentSales: clone(salesInRange).sort(function (a, b) { return b.createdAt - a.createdAt; })
       };
-    }, [products, sales, orders, purchases, addOns, dashboardRange, dashboardCustomFrom, dashboardCustomTo, lowStockAlerts]);
+    }, [products, categories, sales, orders, purchases, addOns, dashboardRange, dashboardCustomFrom, dashboardCustomTo, dashboardTopCategory, lowStockAlerts]);
 
     var inventoryTabs = [
       { id: "stock", label: "Kiểm hàng tồn kho / Stock Check" },
@@ -9806,6 +9816,9 @@
         { id: "year",   label: "Theo năm / Yearly" },
         { id: "custom", label: "Tùy chọn / Custom" }
       ];
+      var topCategoryOptions = [FILTER_ALL_CATEGORY].concat((categories || []).filter(function (category) {
+        return !category.parentId;
+      }));
       function renderDelta(value) {
         var positive = Number(value) >= 0;
         return html`<span className=${"dashboard-delta " + (positive ? "is-up" : "is-down")}>
@@ -9954,6 +9967,14 @@
                 <div>
                   <h2 className="section-title">${L("Sản phẩm bán chạy / Best Sellers")}</h2>
                 </div>
+                <label className="dashboard-category-filter">
+                  <span>${L("Danh mục / Category")}</span>
+                  <select value=${dashboardTopCategory} onChange=${function (event) { setDashboardTopCategory(event.target.value); }}>
+                    ${topCategoryOptions.map(function (category) {
+                      return html`<option key=${category.id} value=${category.id}>${L(category.label)}</option>`;
+                    })}
+                  </select>
+                </label>
               </div>
               ${dashboardMetrics.topProducts.length ? html`
                 <div className="dashboard-product-podium">
@@ -10035,6 +10056,16 @@
                   }}>
                     <strong>${dashboardMetrics.ordersCount}</strong>
                     <small>${L("Tổng đơn / Orders")}</small>
+                    <div className="dashboard-donut-percent-list">
+                      ${dashboardMetrics.paymentBreakdown.map(function (item) {
+                        var color = paymentColors[item.method] || paymentColors.other;
+                        return html`
+                          <span key=${item.method} style=${{ "--dot": color }}>
+                            ${item.percent}%
+                          </span>
+                        `;
+                      })}
+                    </div>
                   </div>
                   <div className="list-stack compact-list">
                     ${dashboardMetrics.paymentBreakdown.map(function (item) {
@@ -10045,7 +10076,7 @@
                             <span style=${{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: color, flexShrink: 0 }}></span>
                             ${L(item.label)}
                           </span>
-                          <strong>${item.percent}%</strong>
+                          <strong>${formatCurrency(item.revenue)}</strong>
                           <small>${item.orders} ${L("đơn / orders")}</small>
                         </article>
                       `;
