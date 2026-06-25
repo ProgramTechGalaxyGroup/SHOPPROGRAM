@@ -60,7 +60,9 @@
     var init = opts || {};
     return fetch(API_BASE + path, {
       method: init.method || "GET",
-      credentials: "same-origin",
+      // Always include the auth cookie. This keeps queued writes working after
+      // login and avoids "Unauthorized" caused by a missing session cookie.
+      credentials: "include",
       headers: init.body
         ? { "Content-Type": "application/json", ...(init.headers || {}) }
         : init.headers || {},
@@ -183,11 +185,18 @@
           endpoint: next.endpoint,
           opType: next.opType,
           body: next.body,
+          status: err && err.status,
           error: err && err.message ? err.message : String(err),
         });
 
+        // Auth failures need a fresh login, not blind retries. Keep the op in
+        // the outbox so the user can log in again and flush without losing it.
+        if (err && err.status === 401) {
+          throw err;
+        }
+
         // If it's a 4xx server validation error we should NOT keep retrying
-        // forever — drop after 5 attempts.
+        // forever — drop after 3 attempts.
         if (err && err.status && err.status >= 400 && err.status < 500 && current[0]) {
           if ((current[0].retries || 0) >= 3) {
             current.shift();

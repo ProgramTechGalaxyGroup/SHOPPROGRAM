@@ -41,6 +41,7 @@
   var html = window.htm.bind(window.React.createElement);
 
   var STORAGE_KEY = "fruit-house-pos-suite-v3";
+  var SHIFT_STORAGE_KEY = "fruit-house-pos-shifts-v1";
 
   function isKnownTechnicalTestSale(record) {
     if (!record) return false;
@@ -1006,6 +1007,69 @@
       padNumber(date.getMonth() + 1, 2),
       date.getFullYear()
     ].join("/");
+  }
+
+  function parseMoneyValue(value) {
+    var normalized = String(value == null ? "" : value).replace(/[^\d.-]/g, "");
+    var numberValue = Number(normalized);
+    return isNaN(numberValue) ? 0 : numberValue;
+  }
+
+  function getShiftUserKey(user) {
+    return user && user.email ? String(user.email).trim().toLowerCase() : "cashier";
+  }
+
+  function getEmptyShiftStore() {
+    return { activeByUser: {}, history: [] };
+  }
+
+  function readShiftStore() {
+    try {
+      var raw = window.localStorage.getItem(SHIFT_STORAGE_KEY);
+      var parsed = raw ? JSON.parse(raw) : null;
+      if (!parsed || typeof parsed !== "object") return getEmptyShiftStore();
+      return {
+        activeByUser: parsed.activeByUser && typeof parsed.activeByUser === "object" ? parsed.activeByUser : {},
+        history: Array.isArray(parsed.history) ? parsed.history : []
+      };
+    } catch (error) {
+      return getEmptyShiftStore();
+    }
+  }
+
+  function writeShiftStore(store) {
+    try {
+      window.localStorage.setItem(SHIFT_STORAGE_KEY, JSON.stringify(store || getEmptyShiftStore()));
+    } catch (error) {}
+  }
+
+  function getActiveShiftForUser(user) {
+    if (!user || user.role !== "cashier") return null;
+    var store = readShiftStore();
+    var shift = store.activeByUser[getShiftUserKey(user)];
+    if (!shift || shift.status !== "open") return null;
+    return shift;
+  }
+
+  function saveActiveShiftForUser(user, shift) {
+    var store = readShiftStore();
+    store.activeByUser[getShiftUserKey(user)] = shift;
+    writeShiftStore(store);
+  }
+
+  function closeActiveShiftForUser(user, closingData) {
+    var store = readShiftStore();
+    var userKey = getShiftUserKey(user);
+    var shift = store.activeByUser[userKey];
+    if (!shift) return null;
+    var closedShift = Object.assign({}, shift, closingData || {}, {
+      status: "closed",
+      closedAt: Date.now()
+    });
+    delete store.activeByUser[userKey];
+    store.history = [closedShift].concat(store.history || []).slice(0, 200);
+    writeShiftStore(store);
+    return closedShift;
   }
 
   function buildOrderId(dateKey, sequenceNumber) {
@@ -2547,9 +2611,15 @@
     var [loginPassword, setLoginPassword] = useState("");
     var [loginError, setLoginError] = useState("");
     var [loginSubmitting, setLoginSubmitting] = useState(false);
+    var [activeShift, setActiveShift] = useState(null);
+    var [shiftOpeningCash, setShiftOpeningCash] = useState("");
+    var [shiftClosingCash, setShiftClosingCash] = useState("");
+    var [shiftNote, setShiftNote] = useState("");
+    var [shiftError, setShiftError] = useState("");
+    var [closingShift, setClosingShift] = useState(false);
 
     useEffect(function () {
-      fetch("/api/auth/me", { credentials: "same-origin" })
+      fetch("/api/auth/me", { credentials: "include" })
         .then(function (res) {
           if (res.ok) {
             return res.json().then(function (data) {
@@ -2565,6 +2635,15 @@
           setAuthLoading(false);
         });
     }, []);
+
+    useEffect(function () {
+      if (currentUser && currentUser.role === "cashier") {
+        setActiveShift(getActiveShiftForUser(currentUser));
+        return;
+      }
+      setActiveShift(null);
+      setClosingShift(false);
+    }, [currentUser]);
 
     function getFirstAllowedView(role) {
       if (role === "inventory") return "inventory";
@@ -2582,7 +2661,7 @@
       setLoginSubmitting(true);
       fetch("/api/auth/login", {
         method: "POST",
-        credentials: "same-origin",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: loginEmail, password: loginPassword })
       })
@@ -2594,6 +2673,11 @@
               setActiveView(getFirstAllowedView(data.user.role));
               setLoginEmail("");
               setLoginPassword("");
+              window.setTimeout(function () {
+                if (window.ShopFlowSync && typeof window.ShopFlowSync.flush === "function") {
+                  window.ShopFlowSync.flush().catch(function () {});
+                }
+              }, 100);
             } else {
               setLoginError(data.error || "Login failed");
             }
@@ -2605,16 +2689,80 @@
         });
     }
 
-    function handleLogout() {
-      fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" })
+    function handleLogout(force) {
+      if (force !== true && currentUser && currentUser.role === "cashier" && activeShift) {
+        window.alert(L("Bạn phải chốt ca và bàn giao két trước khi đăng xuất! / Please close and hand over the cash drawer before logging out!"));
+        return;
+      }
+      fetch("/api/auth/logout", { method: "POST", credentials: "include" })
         .then(function () {
           setCurrentUser(null);
           setActiveView("pos");
+          setActiveShift(null);
+          setClosingShift(false);
         })
         .catch(function () {
           setCurrentUser(null);
           setActiveView("pos");
+          setActiveShift(null);
+          setClosingShift(false);
         });
+    }
+
+    function handleOpenShift(e) {
+      e.preventDefault();
+      var openingCash = parseMoneyValue(shiftOpeningCash);
+      if (openingCash < 0) {
+        setShiftError(L("Tiền đầu ca không hợp lệ. / Opening cash is invalid."));
+        return;
+      }
+      var now = Date.now();
+      var shift = {
+        id: uid("shift"),
+        userEmail: currentUser.email,
+        userRole: currentUser.role,
+        shiftDate: getOrderDateKey(now),
+        openedAt: now,
+        openingCash: openingCash,
+        status: "open"
+      };
+      saveActiveShiftForUser(currentUser, shift);
+      setActiveShift(shift);
+      setShiftOpeningCash("");
+      setShiftError("");
+      pushToast("success", L("Đã mở két đầu ngày. / Cash drawer opened."));
+    }
+
+    function handleCloseShift(e) {
+      e.preventDefault();
+      var closingCash = parseMoneyValue(shiftClosingCash);
+      if (closingCash < 0) {
+        setShiftError(L("Tiền cuối ca không hợp lệ. / Closing cash is invalid."));
+        return;
+      }
+      var closedShift = closeActiveShiftForUser(currentUser, {
+        closingCash: closingCash,
+        note: shiftNote,
+        handedOverBy: currentUser.email
+      });
+      if (!closedShift) {
+        setShiftError(L("Không tìm thấy ca đang mở. / No active shift found."));
+        return;
+      }
+      setActiveShift(null);
+      setClosingShift(false);
+      setShiftClosingCash("");
+      setShiftNote("");
+      setShiftError("");
+      pushToast("success", L("Đã chốt ca và bàn giao két. / Shift closed and drawer handed over."));
+      handleLogout(true);
+    }
+
+    function beginCloseShift() {
+      setShiftClosingCash(activeShift ? String(activeShift.openingCash || 0) : "");
+      setShiftNote("");
+      setShiftError("");
+      setClosingShift(true);
     }
 
     var [suppliers, setSuppliers] = useState([]);
@@ -3676,6 +3824,13 @@
       function handleFailure(payload) {
         var failureBody = payload && payload.body ? payload.body : {};
         var failureError = String(payload && payload.error || "");
+        var failureStatus = payload && payload.status ? Number(payload.status) : 0;
+        if (failureStatus === 401 || failureError === "Unauthorized") {
+          setCurrentUser(null);
+          setLoginError(L("Phiên đăng nhập đã hết hạn. Đăng nhập lại để đồng bộ thay đổi. / Session expired. Log in again to sync changes."));
+          pushToast("error", L("Phiên đăng nhập hết hạn — vui lòng đăng nhập lại. / Session expired — please log in again."));
+          return;
+        }
         var isRecipeStockAdjustFailure =
           payload &&
           payload.endpoint &&
@@ -13062,6 +13217,179 @@
       `;
     }
 
+    function getSyncSignalKind() {
+      return syncStatus.lastError || !syncStatus.online ? "error" : (syncStatus.pending ? "pending" : "online");
+    }
+
+    function getSyncSignalTitle(kind) {
+      if (kind === "error") return syncStatus.lastError || L("Lỗi kết nối / Connection error");
+      if (kind === "pending") return L("Đang thử kết nối / Connecting");
+      return L("Đã kết nối / Connected");
+    }
+
+    function renderSyncSignal() {
+      var kind = getSyncSignalKind();
+      return html`
+        <div
+          className=${"sync-signal surface is-" + kind}
+          title=${getSyncSignalTitle(kind)}
+          aria-label=${getSyncSignalTitle(kind)}
+        >
+          <span className="sync-signal-dot"></span>
+        </div>
+      `;
+    }
+
+    function renderShiftGate() {
+      return html`
+        <div style=${{ minHeight: "100vh", background: "#fff7ed", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, position: "relative" }}>
+          <div style=${{ position: "fixed", top: 18, right: 18, zIndex: 10 }}>
+            ${renderSyncSignal()}
+          </div>
+          <form
+            onSubmit=${handleOpenShift}
+            style=${{
+              width: "100%",
+              maxWidth: 520,
+              background: "#fffdf8",
+              border: "1px solid #eedecf",
+              borderRadius: 28,
+              padding: 28,
+              boxShadow: "0 18px 50px rgba(111,84,41,0.10)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 18
+            }}
+          >
+            <div>
+              <p className="eyebrow" style=${{ margin: "0 0 8px" }}>${L("CA LÀM VIỆC / SHIFT")}</p>
+              <h1 style=${{ margin: 0, color: "#2d2018", fontSize: 34 }}>${L("Mở két đầu ngày / Open Cash Drawer")}</h1>
+              <p style=${{ margin: "10px 0 0", color: "#7b6b5d", fontSize: 16, lineHeight: 1.5 }}>
+                ${L("Cashier cần mở két trước khi vào bán hàng. / Cashiers must open the drawer before starting POS.")}
+              </p>
+            </div>
+
+            ${shiftError ? html`
+              <div style=${{ background: "#fde2e0", color: "#c0392b", padding: "12px 14px", borderRadius: 14, border: "1px solid #f9c1b9", fontWeight: 700 }}>
+                ${shiftError}
+              </div>
+            ` : null}
+
+            <label style=${{ display: "flex", flexDirection: "column", gap: 8, color: "#7b6b5d", fontWeight: 700 }}>
+              ${L("Tiền mặt đầu ca / Opening Cash")}
+              <input
+                type="number"
+                min="0"
+                step="1000"
+                value=${shiftOpeningCash}
+                onInput=${function (event) {
+                  setShiftOpeningCash(event.target.value);
+                  setShiftError("");
+                }}
+                placeholder="0"
+                autoFocus=${true}
+                style=${{ border: "1px solid #eadfd4", borderRadius: 18, padding: "16px 18px", fontSize: 22, fontWeight: 800, color: "#2d2018", background: "#fff" }}
+              />
+            </label>
+
+            <div style=${{ background: "#fff5ea", border: "1px dashed #ead2bd", borderRadius: 18, padding: 16, color: "#7b6b5d", lineHeight: 1.45 }}>
+              <strong>${L("Cashier / Thu ngân")}:</strong> ${currentUser.email}
+              <br />
+              <strong>${L("Ngày / Date")}:</strong> ${getOrderDateKey(Date.now())}
+            </div>
+
+            <button
+              type="submit"
+              style=${{ border: 0, borderRadius: 18, padding: "16px 18px", background: "linear-gradient(135deg,#f47a2e,#d9540f)", color: "#fff", fontSize: 18, fontWeight: 900, cursor: "pointer" }}
+            >
+              ${L("Mở két và vào POS / Open Drawer & Start POS")}
+            </button>
+
+            <button
+              type="button"
+              onClick=${function () { handleLogout(true); }}
+              style=${{ border: "1px solid #eadfd4", borderRadius: 16, padding: "12px 14px", background: "#fff", color: "#7b6b5d", fontWeight: 800, cursor: "pointer" }}
+            >
+              ${L("Thoát tài khoản / Log out")}
+            </button>
+          </form>
+        </div>
+      `;
+    }
+
+    function renderCloseShiftModal() {
+      if (!closingShift || !activeShift) return null;
+      var openedAt = activeShift.openedAt ? new Date(activeShift.openedAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "";
+      return html`
+        <div className="detail-modal-backdrop">
+          <form
+            onSubmit=${handleCloseShift}
+            className="detail-modal surface shift-close-modal"
+          >
+            <div style=${{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+              <div>
+                <p className="eyebrow" style=${{ margin: "0 0 8px" }}>${L("CHỐT CA / CLOSE SHIFT")}</p>
+                <h2 style=${{ margin: 0 }}>${L("Đóng két cuối ngày / Close Cash Drawer")}</h2>
+                <p style=${{ margin: "8px 0 0", color: "#7b6b5d" }}>
+                  ${L("Mở ca / Opened")}: ${openedAt} · ${L("Tiền đầu ca / Opening")}: ${formatCurrency(activeShift.openingCash || 0)}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="mini-btn"
+                onClick=${function () {
+                  setClosingShift(false);
+                  setShiftError("");
+                }}
+              >
+                ${L("Đóng / Close")}
+              </button>
+            </div>
+
+            ${shiftError ? html`
+              <div style=${{ background: "#fde2e0", color: "#c0392b", padding: "12px 14px", borderRadius: 14, border: "1px solid #f9c1b9", fontWeight: 700 }}>
+                ${shiftError}
+              </div>
+            ` : null}
+
+            <label style=${{ display: "flex", flexDirection: "column", gap: 8, color: "#7b6b5d", fontWeight: 800 }}>
+              ${L("Tiền mặt cuối ca / Closing Cash")}
+              <input
+                type="number"
+                min="0"
+                step="1000"
+                value=${shiftClosingCash}
+                onInput=${function (event) {
+                  setShiftClosingCash(event.target.value);
+                  setShiftError("");
+                }}
+                placeholder="0"
+                style=${{ border: "1px solid #eadfd4", borderRadius: 18, padding: "16px 18px", fontSize: 22, fontWeight: 800, color: "#2d2018", background: "#fff" }}
+              />
+            </label>
+
+            <label style=${{ display: "flex", flexDirection: "column", gap: 8, color: "#7b6b5d", fontWeight: 800 }}>
+              ${L("Ghi chú bàn giao / Handover Note")}
+              <textarea
+                value=${shiftNote}
+                onInput=${function (event) { setShiftNote(event.target.value); }}
+                rows="3"
+                placeholder=${L("Ví dụ: đã bàn giao két cho quản lý... / Example: handed over to manager...")}
+                style=${{ border: "1px solid #eadfd4", borderRadius: 18, padding: "14px 16px", fontSize: 16, color: "#2d2018", background: "#fff", resize: "vertical" }}
+              ></textarea>
+            </label>
+
+            <button
+              type="submit"
+              style=${{ border: 0, borderRadius: 18, padding: "16px 18px", background: "linear-gradient(135deg,#f47a2e,#d9540f)", color: "#fff", fontSize: 18, fontWeight: 900, cursor: "pointer" }}
+            >
+              ${L("Chốt ca và đăng xuất / Close Shift & Log Out")}
+            </button>
+          </form>
+        </div>
+      `;
+    }
+
     if (authLoading) {
       return html`
         <div style=${{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", background: "#fffaf4", fontFamily: "sans-serif" }}>
@@ -13127,8 +13455,14 @@
       `;
     }
 
+    if (currentUser.role === "cashier" && !activeShift) {
+      return renderShiftGate();
+    }
+
     return html`
       <div className="app-shell">
+        ${renderCloseShiftModal()}
+
         <${MenuDrawer}
           open=${menuOpen}
           activeView=${activeView}
@@ -13195,32 +13529,31 @@
           </div>
 
           <div className="topbar-actions" style=${{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            ${renderSyncSignal()}
             ${currentUser ? html`
               <div className="user-session-pill surface">
                 <span className="user-session-icon">👤</span>
                 <small className="user-session-name">
                   ${currentUser.email.split("@")[0]} (${currentUser.role})
                 </small>
+                ${currentUser.role === "cashier" && activeShift ? html`
+                  <button
+                    type="button"
+                    className="logout-btn"
+                    onClick=${beginCloseShift}
+                  >
+                    ${L("Chốt ca / Close")}
+                  </button>
+                ` : null}
                 <button
                   type="button"
                   className="logout-btn"
-                  onClick=${handleLogout}
+                  onClick=${function () { handleLogout(); }}
                 >
                   ${L("Đăng xuất / Logout")}
                 </button>
               </div>
             ` : null}
-            <div
-              className="lang-switch surface"
-              title=${syncStatus.lastError ? syncStatus.lastError : (syncStatus.online ? "Supabase/API online" : "Offline")}
-              style=${{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px" }}
-            >
-            <span style=${{ fontSize: 14 }}>${syncStatus.online ? "🟢" : "🔴"}</span>
-            <small style=${{ color: "#7b6b5d" }}>
-              ${syncStatus.online ? "Supabase/API" : L("Ngoại tuyến / Offline")}
-              ${syncStatus.pending ? " · ⏳" + syncStatus.pending : ""}
-            </small>
-          </div>
 
           ${lowStockCount > 0 ? html`
             <button
