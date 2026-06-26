@@ -213,36 +213,18 @@ def sanitize_costs(obj):
 # ─── Mock data ───
 
 mock_products = [
-    {
-        "id": "ORIA61015",
-        "name": "B.OREO KEM V.QUAT110.4/105G",
-        "price": 22000,
-        "stock": 100,
-        "category_id": "combo",
-        "is_active": 1,
-        "inventory_mode": "stock",
-        "unit": "package",
-    },
-    {
-        "id": "ORIA62002",
-        "name": "N.T.KHIET DASANI 350ML*1CH",
-        "price": 5000,
-        "stock": 250,
-        "category_id": "beverages",
-        "is_active": 1,
-        "inventory_mode": "stock",
-        "unit": "bottle",
-    },
-    {
-        "id": "ORIA62015",
-        "name": "CACAO MILO 3IN1 22G",
-        "price": 6000,
-        "stock": 14,
-        "category_id": "beverages",
-        "is_active": 1,
-        "inventory_mode": "stock",
-        "unit": "g",
-    },
+    { "id": "CF01", "name": "Cà Phê Đen Đá", "price": 25000, "stock": 50, "category_id": "coffee", "is_active": 1, "inventory_mode": "recipe", "unit": "ly" },
+    { "id": "CF02", "name": "Cà Phê Sữa Đá", "price": 29000, "stock": 50, "category_id": "coffee", "is_active": 1, "inventory_mode": "recipe", "unit": "ly" },
+    { "id": "CF03", "name": "Bạc Xỉu", "price": 35000, "stock": 40, "category_id": "coffee", "is_active": 1, "inventory_mode": "recipe", "unit": "ly" },
+    { "id": "CF04", "name": "Cà Phê Muối", "price": 39000, "stock": 30, "category_id": "coffee", "is_active": 1, "inventory_mode": "recipe", "unit": "ly" },
+    { "id": "TE01", "name": "Trà Đào Cam Sả", "price": 45000, "stock": 100, "category_id": "tea", "is_active": 1, "inventory_mode": "recipe", "unit": "ly" },
+    { "id": "TE02", "name": "Trà Vải Nhiệt Đới", "price": 45000, "stock": 80, "category_id": "tea", "is_active": 1, "inventory_mode": "recipe", "unit": "ly" },
+    { "id": "TE03", "name": "Trà Sữa Oolong Nướng", "price": 49000, "stock": 1, "category_id": "tea", "is_active": 1, "inventory_mode": "recipe", "unit": "ly" },
+    { "id": "SM01", "name": "Sinh Tố Bơ Mộc Châu", "price": 55000, "stock": 0, "category_id": "smoothie", "is_active": 1, "inventory_mode": "recipe", "unit": "ly" },
+    { "id": "SM02", "name": "Nước Ép Dưa Hấu", "price": 40000, "stock": 20, "category_id": "smoothie", "is_active": 1, "inventory_mode": "recipe", "unit": "ly" },
+    { "id": "CK01", "name": "Bánh Croissant Bơ Pháp", "price": 35000, "stock": 10, "category_id": "cake", "is_active": 1, "inventory_mode": "stock", "unit": "cái" },
+    { "id": "CK02", "name": "Tiramisu Cổ Điển", "price": 45000, "stock": 5, "category_id": "cake", "is_active": 1, "inventory_mode": "stock", "unit": "phần" },
+    { "id": "CK03", "name": "Bánh Mì Chà Bông Phô Mai", "price": 25000, "stock": 1, "category_id": "cake", "is_active": 1, "inventory_mode": "stock", "unit": "cái" }
 ]
 
 # ─── In-Memory State ───
@@ -371,8 +353,10 @@ class MockAPIHandler(http.server.SimpleHTTPRequestHandler):
                 "ok": True,
                 "serverTime": int(datetime.datetime.now().timestamp() * 1000),
                 "categories": [
-                    {"id": "combo", "label": "Combo / Packages", "icon": "📦", "sort_order": 1, "is_active": 1},
-                    {"id": "beverages", "label": "Đồ uống / Beverages", "icon": "🧃", "sort_order": 2, "is_active": 1},
+                    {"id": "coffee", "label": "Cà Phê / Coffee", "icon": "☕", "sort_order": 1, "is_active": 1},
+                    {"id": "tea", "label": "Trà & Trà Sữa / Tea", "icon": "🧋", "sort_order": 2, "is_active": 1},
+                    {"id": "smoothie", "label": "Sinh tố & Nước ép / Juice", "icon": "🍹", "sort_order": 3, "is_active": 1},
+                    {"id": "cake", "label": "Bánh Ngọt / Cake", "icon": "🍰", "sort_order": 4, "is_active": 1},
                 ],
                 "addOns": [
                     { "id": "sugar-50", "label": "50% đường", "price": 0, "group_key": "sweetness", "is_active": 1 },
