@@ -2246,7 +2246,19 @@
     var changeDue = Math.max(0, cashReceived - totalAmount);
     var showUnitPrice = template.showUnitPrice !== false;
 
-    // Each item: 2 lines (name + addons / qty×price → line total).
+    function getPrintableItemDiscount(item) {
+      var lineGross = getItemLineGross(item, addOnOptions);
+      if (item && item.discountAmount != null) {
+        return Math.min(lineGross, Math.max(0, Math.round(Number(item.discountAmount) || 0)));
+      }
+      if (item && item.discount_amount != null) {
+        return Math.min(lineGross, Math.max(0, Math.round(Number(item.discount_amount) || 0)));
+      }
+      return getItemDiscountAmount(item, addOnOptions);
+    }
+
+    // Each item: name + addons/note + qty×price + optional item discount.
+    var itemDiscountTotal = 0;
     var lineItems = (order.items || []).map(function (item) {
       var addons = (item.addOnIds || []).map(function (id) {
         var a = getAddonById(id, addOnOptions);
@@ -2254,12 +2266,21 @@
       }).filter(Boolean).join(", ");
       var unitPrice = (Number(item.price) || 0) + getItemAddonTotal(item, addOnOptions);
       var qty = Number(item.qty) || 0;
-      var lineTotal = unitPrice * qty;
+      var lineGross = getItemLineGross(item, addOnOptions);
+      var itemDiscount = getPrintableItemDiscount(item);
+      var lineTotal = Math.max(0, lineGross - itemDiscount);
+      itemDiscountTotal += itemDiscount;
       var addonRow = addons ? "<div class='addon'>+ " + esc(addons) + "</div>" : "";
       var noteRow = item.note ? "<div class='addon'>Ghi chú: " + esc(item.note) + "</div>" : "";
       var unitText = showUnitPrice
         ? (qty + " × " + formatCurrency(unitPrice))
         : ("SL " + qty);
+      var discountRow = itemDiscount
+        ? "<div class='item-row discount-line'><span>" + esc(pickLanguage("Giảm món / Item discount", language)) + "</span><span>-" + formatCurrency(itemDiscount) + "</span></div>"
+        : "";
+      var totalHtml = itemDiscount
+        ? "<span class='line-price'><del>" + formatCurrency(lineGross) + "</del><strong>" + formatCurrency(lineTotal) + "</strong></span>"
+        : "<strong>" + formatCurrency(lineTotal) + "</strong>";
       return (
         "<div class='item'>" +
           "<div class='item-name'>" + esc(item.name) + "</div>" +
@@ -2267,8 +2288,9 @@
           noteRow +
           "<div class='item-row'>" +
             "<span>" + esc(unitText) + "</span>" +
-            "<strong>" + formatCurrency(lineTotal) + "</strong>" +
+            totalHtml +
           "</div>" +
+          discountRow +
         "</div>"
       );
     }).join("");
@@ -2344,6 +2366,10 @@
       ".item-name { font-weight: 700; word-wrap: break-word; }" +
       ".addon { font-size: 11px; padding-left: 8px; color: #333; }" +
       ".item-row { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; }" +
+      ".discount-line { color: #333; font-size: 11px; padding-left: 8px; }" +
+      ".line-price { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }" +
+      ".line-price del { font-size: 10.5px; color: #555; }" +
+      ".line-price strong { font-size: 12px; }" +
       ".totals { font-size: 12px; line-height: 1.6; }" +
       ".totals .row { display: flex; justify-content: space-between; gap: 8px; }" +
       ".grand-row { font-size: 15px; font-weight: 700; border-top: 1px solid #000; padding-top: 4px; margin-top: 4px; }" +
@@ -2362,6 +2388,13 @@
     var baseHref = (typeof window !== "undefined" && window.location)
       ? window.location.origin + "/"
       : "/";
+
+    var totalDiscount = Number(totals.discount) || 0;
+    var orderDiscount = Math.max(0, totalDiscount - itemDiscountTotal);
+    var discountSummaryHtml =
+      (itemDiscountTotal ? "<div class='row'><span>" + esc(pickLanguage("Giảm từng món / Item discounts", language)) + "</span><span>-" + formatCurrency(itemDiscountTotal) + "</span></div>" : "") +
+      (orderDiscount ? "<div class='row'><span>" + esc(pickLanguage("Giảm toàn đơn / Order discount", language)) + "</span><span>-" + formatCurrency(orderDiscount) + "</span></div>" : "") +
+      (!itemDiscountTotal && totalDiscount ? "<div class='row'><span>" + esc(pickLanguage("Giảm / Discount", language)) + "</span><span>-" + formatCurrency(totalDiscount) + "</span></div>" : "");
 
     return (
       "<!DOCTYPE html><html><head><meta charset='utf-8'>" +
@@ -2384,7 +2417,7 @@
           "<hr>" +
           // Totals: single grand total + VAT-inclusive note
           "<div class='totals'>" +
-            (totals.discount ? "<div class='row'><span>" + esc(pickLanguage("Giảm / Discount", language)) + "</span><span>-" + formatCurrency(totals.discount) + "</span></div>" : "") +
+            discountSummaryHtml +
             "<div class='row grand-row'><span>" + esc(pickLanguage("TỔNG CỘNG / TOTAL", language)) + "</span><span>" + formatCurrency(totalAmount) + "</span></div>" +
             "<div class='vat-note'>" + esc(pickLanguage("(Giá đã bao gồm VAT) / (VAT included)", language)) + "</div>" +
             (template.showCashReceived !== false && cashReceived > 0 ? "<div class='row'><span>" + esc(pickLanguage("Khách đưa / Cash", language)) + "</span><span>" + formatCurrency(cashReceived) + "</span></div>" : "") +
@@ -5910,7 +5943,8 @@
               price: Number(it.unit_price || it.unitPrice || it.price || 0)
                      - Number(it.addons_total || it.addonsTotal || 0),
               qty: Number(it.qty || 1),
-              addOnIds: addonIds
+              addOnIds: addonIds,
+              discountAmount: Number(it.discount_amount || it.discountAmount || 0)
             };
           })
         };
