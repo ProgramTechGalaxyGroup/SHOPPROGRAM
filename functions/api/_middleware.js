@@ -26,6 +26,7 @@ function isAuthorized(role, path, method) {
     if (path.startsWith("/api/categories") && method === "GET") return true;
     if (path.startsWith("/api/addons") && method === "GET") return true;
     if (path.startsWith("/api/sync/pull") && method === "GET") return true;
+    if (path.startsWith("/api/shifts")) return true;
     return false;
   }
 
