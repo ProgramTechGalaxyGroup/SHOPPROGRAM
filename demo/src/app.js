@@ -13070,10 +13070,10 @@
               <label style=${{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <span style=${{ fontSize: "0.85rem", fontWeight: "bold", color: "#5b3a20" }}>${L("Email / Tài khoản")}</span>
                 <input
-                  type="email"
+                  type="text"
                   value=${loginEmail}
                   onInput=${function (e) { setLoginEmail(e.target.value); }}
-                  placeholder="cashier@shopprogram.local"
+                  placeholder="cashier hoặc cashier@shopprogram.local"
                   required
                   style=${{ padding: "10px 12px", border: "1px solid #eedecf", borderRadius: "8px", fontSize: "0.95rem" }}
                 />
