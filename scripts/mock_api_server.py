@@ -85,6 +85,10 @@ ACCOUNTS = {
         "role": "barista",
         "hash": hash_password("barista123", SALT),
     },
+    "kiosk@shopprogram.local": {
+        "role": "kiosk",
+        "hash": hash_password("kiosk123", SALT),
+    },
     "accountant@shopprogram.local": {
         "role": "accountant",
         "hash": hash_password("accountant123", SALT),
@@ -166,6 +170,18 @@ def is_authorized(role, path, method):
         if path.startswith("/api/sync/pull") and method == "GET":
             return True
         if path == "/api/products" and method == "GET":
+            return True
+        return False
+
+    # Kiosk
+    if role == "kiosk":
+        if path.startswith("/api/sales") and method == "POST":
+            return True
+        if path.startswith("/api/sync/pull") and method == "GET":
+            return True
+        if any(path.startswith(p) for p in (
+            "/api/products", "/api/categories", "/api/addons"
+        )) and method == "GET":
             return True
         return False
 
