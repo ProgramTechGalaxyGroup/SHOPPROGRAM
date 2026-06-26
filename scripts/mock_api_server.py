@@ -585,6 +585,9 @@ class MockAPIHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         email = body["email"].strip().lower()
+        if "@" not in email:
+            email += "@shopprogram.local"
+            
         password = str(body["password"])
 
         account = ACCOUNTS.get(email)
