@@ -2674,7 +2674,7 @@
         ` : null}
 
         <!-- Main Screen -->
-        <div className="k-header">
+        <div className="k-header" style=${{ display: viewState === "main" ? "flex" : "none" }}>
           <div style=${{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style=${{ width: 48, height: 48, background: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#eb5e10", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>🍋</div>
             <div>
@@ -2685,7 +2685,7 @@
           <div style=${{ fontWeight: 700, color: "#888", fontSize: "1.1rem" }}><span style=${{ color: "#eb5e10" }}>VI</span> | <span>EN</span></div>
         </div>
 
-        <div className="k-cat-nav">
+        <div className="k-cat-nav" style=${{ display: viewState === "main" ? "flex" : "none" }}>
           <button className=${"k-btn k-cat-btn " + (selectedCategory === "all" ? "active" : "")} onClick=${function() { setSelectedCategory("all"); }}>
             <div style=${{ fontSize: "2rem" }}>🍱</div>
             <div style=${{ fontWeight: 700, fontSize: "1.05rem" }}>Tất cả</div>
@@ -2703,7 +2703,7 @@
           })}
         </div>
 
-        <div className="k-main">
+        <div className="k-main" style=${{ display: viewState === "main" ? "block" : "none" }}>
           <div className="k-grid">
             ${displayProducts.map(function(p) {
               var isSoldOut = p.stock <= 0;
@@ -2722,7 +2722,8 @@
           </div>
         </div>
 
-        <div className="k-footer" style=${{ opacity: cartTotalItems > 0 ? 1 : 0.5, pointerEvents: cartTotalItems > 0 ? "auto" : "none" }}>
+        ${viewState === "main" ? html`
+          <div className="k-footer" style=${{ opacity: cartTotalItems > 0 ? 1 : 0.5, pointerEvents: cartTotalItems > 0 ? "auto" : "none" }}>
           <div style=${{ display: "flex", alignItems: "center", gap: 24 }}>
             <div style=${{ position: "relative" }}>
               <div style=${{ width: 64, height: 64, background: "#eb5e10", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: "#fff" }}>🛒</div>
@@ -2745,6 +2746,7 @@
             Xem giỏ hàng <br/> View Cart &rarr;
           </button>
         </div>
+        ` : null}
 
         ${isModalOpen ? html`
           <div className="k-modal-overlay">
