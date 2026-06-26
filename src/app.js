@@ -2591,8 +2591,8 @@
       });
     }
 
-    var activeProducts = (props.products || []).filter(function(p) { return p.is_active; });
-    var displayProducts = selectedCategory === "all" ? activeProducts : activeProducts.filter(function(p) { return p.category_id === selectedCategory; });
+    var activeProducts = (props.products || []).filter(function(p) { return p.is_active !== false && p.is_active !== 0; });
+    var displayProducts = selectedCategory === "all" ? activeProducts : activeProducts.filter(function(p) { return p.category === selectedCategory || p.category_id === selectedCategory; });
 
     var cartTotalItems = cart.reduce(function(sum, item) { return sum + item.qty; }, 0);
     var cartTotalPrice = cart.reduce(function(sum, item) { return sum + item.price * item.qty; }, 0);
@@ -2641,7 +2641,7 @@
     `;
 
     var categories = props.categories || [];
-    var activeCategories = categories.filter(function(c) { return c.is_active; });
+    var activeCategories = categories.filter(function(c) { return c.is_active !== false && c.is_active !== 0; });
 
     return html`
       <div className="kiosk-wrapper">
