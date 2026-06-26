@@ -2273,6 +2273,8 @@
       { id: "pos", label: "Bán hàng / POS", icon: "🧾", help: "Bán hàng tại quầy / Counter sales" },
       { id: "dashboard", label: "Tổng quan / Dashboard", icon: "📊", help: "Tổng quan doanh thu / Sales overview" },
       { id: "inventory", label: "Kho hàng / Inventory", icon: "📦", help: "Sửa, thêm, xóa sản phẩm / Manage products" },
+      { id: "kitchen", label: "Bếp & Pha chế / KDS", icon: "👨‍🍳", help: "Màn hình KDS nhận pha chế / Kitchen display" },
+      { id: "customer_board", label: "Bảng nhận món / Display", icon: "🖥️", help: "Bảng gọi số thứ tự / Customer status display" },
       { id: "settings", label: "Cài đặt / Settings", icon: "⚙️", help: "Cửa hàng, hóa đơn, mã vạch / Shop, invoice, barcode" }
     ];
 
@@ -2284,7 +2286,10 @@
           return item.id !== "settings";
         }
         if (role === "cashier") {
-          return item.id === "pos";
+          return item.id === "pos" || item.id === "customer_board";
+        }
+        if (role === "barista") {
+          return item.id === "kitchen" || item.id === "customer_board";
         }
         if (role === "inventory") {
           return item.id === "inventory";
@@ -2408,6 +2413,479 @@
     `;
   }
 
+  function KitchenView(props) {
+    var pushToast = props.pushToast;
+    var [kitchenOrders, setKitchenOrders] = useState([]);
+    
+    // Play notification sound on new kitchen order
+    var prevLengthRef = useRef(0);
+    useEffect(function () {
+      if (kitchenOrders.length > prevLengthRef.current) {
+        try {
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type = "sine";
+          osc.frequency.value = 523.25; // C5 note
+          gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.4);
+        } catch(e){}
+        if (pushToast) pushToast("info", "🔔 Có đơn nước mới cần pha chế!");
+      }
+      prevLengthRef.current = kitchenOrders.length;
+    }, [kitchenOrders, pushToast]);
+
+    useEffect(function () {
+      function loadOrders() {
+        fetch("/api/kitchen/orders")
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              setKitchenOrders(data.orders || []);
+            }
+          });
+      }
+      loadOrders();
+      var interval = setInterval(loadOrders, 2000);
+      return function () { clearInterval(interval); };
+    }, []);
+
+    function changeStatus(orderId, newStatus) {
+      fetch("/api/kitchen/orders/status", {
+        method: "POST",
+        body: JSON.stringify({ orderId: orderId, status: newStatus })
+      }).then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (data.ok) {
+            if (pushToast) pushToast("success", "Đã cập nhật trạng thái đơn sang " + newStatus);
+            fetch("/api/kitchen/orders")
+              .then(function (res) { return res.json(); })
+              .then(function (data) {
+                if (data.ok) setKitchenOrders(data.orders || []);
+              });
+          }
+        });
+    }
+
+    return html`
+      <div style=${{ padding: 24 }}>
+        <h2 style=${{ fontFamily: "Space Grotesk, sans-serif", fontSize: "1.75rem", marginBottom: 20, color: "#5b3a20" }}>Màn hình Bếp / Pha Chế (Kitchen KDS)</h2>
+        <div style=${{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
+          ${kitchenOrders.length === 0 ? html`
+            <p style=${{ color: "#888", textAlign: "center", gridColumn: "1/-1", marginTop: 40 }}>Không có đơn nước nào cần chuẩn bị.</p>
+          ` : kitchenOrders.map(function (o) {
+            return html`
+              <div style=${{ background: "#fff", border: "2px solid " + (o.prep_status === 'preparing' ? '#f59e0b' : '#3b82f6'), borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+                <div style=${{ padding: "12px 16px", background: "#f8f9fa", borderBottom: "1px solid #eee", display: "flex", justifyContent: "space-between", fontWeight: "bold" }}>
+                  <span style=${{ color: "#5b3a20" }}>Đơn #${o.order_id.split("-").pop()}</span>
+                  <span style=${{ fontSize: 12, color: "#888" }}>${o.customer_name}</span>
+                </div>
+                <div style=${{ padding: 16, flex: 1, color: "#333" }}>
+                  ${o.items.map(function (it) {
+                    return html`
+                      <div style=${{ marginBottom: 8, borderBottom: "1px dashed #eee", paddingBottom: 6 }}>
+                        <div style=${{ display: "flex", justifyContent: "space-between", fontWeight: 600 }}>
+                          <span>${it.productName || it.name}</span>
+                          <span>x${it.qty}</span>
+                        </div>
+                        ${it.addonsJson ? html`<small style=${{ color: "#f59e0b" }}>${it.addonsJson}</small>` : null}
+                      </div>
+                    `;
+                  })}
+                </div>
+                <div style=${{ padding: 12, display: "flex", gap: 8, background: "#f8f9fa" }}>
+                  <button className="btn btn-success" style=${{ flex: 1, padding: 10, background: "#10b981", border: "none", color: "#fff", fontWeight: 700, borderRadius: 6, cursor: "pointer" }} onClick=${function() { changeStatus(o.id, 'ready'); }}>✅ Đã làm xong</button>
+                </div>
+              </div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
+  function KioskView(props) {
+    var [viewState, setViewState] = useState("welcome"); // welcome, main, success
+    var [cart, setCart] = useState([]);
+    var [selectedCategory, setSelectedCategory] = useState("all");
+    var [isModalOpen, setIsModalOpen] = useState(false);
+    var [customerName, setCustomerName] = useState("");
+    var [customerPhone, setCustomerPhone] = useState("");
+    var [paymentMethod, setPaymentMethod] = useState("cash");
+    var [successOrderId, setSuccessOrderId] = useState("");
+
+    function addToCart(product) {
+      setCart(function(c) {
+        var existing = c.find(function(item) { return item.productId === product.id; });
+        if (existing) {
+          return c.map(function(item) { return item.productId === product.id ? Object.assign({}, item, {qty: item.qty + 1}) : item; });
+        }
+        return c.concat([{
+          productId: product.id,
+          productName: product.name,
+          price: product.price,
+          qty: 1,
+          addonsJson: "[]"
+        }]);
+      });
+    }
+
+    function updateQty(productId, delta) {
+      setCart(function(c) {
+        return c.map(function(i) {
+          if (i.productId === productId) {
+            return Object.assign({}, i, {qty: i.qty + delta});
+          }
+          return i;
+        }).filter(function(i) { return i.qty > 0; });
+      });
+    }
+
+    // Effect to close modal if cart becomes empty
+    useEffect(function() {
+      if (cart.length === 0 && isModalOpen) {
+        setIsModalOpen(false);
+      }
+    }, [cart.length, isModalOpen]);
+
+    function submitOrder() {
+      if (cart.length === 0) return;
+      var total = cart.reduce(function(sum, item) { return sum + item.price * item.qty; }, 0);
+      var genId = "HD-" + Date.now();
+      
+      var cName = customerName || "Khách lẻ (Kiosk)";
+      var fullCustomerName = cName;
+      if (customerPhone) fullCustomerName += " (" + customerPhone + ")";
+
+      var payload = {
+        clientOpId: "kiosk-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
+        id: genId,
+        customerName: fullCustomerName,
+        subtotal: total,
+        total: total,
+        paymentMethod: paymentMethod,
+        paymentStatus: "unpaid",
+        orderStatus: "held", // Using held status to allow Kitchen/Barista prep logic based on our recent fix
+        note: JSON.stringify({ prepStatus: "pending" }), // Workaround for Barista screen
+        items: cart
+      };
+      
+      setIsModalOpen(false);
+      
+      syncApi("/sales", { method: "POST", body: payload }).then(function(res) {
+        setCart([]);
+        setCustomerName("");
+        setCustomerPhone("");
+        setSuccessOrderId(genId + " - " + fullCustomerName);
+        setViewState("success");
+        
+        setTimeout(function() {
+          setViewState("welcome");
+        }, 5000);
+      }).catch(function(err) {
+        props.pushToast("error", "Lỗi gửi đơn: " + err);
+      });
+    }
+
+    var activeProducts = (props.products || []).filter(function(p) { return p.is_active; });
+    var displayProducts = selectedCategory === "all" ? activeProducts : activeProducts.filter(function(p) { return p.category_id === selectedCategory; });
+
+    var cartTotalItems = cart.reduce(function(sum, item) { return sum + item.qty; }, 0);
+    var cartTotalPrice = cart.reduce(function(sum, item) { return sum + item.price * item.qty; }, 0);
+
+    var injectedStyles = html`
+      <style>
+        .kiosk-wrapper { font-family: 'Be Vietnam Pro', Arial, sans-serif; background: #f7f3ec; color: #1a1a1a; height: calc(100vh - 64px); display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .kiosk-wrapper * { box-sizing: border-box; }
+        .k-btn { cursor: pointer; transition: all 0.2s; user-select: none; border: none; }
+        .k-btn:active { transform: scale(0.98); }
+        .kiosk-welcome { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; }
+        .kiosk-welcome-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, rgba(235,94,16,0.05) 0%, rgba(255,255,255,1) 70%); z-index: 1; }
+        .kiosk-welcome-content { position: relative; z-index: 2; text-align: center; }
+        .kw-logo { font-size: 6rem; margin-bottom: 24px; animation: kfloat 3s ease-in-out infinite; }
+        @keyframes kfloat { 0% { transform: translateY(0px); } 50% { transform: translateY(-15px); } 100% { transform: translateY(0px); } }
+        .kw-title { font-size: 3.5rem; font-weight: 800; margin-bottom: 12px; }
+        .kw-sub { font-size: 1.5rem; color: #888; margin-bottom: 60px; }
+        .kw-start-btn { background: #eb5e10; color: white; padding: 24px 64px; font-size: 2rem; font-weight: 800; border-radius: 32px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+        .k-header { display: flex; justify-content: space-between; align-items: center; padding: 24px 40px; }
+        .k-cat-nav { display: flex; padding: 0 40px 24px 40px; gap: 16px; overflow-x: auto; scrollbar-width: none; }
+        .k-cat-nav::-webkit-scrollbar { display: none; }
+        .k-cat-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 110px; height: 110px; background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); gap: 8px; }
+        .k-cat-btn.active { background: #eb5e10; color: #fff; }
+        .k-cat-btn.active .kc-sub { color: rgba(255,255,255,0.8); }
+        .k-main { flex: 1; overflow-y: auto; padding: 0 40px 140px 40px; }
+        .k-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 24px; }
+        .k-prod { background: #fff; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; box-shadow: 0 2px 8px rgba(0,0,0,0.04); position: relative; }
+        .kp-img { width: 100%; aspect-ratio: 1; background: #f0ebe1; border-radius: 12px; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; font-size: 4rem; }
+        .kp-badge { position: absolute; top: 24px; left: 8px; background: #eb5e10; color: white; padding: 4px 12px; font-size: 0.8rem; font-weight: 800; border-radius: 12px; z-index: 10; }
+        .kp-add { background: #eb5e10; color: white; width: 100%; padding: 12px; font-size: 1.1rem; font-weight: 700; border-radius: 12px; margin-top: auto; }
+        .kp-add:disabled { background: #ddd; cursor: not-allowed; }
+        .k-footer { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); width: calc(100% - 80px); background: #fff; border-radius: 32px; padding: 16px 24px; box-shadow: 0 16px 48px rgba(0,0,0,0.12); display: flex; align-items: center; justify-content: space-between; z-index: 100; border: 1px solid #eaeaea; transition: opacity 0.3s; }
+        .kf-view-btn { background: #eb5e10; color: white; padding: 0 40px; height: 64px; font-size: 1.25rem; font-weight: 800; border-radius: 32px; }
+        .k-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .k-modal { background: #fff; width: 600px; border-radius: 32px; padding: 32px; box-shadow: 0 16px 48px rgba(0,0,0,0.12); display: flex; flex-direction: column; max-height: 90vh; }
+        .km-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eaeaea; }
+        .km-qty-ctrl { display: flex; align-items: center; gap: 12px; background: #f5f5f5; border-radius: 20px; padding: 4px; }
+        .km-qty-btn { width: 28px; height: 28px; border-radius: 50%; background: #fff; font-size: 1.1rem; font-weight: bold; border: none; cursor: pointer; }
+        .k-form { background: #fdfbf7; padding: 20px; border-radius: 24px; border: 1px solid #eaeaea; margin-bottom: 20px; margin-top: 16px; }
+        .k-input { width: 100%; background: #fff; border: 1px solid #eaeaea; padding: 12px 16px; border-radius: 12px; font-size: 1.05rem; outline: none; }
+        .k-input:focus { border-color: #eb5e10; }
+        .k-pay-btn { flex: 1; padding: 10px 12px; border: 1px solid #eaeaea; border-radius: 12px; background: #fff; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .k-pay-btn.active { border-color: #eb5e10; background: #fff5f0; color: #eb5e10; border-width: 2px; }
+        .k-success { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f7f3ec; z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+      </style>
+    `;
+
+    var categories = props.categories || [];
+    var activeCategories = categories.filter(function(c) { return c.is_active; });
+
+    return html`
+      <div className="kiosk-wrapper">
+        ${injectedStyles}
+        
+        ${viewState === "welcome" ? html`
+          <div className="kiosk-welcome">
+            <div className="kiosk-welcome-bg"></div>
+            <div className="kiosk-welcome-content">
+              <div className="kw-logo">🍋</div>
+              <div className="kw-title">Fruity Corner</div>
+              <div className="kw-sub">Kiosk tự gọi món / Self-Order Kiosk</div>
+              <button className="k-btn kw-start-btn" onClick=${function() { setViewState("main"); }}>
+                Bắt đầu gọi món<br/><span style=${{ fontSize: "1.2rem", fontWeight: 500 }}>Touch to start</span>
+              </button>
+            </div>
+          </div>
+        ` : null}
+
+        ${viewState === "success" ? html`
+          <div className="k-success">
+            <div style=${{ fontSize: "8rem", marginBottom: 24 }}>🎉</div>
+            <div style=${{ fontSize: "3rem", fontWeight: 800, marginBottom: 16, color: "#1a1a1a" }}>Cảm ơn quý khách đã đặt hàng!</div>
+            <div style=${{ fontSize: "1.5rem", color: "#555", marginBottom: 40 }}>Đơn hàng của bạn đang được chuẩn bị.</div>
+            <div style=${{ fontSize: "1.8rem", fontWeight: 700, color: "#eb5e10", padding: "16px 32px", background: "#fff", borderRadius: 24, boxShadow: "0 2px 8px rgba(0,0,0,0.04)", marginBottom: 32 }}>
+              Mã đơn: ${successOrderId}
+            </div>
+            <div style=${{ color: "#888", marginTop: 20 }}>Sẽ tự động quay lại sau 5 giây...</div>
+          </div>
+        ` : null}
+
+        <!-- Main Screen -->
+        <div className="k-header">
+          <div style=${{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style=${{ width: 48, height: 48, background: "#fff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#eb5e10", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>🍋</div>
+            <div>
+              <div style=${{ fontSize: "1.5rem", fontWeight: 800, lineHeight: 1.2 }}>Fruity Corner</div>
+              <div style=${{ fontSize: "0.9rem", color: "#888", fontWeight: 500 }}>Fresh Fruit & Drinks</div>
+            </div>
+          </div>
+          <div style=${{ fontWeight: 700, color: "#888", fontSize: "1.1rem" }}><span style=${{ color: "#eb5e10" }}>VI</span> | <span>EN</span></div>
+        </div>
+
+        <div className="k-cat-nav">
+          <button className=${"k-btn k-cat-btn " + (selectedCategory === "all" ? "active" : "")} onClick=${function() { setSelectedCategory("all"); }}>
+            <div style=${{ fontSize: "2rem" }}>🍱</div>
+            <div style=${{ fontWeight: 700, fontSize: "1.05rem" }}>Tất cả</div>
+            <div className="kc-sub" style=${{ fontSize: "0.8rem", color: selectedCategory === "all" ? "rgba(255,255,255,0.8)" : "#888", fontWeight: 500 }}>All</div>
+          </button>
+          ${activeCategories.map(function(c) {
+            var isSel = selectedCategory === c.id;
+            return html`
+              <button key=${c.id} className=${"k-btn k-cat-btn " + (isSel ? "active" : "")} onClick=${function() { setSelectedCategory(c.id); }}>
+                <div style=${{ fontSize: "2rem" }}>${c.icon || "🍽️"}</div>
+                <div style=${{ fontWeight: 700, fontSize: "1.05rem" }}>${c.label.split(" / ")[0]}</div>
+                <div className="kc-sub" style=${{ fontSize: "0.8rem", color: isSel ? "rgba(255,255,255,0.8)" : "#888", fontWeight: 500 }}>${c.label.split(" / ")[1] || ""}</div>
+              </button>
+            `;
+          })}
+        </div>
+
+        <div className="k-main">
+          <div className="k-grid">
+            ${displayProducts.map(function(p) {
+              var isSoldOut = p.stock <= 0;
+              return html`
+                <div key=${p.id} className="k-prod">
+                  ${!isSoldOut && p.stock < 5 ? html`<div className="kp-badge">BEST</div>` : null}
+                  ${isSoldOut ? html`<div className="kp-badge" style=${{ background: "#ef4444" }}>HẾT HÀNG</div>` : null}
+                  <div className="kp-img">${p.icon || "🥤"}</div>
+                  <div style=${{ fontSize: "1.15rem", fontWeight: 700, marginBottom: 4 }}>${p.name.split(" / ")[0]}</div>
+                  <div style=${{ fontSize: "0.85rem", color: "#888", marginBottom: 12 }}>${p.name.split(" / ")[1] || ""}</div>
+                  <div style=${{ fontSize: "1.25rem", fontWeight: 800, color: "#eb5e10", marginBottom: 16 }}>${formatCurrency(p.price)}đ</div>
+                  <button className="k-btn kp-add" disabled=${isSoldOut} onClick=${function() { addToCart(p); }}>+ Thêm / Add</button>
+                </div>
+              `;
+            })}
+          </div>
+        </div>
+
+        <div className="k-footer" style=${{ opacity: cartTotalItems > 0 ? 1 : 0.5, pointerEvents: cartTotalItems > 0 ? "auto" : "none" }}>
+          <div style=${{ display: "flex", alignItems: "center", gap: 24 }}>
+            <div style=${{ position: "relative" }}>
+              <div style=${{ width: 64, height: 64, background: "#eb5e10", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: "#fff" }}>🛒</div>
+              <div style=${{ position: "absolute", top: -4, right: -4, background: "#fff", color: "#eb5e10", width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "0.9rem", border: "2px solid #eb5e10" }}>${cartTotalItems}</div>
+            </div>
+            <div style=${{ display: "flex", flexDirection: "column" }}>
+              <div style=${{ fontWeight: 700, fontSize: "1.2rem" }}>${cartTotalItems} món / items</div>
+              <div style=${{ fontWeight: 800, fontSize: "1.5rem", color: "#1a1a1a", marginTop: 4 }}>${formatCurrency(cartTotalPrice)}đ</div>
+            </div>
+            <div style=${{ display: "flex", gap: 8, alignItems: "center", paddingLeft: 16, borderLeft: "2px solid #eaeaea", height: 48 }}>
+              ${cart.slice(0, 3).map(function(item) {
+                var p = displayProducts.find(function(dp) { return dp.id === item.productId; });
+                var icon = p ? p.icon : "🥤";
+                return html`<div key=${item.productId} style=${{ width: 40, height: 40, background: "#f0ebe1", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>${icon}</div>`;
+              })}
+              ${cart.length > 3 ? html`<div style=${{ width: 40, height: 40, background: "#f0ebe1", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.9rem", fontWeight: "bold" }}>+${cart.length - 3}</div>` : null}
+            </div>
+          </div>
+          <button className="k-btn kf-view-btn" onClick=${function() { setIsModalOpen(true); }}>
+            Xem giỏ hàng <br/> View Cart &rarr;
+          </button>
+        </div>
+
+        ${isModalOpen ? html`
+          <div className="k-modal-overlay">
+            <div className="k-modal">
+              <div style=${{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 16, textAlign: "center", borderBottom: "1px solid #eaeaea", paddingBottom: 16 }}>
+                Giỏ hàng của bạn / Your Cart
+              </div>
+              <div style=${{ flex: 1, overflowY: "auto", marginBottom: 16 }}>
+                ${cart.map(function(item) {
+                  return html`
+                    <div key=${item.productId} className="km-item">
+                      <div>
+                        <div style=${{ fontWeight: 700, fontSize: "1.1rem" }}>${item.productName}</div>
+                        <div style=${{ color: "#eb5e10", fontWeight: 700 }}>${formatCurrency(item.price)}đ</div>
+                      </div>
+                      <div className="km-qty-ctrl">
+                        <button className="km-qty-btn" onClick=${function() { updateQty(item.productId, -1); }}>-</button>
+                        <div style=${{ fontWeight: 700 }}>${item.qty}</div>
+                        <button className="km-qty-btn" onClick=${function() { updateQty(item.productId, 1); }}>+</button>
+                      </div>
+                    </div>
+                  `;
+                })}
+              </div>
+
+              <div className="k-form">
+                <div style=${{ display: "flex", gap: 16, marginBottom: 12 }}>
+                  <div style=${{ flex: 1, display: "flex", flexDirection: "column" }}>
+                    <label style=${{ fontSize: "0.95rem", fontWeight: 700, marginBottom: 6, color: "#1a1a1a" }}>Tên khách hàng</label>
+                    <input className="k-input" type="text" placeholder="Tên để nhận món..." value=${customerName} onInput=${function(e) { setCustomerName(e.target.value); }} />
+                  </div>
+                  <div style=${{ flex: 1, display: "flex", flexDirection: "column" }}>
+                    <label style=${{ fontSize: "0.95rem", fontWeight: 700, marginBottom: 6, color: "#1a1a1a" }}>Số điện thoại</label>
+                    <input className="k-input" type="text" placeholder="09xxxx..." value=${customerPhone} onInput=${function(e) { setCustomerPhone(e.target.value); }} />
+                  </div>
+                </div>
+                <div style=${{ display: "flex", flexDirection: "column" }}>
+                  <label style=${{ fontSize: "0.95rem", fontWeight: 700, marginBottom: 6, color: "#1a1a1a" }}>Phương thức thanh toán / Payment</label>
+                  <div style=${{ display: "flex", gap: 12 }}>
+                    <button className=${"k-pay-btn " + (paymentMethod === "cash" ? "active" : "")} onClick=${function() { setPaymentMethod("cash"); }}>
+                      <span style=${{ fontSize: "1.2rem" }}>💵</span> Tiền mặt
+                    </button>
+                    <button className=${"k-pay-btn " + (paymentMethod === "transfer" ? "active" : "")} onClick=${function() { setPaymentMethod("transfer"); }}>
+                      <span style=${{ fontSize: "1.2rem" }}>💳</span> Chuyển khoản
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div style=${{ display: "flex", gap: 16 }}>
+                <button className="k-btn" style=${{ flex: 1, padding: 16, borderRadius: 24, background: "#f5f5f5", fontWeight: 700, fontSize: "1.1rem" }} onClick=${function() { setIsModalOpen(false); }}>
+                  Quay lại / Back
+                </button>
+                <button className="k-btn" style=${{ flex: 2, padding: 16, borderRadius: 24, background: "#eb5e10", color: "white", fontWeight: 800, fontSize: "1.2rem" }} onClick=${submitOrder}>
+                  Hoàn tất đơn hàng &rarr;
+                </button>
+              </div>
+            </div>
+          </div>
+        ` : null}
+      </div>
+    `;
+  }
+
+  function CustomerBoardView() {
+    var [preparingOrders, setPreparingOrders] = useState([]);
+    var [readyOrders, setReadyOrders] = useState([]);
+
+    useEffect(function () {
+      function loadSync() {
+        fetch("/api/sync/pull")
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              const sales = data.recentSales || [];
+              let prep = sales.filter(s => s.prep_status === "pending" || s.prep_status === "preparing");
+              let ready = sales.filter(s => s.prep_status === "ready");
+
+              // Add draft orders from POS to "Preparing" section
+              try {
+                var rawState = window.localStorage.getItem("fruit-house-pos-suite-v3");
+                if (rawState) {
+                  var state = JSON.parse(rawState);
+                  if (state && Array.isArray(state.orders)) {
+                    var draftOrders = state.orders.filter(function(o) {
+                       return o.status !== "completed" && o.status !== "canceled" && o.orderNumberSource === "server" && o.id;
+                    });
+                    draftOrders.forEach(function(o) {
+                       if (!prep.find(p => p.order_id === o.id) && !ready.find(r => r.order_id === o.id)) {
+                           prep.push({ order_id: o.id, prep_status: "preparing" });
+                       }
+                    });
+                  }
+                }
+              } catch(e) {
+                console.error("Error reading draft orders", e);
+              }
+
+              setPreparingOrders(prep);
+              setReadyOrders(ready);
+            }
+          });
+      }
+      loadSync();
+      var interval = setInterval(loadSync, 2000);
+      return function () { clearInterval(interval); };
+    }, []);
+
+    return html`
+      <div style=${{ padding: 24, textAlign: "center" }}>
+        <h2 style=${{ fontFamily: "Space Grotesk, sans-serif", fontSize: "2.25rem", color: "#5b3a20", marginBottom: 32 }}>Bảng Gọi Số Thứ Tự Món</h2>
+        <div style=${{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32 }}>
+          <div style=${{ background: "#fff", border: "1px solid #ddd", borderRadius: 16, padding: 32, boxShadow: "0 8px 24px rgba(0,0,0,0.05)" }}>
+            <h3 style=${{ color: "#f59e0b", fontSize: "1.5rem", marginBottom: 24 }}>⏳ Đang Pha Chế</h3>
+            <div style=${{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 12 }}>
+              ${preparingOrders.length === 0 ? html`<span style=${{ color: "#888", gridColumn: "1/-1" }}>Trống</span>` : preparingOrders.map(function (o) {
+                return html`
+                  <div style=${{ fontSize: "1.5rem", fontWeight: "bold", background: "#f8f9fa", padding: 12, border: "1px solid #eee", borderRadius: 8, color: "#333" }}>
+                    ${o.order_id.split("-").pop()}
+                  </div>
+                `;
+              })}
+            </div>
+          </div>
+          <div style=${{ background: "#e6f7ea", border: "1px solid #10b981", borderRadius: 16, padding: 32, boxShadow: "0 8px 24px rgba(0,0,0,0.05)" }}>
+            <h3 style=${{ color: "#10b981", fontSize: "1.5rem", marginBottom: 24 }}>✅ Mời Nhận Món</h3>
+            <div style=${{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 12 }}>
+              ${readyOrders.length === 0 ? html`<span style=${{ color: "#888", gridColumn: "1/-1" }}>Trống</span>` : readyOrders.map(function (o) {
+                return html`
+                  <div style=${{ fontSize: "1.5rem", fontWeight: "bold", background: "#fff", padding: 12, border: "2px solid #10b981", borderRadius: 8, color: "#10b981" }}>
+                    ${o.order_id.split("-").pop()}
+                  </div>
+                `;
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function App() {
     var initialState = useMemo(buildInitialState, []);
     var [nowTick, setNowTick] = useState(Date.now());
@@ -2453,6 +2931,8 @@
     var [selectedBarcodeTemplateId, setSelectedBarcodeTemplateId] = useState(initialState.selectedBarcodeTemplateId);
     var [activeView, setActiveView] = useState("pos");
     var [menuOpen, setMenuOpen] = useState(false);
+    var [activeShift, setActiveShift] = useState(null);
+    var [closeShiftModalOpen, setCloseShiftModalOpen] = useState(false);
 
     // ---- Remote API sync state ----------------------------------
     var [syncStatus, setSyncStatus] = useState({ online: true, pending: 0, lastSyncAt: 0, lastError: null });
@@ -2476,12 +2956,13 @@
     var [loginSubmitting, setLoginSubmitting] = useState(false);
 
     useEffect(function () {
-      fetch("/api/auth/me", { credentials: "same-origin" })
+      fetch("/api/auth/me")
         .then(function (res) {
           if (res.ok) {
             return res.json().then(function (data) {
               if (data.ok && data.user) {
                 setCurrentUser(data.user);
+                setActiveView(getFirstAllowedView(data.user.role));
               }
               setAuthLoading(false);
             });
@@ -2493,9 +2974,62 @@
         });
     }, []);
 
+    useEffect(function () {
+      if (currentUser && (currentUser.role === "cashier" || currentUser.role === "manager" || currentUser.role === "admin")) {
+        fetch("/api/shifts/active")
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            if (data.ok) {
+              setActiveShift(data.shift);
+            }
+          });
+      } else {
+        setActiveShift(null);
+      }
+    }, [currentUser]);
+
+    // Poll for ready kitchen orders to notify cashier
+    useEffect(function () {
+      if (currentUser && (currentUser.role === "cashier" || currentUser.role === "manager" || currentUser.role === "admin")) {
+        var notifiedOrders = {};
+        var interval = setInterval(function () {
+          fetch("/api/sync/pull")
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+              if (data.ok) {
+                const ready = (data.recentSales || []).filter(s => s.prep_status === "ready");
+                ready.forEach(function (order) {
+                  if (!notifiedOrders[order.id]) {
+                    notifiedOrders[order.id] = true;
+                    // Play notification beep sound
+                    try {
+                      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                      const osc = audioCtx.createOscillator();
+                      const gain = audioCtx.createGain();
+                      osc.connect(gain);
+                      gain.connect(audioCtx.destination);
+                      osc.type = "sine";
+                      osc.frequency.value = 880;
+                      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                      osc.start();
+                      osc.stop(audioCtx.currentTime + 0.3);
+                    } catch(e){}
+                    pushToast("success", "🔔 Đơn #" + order.order_id.split("-").pop() + " đã pha chế xong!");
+                  }
+                });
+              }
+            });
+        }, 3000);
+        return function () { clearInterval(interval); };
+      }
+    }, [currentUser]);
+
     function getFirstAllowedView(role) {
+      if (role === "kiosk") return "kiosk";
       if (role === "inventory") return "inventory";
       if (role === "accountant") return "dashboard";
+      if (role === "barista") return "kitchen";
       return "pos";
     }
 
@@ -2509,7 +3043,6 @@
       setLoginSubmitting(true);
       fetch("/api/auth/login", {
         method: "POST",
-        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: loginEmail, password: loginPassword })
       })
@@ -2532,15 +3065,17 @@
         });
     }
 
-    function handleLogout() {
-      fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" })
+    function handleLogout(force) {
+      if (force !== true && currentUser && currentUser.role === "cashier" && activeShift) {
+        window.alert(L("Bạn phải chốt ca và bàn giao két trước khi đăng xuất! / You must close the shift and hand over the register before logging out."));
+        return;
+      }
+      fetch("/api/auth/logout", { method: "POST" })
         .then(function () {
           setCurrentUser(null);
-          setActiveView("pos");
         })
         .catch(function () {
           setCurrentUser(null);
-          setActiveView("pos");
         });
     }
 
@@ -2553,7 +3088,6 @@
     var [purchaseItemType, setPurchaseItemType] = useState("product");
     var [purchaseProductSearch, setPurchaseProductSearch] = useState("");
     var [purchaseDetail, setPurchaseDetail] = useState(null);
-    var [purchaseHistoryFilter, setPurchaseHistoryFilter] = useState({ from: "", to: "", item: "", sort: "date_desc" });
     var [issueDraft, setIssueDraft] = useState({ reason: "damaged", note: "", items: [] });
     var [issueItemType, setIssueItemType] = useState("product");
     var [issueItemSearch, setIssueItemSearch] = useState("");
@@ -3200,7 +3734,8 @@
             cashReceived: Number(row.paid) || 0,
             orderNumberSource: "server",
             reservedSaleId: row.id,
-            note: cleanedNote
+            note: cleanedNote,
+            prepStatus: row.prep_status || "pending"
           };
         }
 
@@ -3467,7 +4002,7 @@
           });
 
           // ----- Sync Open/Held Orders -----
-          var heldSales = data.recentSales.filter(function (row) { return row.order_status === "held"; });
+          var heldSales = data.recentSales.filter(function (row) { return row.order_status === "held" || row.order_status === "open"; });
           var nonHeldSales = data.recentSales.filter(function (row) { return row.order_status === "completed" || row.order_status === "cancelled"; });
 
           var pulledOpenOrders = heldSales.map(mapHeldSaleToOrder);
@@ -3653,6 +4188,17 @@
       }
       if (inventorySection === "stock" && stockCheckTab === "ledger") { refreshMovements(); }
     }, [activeView, inventorySection, stockCheckTab]);
+
+    // Fast sync for POS to receive Kiosk orders in real-time
+    useEffect(function () {
+      if (activeView !== "pos") return;
+      var interval = setInterval(function () {
+        if (window.ShopFlowSync && typeof window.ShopFlowSync.pull === "function") {
+          window.ShopFlowSync.pull().catch(function () {});
+        }
+      }, 3000);
+      return function () { clearInterval(interval); };
+    }, [activeView]);
 
     // ---------- Debounced persistence of settings / templates to D1 ----------
     // We don't want to flood /api/settings with one request per keystroke,
@@ -5068,6 +5614,35 @@
           syncError: ""
         });
       });
+
+      // Send draft to server so Barista can see it before payment
+      if (hasRecipeItems) {
+        var payload = {
+          clientOpId: activeOrder.clientOpId,
+          id: activeOrder.id,
+          orderId: activeOrder.orderId || activeOrder.id,
+          customerName: activeOrder.customerName || "",
+          subtotal: 0,
+          total: 0,
+          paymentMethod: activeOrder.paymentMethod || "cash",
+          cashierName: activeOrder.cashierName || "Cashier",
+          paymentStatus: "unpaid",
+          orderStatus: "open",
+          prepStatus: "preparing",
+          note: activeOrder.note || "",
+          items: activeOrder.items.map(function(it) {
+            return {
+              productId: it.productId,
+              productName: it.productName,
+              qty: it.qty,
+              price: it.price,
+              addonsJson: JSON.stringify(it.addons || [])
+            };
+          })
+        };
+        syncApi("/sales", { method: "POST", body: payload }).catch(function(e){ console.error(e); });
+      }
+
       if (!hasRecipeItems) {
         setCheckoutPanelOpen(true);
       }
@@ -5084,6 +5659,31 @@
       updateActiveOrder(function (order) {
         return Object.assign({}, order, { status: "ready" });
       });
+
+      var payload = {
+        clientOpId: activeOrder.clientOpId,
+        id: activeOrder.id,
+        orderId: activeOrder.orderId || activeOrder.id,
+        customerName: activeOrder.customerName || "",
+        subtotal: 0,
+        total: 0,
+        paymentMethod: activeOrder.paymentMethod || "cash",
+        cashierName: activeOrder.cashierName || "Cashier",
+        paymentStatus: "unpaid",
+        orderStatus: "open",
+        prepStatus: "ready",
+        note: activeOrder.note || "",
+        items: activeOrder.items.map(function(it) {
+          return {
+            productId: it.productId,
+            productName: it.productName,
+            qty: it.qty,
+            price: it.price,
+            addonsJson: JSON.stringify(it.addons || [])
+          };
+        })
+      };
+      syncApi("/sales", { method: "POST", body: payload }).catch(function(e){ console.error(e); });
       pushToast("success", L("Đơn đã chuẩn bị xong. / Order is ready."));
     }
 
@@ -5155,6 +5755,7 @@
         changeAmount: Math.max(0, (Number(orderSnapshot.cashReceived) || 0) - (Number(saleTotals.total) || 0)),
         paymentMethod: normalizePaymentMethod(orderSnapshot.paymentMethod),
         cashierName: settings.cashierName || "",
+        prepStatus: orderSnapshot.prepStatus || "pending",
         items: (orderSnapshot.items || []).map(function (item) {
           var addonTotal = getItemAddonTotal(item, addOns);
           var unitPrice = (Number(item.price) || 0) + addonTotal;
@@ -5398,22 +5999,6 @@
         setPosOrderPicked(false);
         pushToast("success", L("Đã lưu hóa đơn / Sale saved"));
       }).catch(function (error) {
-        if (error && error.status === 401) {
-          setCurrentUser(null);
-          setLoginError(L("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để lưu hóa đơn. / Session expired. Please log in again to save the sale."));
-          pushToast("error", L("Cần đăng nhập lại để lưu hóa đơn. / Please log in again to save the sale."));
-          setOrders(function (currentOrders) {
-            return currentOrders.map(function (order) {
-              return order.id === orderSnapshot.id
-                ? Object.assign({}, order, {
-                    status: orderSnapshot.status === "saving" ? "open" : orderSnapshot.status,
-                    syncError: L("Phiên đăng nhập đã hết hạn. Đăng nhập lại rồi bấm Thử lại. / Session expired. Log in again, then retry.")
-                  })
-                : order;
-            });
-          });
-          return;
-        }
         var message = error && error.data && error.data.error
           ? error.data.error
           : (error && error.message ? error.message : L("Không lưu được đơn hàng. / Could not save this order."));
@@ -8574,12 +9159,8 @@
       var completedSaleCards = (orderStatusFilter === "all" || orderStatusFilter === "completed")
         ? completedSalesToday
         : [];
-      var showCreateOrderCard = orderStatusFilter === "all" || orderStatusFilter === "new";
-      var collapseOrderBoard = !orderBoardExpanded;
-      var collapsedOrderCardLimit = Math.max(1, ORDER_BOARD_COLLAPSED_LIMIT - (showCreateOrderCard ? 1 : 0));
-      var visibleOrderLimit = collapseOrderBoard
-        ? collapsedOrderCardLimit
-        : Infinity;
+      var collapseOrderBoard = orderStatusFilter === "all" && !orderBoardExpanded;
+      var visibleOrderLimit = collapseOrderBoard ? ORDER_BOARD_COLLAPSED_LIMIT : Infinity;
       var displayedOrders = collapseOrderBoard ? filteredOrders.slice(0, visibleOrderLimit) : filteredOrders;
       var remainingSaleSlots = collapseOrderBoard ? Math.max(0, visibleOrderLimit - displayedOrders.length) : Infinity;
       var displayedCompletedSaleCards = collapseOrderBoard ? completedSaleCards.slice(0, remainingSaleSlots) : completedSaleCards;
@@ -8729,7 +9310,7 @@
               </div>
 
               <div className="order-switcher order-switcher-board">
-                ${showCreateOrderCard ? html`
+                ${(orderStatusFilter === "all" || orderStatusFilter === "new") ? html`
                   <button className="order-chip order-chip-create order-chip-board" onClick=${createNewOrder}>
                     <span>${L("+ Đơn mới / + New Order")}</span>
                     <small>${L("Tạo giỏ khác / Create another cart")}</small>
@@ -8778,7 +9359,7 @@
                     ${L("Không có đơn trong trạng thái này. / No orders in this status.")}
                   </div>
                 ` : null}
-                ${totalBoardCards > collapsedOrderCardLimit ? html`
+                ${orderStatusFilter === "all" && totalBoardCards > ORDER_BOARD_COLLAPSED_LIMIT ? html`
                   <button type="button" className="order-board-more-btn" onClick=${function () { setOrderBoardExpanded(!orderBoardExpanded); }}>
                     ${orderBoardExpanded
                       ? L("Thu gọn / Collapse")
@@ -10559,45 +11140,25 @@
                       </div>
                     ` : html`
                       <!-- Chip palette to toggle ingredients in/out of recipe -->
-                      <div className="recipe-component-palette">
-                        <p className="recipe-component-helper">
+                      <div style=${{ marginBottom: 12 }}>
+                        <p style=${{ margin: "0 0 6px", fontSize: 12, color: "#8a7565" }}>
                           ${L("Bấm để thêm/bỏ nguyên liệu: / Tap to add/remove ingredients:")}
                         </p>
-                        ${COMPONENT_ITEM_TYPE_OPTIONS.map(function (typeOption) {
-                          var groupComponents = components
-                            .filter(function (component) {
-                              return normalizeComponentItemType(component.itemType || component.item_type) === typeOption.value;
-                            })
-                            .slice()
-                            .sort(function (a, b) {
-                              return L(a.label).localeCompare(L(b.label));
-                            });
-                          if (!groupComponents.length) return null;
-                          return html`
-                            <section key=${typeOption.value} className="recipe-component-group">
-                              <div className="recipe-component-group-head">
-                                <strong>${L(typeOption.label)}</strong>
-                                <span>${groupComponents.length}</span>
-                              </div>
-                              <div className="addon-row recipe-component-chips">
-                                ${groupComponents.map(function (component) {
-                                  var inRecipe = isComponentInRecipe(productDraft, component.id);
-                                  return html`
-                                    <button
-                                      key=${component.id}
-                                      type="button"
-                                      className=${"addon-chip recipe-component-chip" + (inRecipe ? " is-active" : "")}
-                                      onClick=${function () { toggleProductDraftComponent(component.id); }}
-                                    >
-                                      ${inRecipe ? "✓ " : "+ "}${L(component.label)}
-                                      ${component.unit ? html`<small>${component.unit}</small>` : null}
-                                    </button>
-                                  `;
-                                })}
-                              </div>
-                            </section>
-                          `;
-                        })}
+                        <div className="addon-row">
+                          ${components.map(function (component) {
+                            var inRecipe = isComponentInRecipe(productDraft, component.id);
+                            return html`
+                              <button
+                                key=${component.id}
+                                type="button"
+                                className=${"addon-chip" + (inRecipe ? " is-active" : "")}
+                                onClick=${function () { toggleProductDraftComponent(component.id); }}
+                              >
+                                ${inRecipe ? "✓ " : "+ "}${L(component.label)}
+                              </button>
+                            `;
+                          })}
+                        </div>
                       </div>
 
                       <!-- Per-line recipe editor: qty + unit + note -->
@@ -10930,65 +11491,6 @@
       if ((po.verification_status || po.verificationStatus) === "rejected") return "Đã từ chối / Rejected";
       if ((po.status || "") === "completed") return "Đã nhập kho / Verified";
       return "Nháp / Draft";
-    }
-    function purchaseCreatedAtValue(po) {
-      var value = po && (po.created_at || po.createdAt || po.purchase_date || po.purchaseDate);
-      if (!value) return 0;
-      if (typeof value === "number") return value;
-      var parsed = new Date(value).getTime();
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-    function purchaseDateInputStart(value) {
-      if (!value) return 0;
-      var parsed = new Date(value + "T00:00:00").getTime();
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-    function purchaseDateInputEnd(value) {
-      if (!value) return 0;
-      var parsed = new Date(value + "T23:59:59.999").getTime();
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-    function purchaseItemNames(po) {
-      return String((po && (po.item_names || po.itemNames || po.items_text || po.itemsText)) || "");
-    }
-    function purchaseSearchText(po) {
-      return [
-        po && po.id,
-        po && (po.supplier_name || po.supplierName),
-        purchaseItemNames(po),
-        po && po.note
-      ].join(" ");
-    }
-    function updatePurchaseHistoryFilter(field, value) {
-      setPurchaseHistoryFilter(function (current) {
-        return Object.assign({}, current, { [field]: value });
-      });
-    }
-    function filteredPurchasesForHistory() {
-      var from = purchaseDateInputStart(purchaseHistoryFilter.from);
-      var to = purchaseDateInputEnd(purchaseHistoryFilter.to);
-      var query = normalizeSearchText(purchaseHistoryFilter.item);
-      var sorted = purchases.filter(function (po) {
-        var createdAt = purchaseCreatedAtValue(po);
-        if (from && createdAt && createdAt < from) return false;
-        if (to && createdAt && createdAt > to) return false;
-        if (query && normalizeSearchText(purchaseSearchText(po)).indexOf(query) === -1) return false;
-        return true;
-      }).slice();
-      sorted.sort(function (a, b) {
-        var mode = purchaseHistoryFilter.sort || "date_desc";
-        if (mode === "date_asc") {
-          return purchaseCreatedAtValue(a) - purchaseCreatedAtValue(b);
-        }
-        if (mode === "item_asc" || mode === "item_desc") {
-          var aName = normalizeSearchText(purchaseItemNames(a) || a.supplier_name || a.id);
-          var bName = normalizeSearchText(purchaseItemNames(b) || b.supplier_name || b.id);
-          var result = aName.localeCompare(bName);
-          return mode === "item_desc" ? -result : result;
-        }
-        return purchaseCreatedAtValue(b) - purchaseCreatedAtValue(a);
-      });
-      return sorted;
     }
     function viewPurchaseDetail(po) {
       if (!po || !po.id) return;
@@ -11589,7 +12091,6 @@
       var total = purchaseDraft.items.reduce(function (s, it) {
         return s + (Number(it.qty) || 0) * (Number(it.unitCost) || 0);
       }, 0);
-      var filteredPurchases = filteredPurchasesForHistory();
       return html`
         <section className="page-section">
           ${embedded ? null : html`<header className="page-header surface">
@@ -11813,69 +12314,17 @@
 
           <section className="surface section-card" style=${{ marginTop: 24 }}>
             <h2 className="section-title">${L("Lịch sử phiếu nhập / Purchase History")}</h2>
-            <div className="purchase-history-toolbar">
-              <label className="field">
-                <span>${L("Từ ngày / From")}</span>
-                <input
-                  type="date"
-                  value=${purchaseHistoryFilter.from}
-                  onInput=${function (e) { updatePurchaseHistoryFilter("from", e.target.value); }}
-                />
-              </label>
-              <label className="field">
-                <span>${L("Đến ngày / To")}</span>
-                <input
-                  type="date"
-                  value=${purchaseHistoryFilter.to}
-                  onInput=${function (e) { updatePurchaseHistoryFilter("to", e.target.value); }}
-                />
-              </label>
-              <label className="field purchase-history-search">
-                <span>${L("Tìm món, NCC, mã phiếu / Item, supplier, PO")}</span>
-                <input
-                  placeholder=${L("Ví dụ: dưa hấu, PN-2026... / Example: watermelon, PN-2026...")}
-                  value=${purchaseHistoryFilter.item}
-                  onInput=${function (e) { updatePurchaseHistoryFilter("item", e.target.value); }}
-                />
-              </label>
-              <label className="field">
-                <span>${L("Sắp xếp / Sort")}</span>
-                <select
-                  value=${purchaseHistoryFilter.sort}
-                  onChange=${function (e) { updatePurchaseHistoryFilter("sort", e.target.value); }}
-                >
-                  <option value="date_desc">${L("Ngày mới nhất / Newest")}</option>
-                  <option value="date_asc">${L("Ngày cũ nhất / Oldest")}</option>
-                  <option value="item_asc">${L("Tên món A-Z / Item A-Z")}</option>
-                  <option value="item_desc">${L("Tên món Z-A / Item Z-A")}</option>
-                </select>
-              </label>
-              <button
-                type="button"
-                className="ghost-btn purchase-history-clear"
-                onClick=${function () { setPurchaseHistoryFilter({ from: "", to: "", item: "", sort: "date_desc" }); }}
-              >
-                ${L("Xóa lọc / Clear")}
-              </button>
-            </div>
-            <p className="purchase-history-count">
-              ${filteredPurchases.length}/${purchases.length} ${L("phiếu phù hợp / matching documents")}
-            </p>
             <div className="management-list">
               ${purchases.length === 0
                 ? html`<p style=${{ color: "#7b6b5d" }}>${L("Chưa có phiếu nhập. / No purchases yet.")}</p>`
-                : filteredPurchases.length === 0
-                  ? html`<p style=${{ color: "#7b6b5d" }}>${L("Không có phiếu nhập phù hợp bộ lọc. / No purchases match these filters.")}</p>`
-                  : filteredPurchases.map(function (po) {
+                : purchases.map(function (po) {
                     var pendingVerify = isPurchasePendingVerification(po);
                     var statusLabel = purchaseStatusLabel(po);
-                    var itemNames = purchaseItemNames(po);
                     return html`
                       <article key=${po.id} className="list-row list-row-actions">
                         <div>
                           <strong>${po.id}</strong>
                           <p>${po.supplier_name || L("Không rõ NCC / Unknown supplier")} · ${po.item_count} ${L("dòng / lines")} · ${formatDateTime(po.created_at)}</p>
-                          ${itemNames ? html`<p className="purchase-item-names">${itemNames}</p>` : null}
                           <p>
                             <span className="stock-badge" style=${{
                               background: pendingVerify ? "#fff3d8" : "#e6f7ea",
@@ -12116,7 +12565,6 @@
             <div>
               <p className="eyebrow">${L("Lưu kho / Warehouse")}</p>
               <h1 className="section-title">${L("Quản lý kho hàng / Inventory Management")}</h1>
-              <small style=${{ color: "#7b6b5d" }}>${L("Đồng bộ với Supabase/API. / Synced with Supabase/API.")}</small>
             </div>
             <div className="row-actions">
               ${lowStockCount > 0 ? html`<span className="eyebrow" style=${{ color: "#c0392b" }}>⚠ ${lowStockCount} ${L("mục sắp hết / low-stock items")}</span>` : null}
@@ -12337,7 +12785,7 @@
                 <div className="list-stack">
                   <div className="empty-state align-left">
                     ${syncStatus.online
-                      ? L("Mọi thay đổi tự động lưu lên Supabase/API (1s delay). / Changes auto-save to Supabase/API (1s delay).")
+                      ? L("Mọi thay đổi tự động lưu (1s delay). / Changes auto-save (1s delay).")
                       : L("Đang offline – thay đổi sẽ đồng bộ khi có mạng lại. / Offline – changes will sync when reconnected.")}
                   </div>
                 </div>
@@ -12833,11 +13281,13 @@
 
         <header className="topbar surface">
           <div className="topbar-main">
-            <button className="menu-btn" onClick=${function () { setMenuOpen(true); }} aria-label=${L("Mở menu / Open menu")}>
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
+            ${(currentUser && currentUser.role === "kiosk") ? null : html`
+              <button className="menu-btn" onClick=${function () { setMenuOpen(true); }} aria-label=${L("Mở menu / Open menu")}>
+                <span></span>
+                <span></span>
+                <span></span>
+              </button>
+            `}
             <div className="brand-block">
               <div>
                 <p className="eyebrow">${settings.brandLine || settings.storeName}</p>
@@ -12885,31 +13335,34 @@
 
           <div className="topbar-actions" style=${{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             ${currentUser ? html`
-              <div className="user-session-pill surface">
-                <span className="user-session-icon">👤</span>
-                <small className="user-session-name">
+              <div
+                className="lang-switch surface"
+                style=${{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px" }}
+              >
+                <span style=${{ fontSize: 14 }}>👤</span>
+                <small style=${{ color: "#7b6b5d", fontWeight: "bold" }}>
                   ${currentUser.email.split("@")[0]} (${currentUser.role})
                 </small>
+                ${activeShift ? html`
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    style=${{ padding: "4px 8px", fontSize: 11, marginLeft: 4, cursor: "pointer", background: "#ef4444", color: "#fff", border: "none", borderRadius: 4, fontWeight: "bold" }}
+                    onClick=${function () { setCloseShiftModalOpen(true); }}
+                  >
+                    🔒 Chốt ca / Close Shift
+                  </button>
+                ` : null}
                 <button
                   type="button"
-                  className="logout-btn"
+                  className="ghost-btn"
+                  style=${{ padding: "2px 6px", fontSize: 11, marginLeft: 4, cursor: "pointer", background: "#fde2e0", color: "#c0392b", border: "1px solid #fde2e0", borderRadius: 4 }}
                   onClick=${handleLogout}
                 >
                   ${L("Đăng xuất / Logout")}
                 </button>
               </div>
             ` : null}
-            <div
-              className="lang-switch surface"
-              title=${syncStatus.lastError ? syncStatus.lastError : (syncStatus.online ? "Supabase/API online" : "Offline")}
-              style=${{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 10px" }}
-            >
-            <span style=${{ fontSize: 14 }}>${syncStatus.online ? "🟢" : "🔴"}</span>
-            <small style=${{ color: "#7b6b5d" }}>
-              ${syncStatus.online ? "Supabase/API" : L("Ngoại tuyến / Offline")}
-              ${syncStatus.pending ? " · ⏳" + syncStatus.pending : ""}
-            </small>
-          </div>
 
           ${lowStockCount > 0 ? html`
             <button
@@ -12955,8 +13408,87 @@
           ${activeView === "pos" ? renderPosView() : null}
           ${activeView === "dashboard" ? renderDashboardView() : null}
           ${activeView === "inventory" ? renderInventoryView() : null}
+          ${activeView === "kitchen" ? html`<${KitchenView} pushToast=${pushToast} />` : null}
+          ${activeView === "customer_board" ? html`<${CustomerBoardView} />` : null}
           ${activeView === "settings" ? renderSettingsView() : null}
         </main>
+
+        ${(!activeShift && currentUser && (currentUser.role === "cashier" || currentUser.role === "manager" || currentUser.role === "admin")) ? html`
+          <div className="modal-backdrop" style=${{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 10000 }}>
+            <div className="modal-content" style=${{ background: "#fff", padding: 32, borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 8px 32px rgba(0,0,0,0.15)", color: "#000" }}>
+              <h2 style=${{ color: "#5b3a20", marginBottom: 12 }}>Mở Két Đầu Ca</h2>
+              <p style=${{ fontSize: 13, color: "#666", marginBottom: 20 }}>Vui lòng khai báo số tiền mặt lẻ trong két để mở ca làm việc mới.</p>
+              <div className="form-group" style=${{ marginBottom: 20 }}>
+                <label style=${{ display: "block", fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 6 }}>Số tiền mặt đầu ca (VND)</label>
+                <input type="number" id="opening-cash-input" className="form-control" defaultValue="500000" style=${{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ddd" }} />
+              </div>
+              <div style=${{ display: "flex", gap: 12, marginTop: 12 }}>
+                <button className="btn btn-primary" style=${{ flex: 1, padding: 12, background: "#f59e0b", color: "#000", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer" }} onClick=${function () {
+                  const openingCash = Number(document.getElementById("opening-cash-input").value) || 0;
+                  fetch("/api/shifts/start", {
+                    method: "POST",
+                    body: JSON.stringify({ openingCash: openingCash })
+                  }).then(function (res) { return res.json(); })
+                    .then(function (data) {
+                      if (data.ok) {
+                        setActiveShift(data.shift);
+                        pushToast("success", "Đã mở két đầu ca thành công. Ca làm việc bắt đầu.");
+                      }
+                    });
+                }}>Xác nhận Mở Két</button>
+                <button className="btn btn-secondary" style=${{ padding: "12px 16px", background: "#fde2e0", color: "#c0392b", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer" }} onClick=${handleLogout}>Đăng xuất</button>
+              </div>
+            </div>
+          </div>
+        ` : null}
+
+        ${closeShiftModalOpen && activeShift ? html`
+          <div className="modal-backdrop" style=${{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 10000 }}>
+            <div className="modal-content" style=${{ background: "#fff", padding: 32, borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 8px 32px rgba(0,0,0,0.15)", color: "#000" }}>
+              <h2 style=${{ color: "#c0392b", marginBottom: 8 }}>Chốt Ca & Bàn Giao Két</h2>
+              <p style=${{ fontSize: 13, color: "#666", marginBottom: 20 }}>Vui lòng đối chiếu số tiền mặt trong ngăn kéo két.</p>
+              
+              <div style=${{ background: "#f8f9fa", padding: 16, borderRadius: 8, marginBottom: 20, fontSize: 14 }}>
+                <div style=${{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span>Số dư bắt đầu ca:</span>
+                  <strong>${formatCurrency(activeShift.opening_cash || 0)}đ</strong>
+                </div>
+                <div style=${{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span>Doanh thu Tiền mặt trong ca:</span>
+                  <strong>${formatCurrency(activeShift.cashSales || 0)}đ</strong>
+                </div>
+                <div style=${{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #ddd", paddingTop: 8, marginTop: 8, fontWeight: "bold" }}>
+                  <span>Số dư két lý thuyết:</span>
+                  <strong style=${{ color: "#f59e0b" }}>${formatCurrency((activeShift.opening_cash || 0) + (activeShift.cashSales || 0))}đ</strong>
+                </div>
+              </div>
+
+              <div className="form-group" style=${{ marginBottom: 20 }}>
+                <label style=${{ display: "block", fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 6 }}>Số tiền mặt đếm thực tế (VND)</label>
+                <input type="number" id="closing-cash-input" className="form-control" defaultValue=${(activeShift.opening_cash || 0) + (activeShift.cashSales || 0)} style=${{ width: "100%", padding: 10, borderRadius: 8, border: "1px solid #ddd" }} />
+              </div>
+
+              <div style=${{ display: "flex", gap: 12 }}>
+                <button className="btn btn-secondary" style=${{ flex: 1, padding: 12, borderRadius: 8, border: "none", cursor: "pointer" }} onClick=${function () { setCloseShiftModalOpen(false); }}>Hủy</button>
+                <button className="btn btn-danger" style=${{ flex: 1, padding: 12, background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer" }} onClick=${function () {
+                  const closingCash = Number(document.getElementById("closing-cash-input").value) || 0;
+                  fetch("/api/shifts/end", {
+                    method: "POST",
+                    body: JSON.stringify({ closingCash: closingCash })
+                  }).then(function (res) { return res.json(); })
+                    .then(function (data) {
+                      if (data.ok) {
+                        setActiveShift(null);
+                        setCloseShiftModalOpen(false);
+                        pushToast("success", "Đã chốt ca thành công. Thu ngân đã bàn giao két.");
+                        handleLogout(true);
+                      }
+                    });
+                }}>Xác nhận Chốt ca</button>
+              </div>
+            </div>
+          </div>
+        ` : null}
 
         <!-- Toast stack — fixed bottom-right, stacks vertically, auto-dismiss -->
         <div
