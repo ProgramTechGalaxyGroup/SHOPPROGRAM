@@ -2863,6 +2863,7 @@
     var [dashboardCustomTo, setDashboardCustomTo] = useState("");
     var [dashboardRevenueMode, setDashboardRevenueMode] = useState("chart");
     var [dashboardTopCategory, setDashboardTopCategory] = useState("all");
+    var [dashboardCategoryMenuOpen, setDashboardCategoryMenuOpen] = useState(false);
     // POS category sidebar: which parent categories are currently expanded.
     // Object map { [parentId]: true }. Starts empty (all collapsed).
     var [expandedCategories, setExpandedCategories] = useState({});
@@ -4122,6 +4123,21 @@
     }, [paymentMenuOpen]);
 
     useEffect(function () {
+      if (!dashboardCategoryMenuOpen) {
+        return undefined;
+      }
+
+      function closeDashboardCategoryMenu() {
+        setDashboardCategoryMenuOpen(false);
+      }
+
+      window.addEventListener("click", closeDashboardCategoryMenu);
+      return function () {
+        window.removeEventListener("click", closeDashboardCategoryMenu);
+      };
+    }, [dashboardCategoryMenuOpen]);
+
+    useEffect(function () {
       return function () {
         stopCameraScan();
       };
@@ -4460,14 +4476,36 @@
       // Top selling products in range. Category filter is display-only and
       // keeps revenue/order totals untouched.
       var byProduct = {};
+      var productById = {};
+      var productByCode = {};
+      var productByName = {};
+      products.forEach(function (product) {
+        if (!product) return;
+        if (product.id) productById[String(product.id)] = product;
+        [product.barcode, product.skuCode, product.sku_code].forEach(function (code) {
+          var normalizedCode = String(code || "").trim().toLowerCase();
+          if (normalizedCode) productByCode[normalizedCode] = product;
+        });
+        var normalizedName = normalizeSearchText(product.name);
+        if (normalizedName && !productByName[normalizedName]) productByName[normalizedName] = product;
+      });
+      function resolveDashboardProduct(item) {
+        var productId = item && (item.productId || item.product_id);
+        if (productId && productById[String(productId)]) return productById[String(productId)];
+        var itemCode = String((item && (item.barcode || item.skuCode || item.sku_code)) || "").trim().toLowerCase();
+        if (itemCode && productByCode[itemCode]) return productByCode[itemCode];
+        var itemName = normalizeSearchText(item && (item.name || item.productName || item.product_name));
+        if (itemName && productByName[itemName]) return productByName[itemName];
+        return null;
+      }
       paidSalesInRange.forEach(function (s) {
         (s.items || []).forEach(function (it) {
-          var key = it.productId || it.name;
-          var product = products.find(function (p) { return p.id === it.productId; });
+          var product = resolveDashboardProduct(it);
+          var key = (product && product.id) || it.productId || it.product_id || it.barcode || it.name;
           var productCategory = product && product.category;
           if (!categoryMatchesSelected(productCategory, dashboardTopCategory, categories)) return;
           if (!byProduct[key]) byProduct[key] = {
-            name: it.name,
+            name: (product && product.name) || it.name || it.productName || it.product_name || "",
             qty: 0,
             revenue: 0,
             image: product && (product.imageIcon || product.image || product.imageUrl),
@@ -9816,9 +9854,10 @@
         { id: "year",   label: "Theo năm / Yearly" },
         { id: "custom", label: "Tùy chọn / Custom" }
       ];
-      var topCategoryOptions = [FILTER_ALL_CATEGORY].concat((categories || []).filter(function (category) {
-        return !category.parentId;
-      }));
+      var topCategoryOptions = filterCategories;
+      var activeTopCategory = topCategoryOptions.find(function (category) {
+        return category.id === dashboardTopCategory;
+      }) || FILTER_ALL_CATEGORY;
       function renderDelta(value) {
         var positive = Number(value) >= 0;
         return html`<span className=${"dashboard-delta " + (positive ? "is-up" : "is-down")}>
@@ -9967,14 +10006,39 @@
                 <div>
                   <h2 className="section-title">${L("Sản phẩm bán chạy / Best Sellers")}</h2>
                 </div>
-                <label className="dashboard-category-filter">
+                <div className="dashboard-category-filter" onClick=${function (event) { event.stopPropagation(); }}>
                   <span>${L("Danh mục / Category")}</span>
-                  <select value=${dashboardTopCategory} onChange=${function (event) { setDashboardTopCategory(event.target.value); }}>
-                    ${topCategoryOptions.map(function (category) {
-                      return html`<option key=${category.id} value=${category.id}>${L(category.label)}</option>`;
-                    })}
-                  </select>
-                </label>
+                  <button
+                    type="button"
+                    className="dashboard-category-trigger"
+                    onClick=${function () { setDashboardCategoryMenuOpen(!dashboardCategoryMenuOpen); }}
+                  >
+                    <span>${L(activeTopCategory.label)}</span>
+                    <b>▾</b>
+                  </button>
+                  ${dashboardCategoryMenuOpen ? html`
+                    <div className="dashboard-category-menu">
+                      ${topCategoryOptions.map(function (category) {
+                        var isActive = category.id === dashboardTopCategory;
+                        return html`
+                          <button
+                            key=${category.id}
+                            type="button"
+                            className=${"dashboard-category-option" + (isActive ? " is-active" : "")}
+                            style=${{ paddingLeft: (12 + Number(category._depth || 0) * 16) + "px" }}
+                            onClick=${function () {
+                              setDashboardTopCategory(category.id);
+                              setDashboardCategoryMenuOpen(false);
+                            }}
+                          >
+                            <span>${isActive ? "✓" : ""}</span>
+                            <strong>${L(category.label)}</strong>
+                          </button>
+                        `;
+                      })}
+                    </div>
+                  ` : null}
+                </div>
               </div>
               ${dashboardMetrics.topProducts.length ? html`
                 <div className="dashboard-product-podium">
