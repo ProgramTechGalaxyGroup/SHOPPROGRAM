@@ -146,7 +146,7 @@
   repairKnownLocalPaymentIssues();
 
   // Bump this version to force a full re-sync for all clients when data structure changes
-  var CACHE_VERSION = 9;
+  var CACHE_VERSION = 10;
   if (window.localStorage && window.localStorage.getItem("shopflow-cache-version") !== String(CACHE_VERSION)) {
     window.localStorage.removeItem("shopflow-last-sync-at");
     window.localStorage.removeItem("shopflow-categories");
@@ -3750,7 +3750,8 @@
           });
         }
 
-        if (Array.isArray(data.recentSales) && data.recentSales.length) {
+        if (Array.isArray(data.recentSales)) {
+          var isFullSalesSnapshot = Number(data.since) === 0;
           var cancelledSaleIdsForDashboard = new Set();
           var cancelledOrderIdsForDashboard = new Set();
           data.recentSales.forEach(function (row) {
@@ -3762,7 +3763,14 @@
           setSales(function (current) {
             var byId = {};
             current.forEach(function (s) {
-              if (!isKnownTechnicalTestSale(s)) byId[s.id] = s;
+              var sale = normalizeSaleRecord(s);
+              var syncStatus = String(sale.syncStatus || sale.sync_status || "").toLowerCase();
+              if (isKnownTechnicalTestSale(sale)) return;
+              // A full pull is authoritative for server-synced sales. If a
+              // row was hard-deleted in the database, do not let localStorage
+              // keep counting it in dashboard revenue.
+              if (isFullSalesSnapshot && isServerSaleRecord(sale) && syncStatus === "synced") return;
+              byId[sale.id] = sale;
             });
             data.recentSales.filter(function (row) {
               return !isKnownTechnicalTestSale(row) && row.order_status === "completed";
