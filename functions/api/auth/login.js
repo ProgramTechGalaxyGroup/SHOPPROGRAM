@@ -53,7 +53,7 @@ export const onRequestPost = async ({ request, env }) => {
   const headers = new Headers();
   headers.append(
     "Set-Cookie",
-    `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; Max-Age=${SESSION_MAX_AGE_SECONDS}; SameSite=Lax`
+    `session_token=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; Max-Age=${SESSION_MAX_AGE_SECONDS}; SameSite=None`
   );
 
   return json({

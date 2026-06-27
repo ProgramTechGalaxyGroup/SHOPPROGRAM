@@ -9,6 +9,33 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Credentials": "true",
 };
 
+function isAllowedCorsOrigin(origin) {
+  if (!origin) return false;
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== "https:" && url.hostname !== "localhost" && url.hostname !== "127.0.0.1") {
+      return false;
+    }
+    if (url.hostname === "localhost" || url.hostname === "127.0.0.1") return true;
+    if (url.hostname === "shopprogram.pages.dev") return true;
+    if (url.hostname === "oriafarm-purchase.pages.dev") return true;
+    if (url.hostname.startsWith("oriafarm-purchase.") && url.hostname.endsWith(".workers.dev")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function corsHeadersForRequest(request) {
+  const origin = request.headers.get("Origin") || "";
+  const headers = { ...CORS_HEADERS };
+  if (isAllowedCorsOrigin(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+    headers["Vary"] = "Origin";
+  }
+  return headers;
+}
+
 function isAuthorized(role, path, method) {
   if (role === "admin") return true;
 
@@ -108,9 +135,10 @@ function sanitizeCosts(obj) {
 
 export const onRequest = async (context) => {
   const { request, next } = context;
+  const corsHeaders = corsHeadersForRequest(request);
 
   if (request.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: CORS_HEADERS });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   // Initialize context data
@@ -140,7 +168,7 @@ export const onRequest = async (context) => {
         {
           status: 401,
           headers: {
-            ...CORS_HEADERS,
+            ...corsHeaders,
             "Content-Type": "application/json; charset=utf-8",
           },
         }
@@ -155,7 +183,7 @@ export const onRequest = async (context) => {
         {
           status: 403,
           headers: {
-            ...CORS_HEADERS,
+            ...corsHeaders,
             "Content-Type": "application/json; charset=utf-8",
           },
         }
@@ -190,7 +218,7 @@ export const onRequest = async (context) => {
     }
 
     const headers = new Headers(response.headers);
-    for (const [k, v] of Object.entries(CORS_HEADERS)) {
+    for (const [k, v] of Object.entries(corsHeaders)) {
       headers.set(k, v);
     }
     return new Response(response.body, {
@@ -207,7 +235,7 @@ export const onRequest = async (context) => {
       {
         status: 500,
         headers: {
-          ...CORS_HEADERS,
+          ...corsHeaders,
           "Content-Type": "application/json; charset=utf-8",
         },
       }

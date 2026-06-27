@@ -118,11 +118,18 @@
     var init = opts || {};
     return fetch((apiBase || "/api") + path, {
       method: init.method || "GET",
+      credentials: "include",
       headers: init.body ? { "Content-Type": "application/json" } : {},
       body: init.body ? JSON.stringify(init.body) : undefined,
     }).then(function (res) {
       return res.json().then(function (data) {
         if (!res.ok || data.ok === false) {
+          if (res.status === 401) {
+            throw new Error("Chưa đăng nhập POS chính. Mở shopprogram.pages.dev, đăng nhập rồi quay lại phiếu nhập hàng.");
+          }
+          if (res.status === 403) {
+            throw new Error("Tài khoản hiện tại chưa có quyền nhập hàng.");
+          }
           throw new Error((data && data.error) || "Không gọi được API");
         }
         return data;
