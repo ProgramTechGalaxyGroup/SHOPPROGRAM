@@ -73,6 +73,13 @@
           var err = new Error((data && data.error) || ("HTTP " + res.status));
           err.status = res.status;
           err.data = data;
+          if (res.status === 401) {
+            emit("authExpired", {
+              endpoint: path,
+              status: res.status,
+              error: err.message
+            });
+          }
           throw err;
         }
         return data;
@@ -85,7 +92,7 @@
   // pulled   — fires on every successful /sync/pull (delta or full snapshot)
   // success  — fires when an outbox op confirms 200 OK; payload = {endpoint, opType, body, response}
   // failure  — fires when an outbox op fails 4xx/5xx/network; payload = {endpoint, opType, body, error}
-  var listeners = { status: [], pulled: [], success: [], failure: [] };
+  var listeners = { status: [], pulled: [], success: [], failure: [], authExpired: [] };
   function emit(type, payload) {
     (listeners[type] || []).forEach(function (fn) {
       try { fn(payload); } catch (_) {}
@@ -222,6 +229,13 @@
       return data;
     }).catch(function (err) {
       setStatus({ lastError: err && err.message ? err.message : String(err) });
+      if (err && err.status === 401) {
+        emit("authExpired", {
+          endpoint: "/sync/pull",
+          status: err.status,
+          error: err.message || "Unauthorized"
+        });
+      }
       throw err;
     });
   }
@@ -245,6 +259,7 @@
     if (opts.onStatusChange)  listeners.status.push(opts.onStatusChange);
     if (opts.onSuccess)       listeners.success.push(opts.onSuccess);
     if (opts.onFailure)       listeners.failure.push(opts.onFailure);
+    if (opts.onAuthExpired)   listeners.authExpired.push(opts.onAuthExpired);
 
     window.addEventListener("online", function () {
       setStatus({ online: true });

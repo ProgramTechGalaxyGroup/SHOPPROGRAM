@@ -2651,19 +2651,33 @@
     var [shiftError, setShiftError] = useState("");
     var [closingShift, setClosingShift] = useState(false);
     var sessionWarningShownRef = useRef(false);
+    var sessionExpiredHandledRef = useRef(false);
+    var SESSION_ACTIVE_KEY = "shopflow-session-active";
+    var SESSION_EXPIRED_MESSAGE = L("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục. / Session expired. Please log in again to continue.");
 
     function handleSessionExpired(message) {
+      if (sessionExpiredHandledRef.current) return;
+      sessionExpiredHandledRef.current = true;
+      try { window.localStorage.removeItem(SESSION_ACTIVE_KEY); } catch (error) {}
+      fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(function () {});
       setCurrentUser(null);
       setActiveShift(null);
       setClosingShift(false);
-      setLoginError(message || L("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục đồng bộ. / Session expired. Please log in again to continue syncing."));
-      pushToast("error", L("Phiên đăng nhập đã hết hạn — vui lòng đăng nhập lại. / Session expired — please log in again."));
+      setActiveView("pos");
+      setLoginError(message || SESSION_EXPIRED_MESSAGE);
+      pushToast("error", L("Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại để tiếp tục. / Session expired. Please log in again."));
     }
 
     function applySessionUser(user) {
       if (!user) return;
+      sessionExpiredHandledRef.current = false;
+      try { window.localStorage.setItem(SESSION_ACTIVE_KEY, "1"); } catch (error) {}
       setCurrentUser(user);
       var expiresAt = Number(user.expiresAt || 0);
+      if (expiresAt && expiresAt <= Date.now()) {
+        handleSessionExpired(SESSION_EXPIRED_MESSAGE);
+        return;
+      }
       if (expiresAt) {
         var remainingMs = expiresAt - Date.now();
         if (remainingMs > 0 && remainingMs < 30 * 60 * 1000 && !sessionWarningShownRef.current) {
@@ -2700,6 +2714,8 @@
     }
 
     useEffect(function () {
+      var hadSessionBefore = false;
+      try { hadSessionBefore = window.localStorage.getItem(SESSION_ACTIVE_KEY) === "1"; } catch (error) {}
       fetch("/api/auth/me", { credentials: "include" })
         .then(function (res) {
           if (res.ok) {
@@ -2709,6 +2725,9 @@
               }
               setAuthLoading(false);
             });
+          }
+          if (hadSessionBefore) {
+            handleSessionExpired(SESSION_EXPIRED_MESSAGE);
           }
           setAuthLoading(false);
         })
@@ -2728,6 +2747,18 @@
 
     useEffect(function () {
       if (!currentUser) return undefined;
+      var expiryTimer = null;
+      var expiresAt = Number(currentUser.expiresAt || 0);
+      if (expiresAt) {
+        var remainingMs = expiresAt - Date.now();
+        if (remainingMs <= 0) {
+          handleSessionExpired(SESSION_EXPIRED_MESSAGE);
+          return undefined;
+        }
+        expiryTimer = window.setTimeout(function () {
+          handleSessionExpired(SESSION_EXPIRED_MESSAGE);
+        }, remainingMs + 500);
+      }
       var timer = window.setInterval(function () {
         checkSessionStatus({ silent: false });
       }, 5 * 60 * 1000);
@@ -2740,6 +2771,7 @@
       window.addEventListener("focus", onFocus);
       document.addEventListener("visibilitychange", onVisibilityChange);
       return function () {
+        if (expiryTimer) window.clearTimeout(expiryTimer);
         window.clearInterval(timer);
         window.removeEventListener("focus", onFocus);
         document.removeEventListener("visibilitychange", onVisibilityChange);
@@ -2770,10 +2802,11 @@
           return res.json().then(function (data) {
             setLoginSubmitting(false);
             if (res.ok && data.ok && data.user) {
-              setCurrentUser(data.user);
+              applySessionUser(data.user);
               setActiveView(getFirstAllowedView(data.user.role));
               setLoginEmail("");
               setLoginPassword("");
+              setLoginError("");
               window.setTimeout(function () {
                 if (window.ShopFlowSync && typeof window.ShopFlowSync.flush === "function") {
                   window.ShopFlowSync.flush().catch(function () {});
@@ -2797,16 +2830,22 @@
       }
       fetch("/api/auth/logout", { method: "POST", credentials: "include" })
         .then(function () {
+          try { window.localStorage.removeItem(SESSION_ACTIVE_KEY); } catch (error) {}
+          sessionExpiredHandledRef.current = false;
           setCurrentUser(null);
           setActiveView("pos");
           setActiveShift(null);
           setClosingShift(false);
+          setLoginError("");
         })
         .catch(function () {
+          try { window.localStorage.removeItem(SESSION_ACTIVE_KEY); } catch (error) {}
+          sessionExpiredHandledRef.current = false;
           setCurrentUser(null);
           setActiveView("pos");
           setActiveShift(null);
           setClosingShift(false);
+          setLoginError("");
         });
     }
 
@@ -3987,6 +4026,9 @@
         onStatusChange: handleStatus,
         onSuccess: handleSuccess,
         onFailure: handleFailure,
+        onAuthExpired: function () {
+          handleSessionExpired(SESSION_EXPIRED_MESSAGE);
+        },
       });
       return undefined;
     }, []);
