@@ -2515,6 +2515,8 @@
     var [isModalOpen, setIsModalOpen] = useState(false);
     var [customerName, setCustomerName] = useState("");
     var [customerPhone, setCustomerPhone] = useState("");
+    var [orderType, setOrderType] = useState("takeaway"); // takeaway, delivery
+    var [deliveryAddress, setDeliveryAddress] = useState("");
     var [paymentMethod, setPaymentMethod] = useState("cash");
     var [successOrderId, setSuccessOrderId] = useState("");
 
@@ -2561,34 +2563,53 @@
       var fullCustomerName = cName;
       if (customerPhone) fullCustomerName += " (" + customerPhone + ")";
 
+      if (orderType === "delivery" && !deliveryAddress.trim()) {
+        props.pushToast("error", "Vui lòng nhập địa chỉ giao hàng.");
+        return;
+      }
+
       var payload = {
         clientOpId: "kiosk-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
         id: genId,
         customerName: fullCustomerName,
+        customerPhone: customerPhone,
+        deliveryAddress: deliveryAddress,
+        orderType: orderType || "takeaway",
         subtotal: total,
         total: total,
         paymentMethod: paymentMethod,
-        paymentStatus: "unpaid",
-        orderStatus: "held", // Using held status to allow Kitchen/Barista prep logic based on our recent fix
-        note: JSON.stringify({ prepStatus: "pending" }), // Workaround for Barista screen
         items: cart
       };
       
       setIsModalOpen(false);
       
-      syncApi("/sales", { method: "POST", body: payload }).then(function(res) {
-        setCart([]);
-        setCustomerName("");
-        setCustomerPhone("");
-        setSuccessOrderId(genId + " - " + fullCustomerName);
-        setViewState("success");
-        
-        setTimeout(function() {
-          setViewState("welcome");
-        }, 5000);
-      }).catch(function(err) {
-        props.pushToast("error", "Lỗi gửi đơn: " + err);
-      });
+      if (props.isPublic) {
+        fetch("/api/public/order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }).then(function(res) { return res.json(); }).then(function(data) {
+          if (!data.ok) throw new Error(data.error || "Failed");
+          setCart([]); setCustomerName(""); setCustomerPhone(""); setDeliveryAddress(""); setOrderType("takeaway");
+          setSuccessOrderId(genId + " - " + fullCustomerName);
+          setViewState("success");
+          setTimeout(function() { setViewState("welcome"); }, 5000);
+        }).catch(function(err) {
+          props.pushToast("error", "Lỗi gửi đơn: " + err.message);
+        });
+      } else {
+        payload.paymentStatus = "unpaid";
+        payload.orderStatus = "held";
+        payload.note = JSON.stringify({ prepStatus: "pending" });
+        syncApi("/sales", { method: "POST", body: payload }).then(function(res) {
+          setCart([]); setCustomerName(""); setCustomerPhone(""); setOrderType("takeaway");
+          setSuccessOrderId(genId + " - " + fullCustomerName);
+          setViewState("success");
+          setTimeout(function() { setViewState("welcome"); }, 5000);
+        }).catch(function(err) {
+          props.pushToast("error", "Lỗi gửi đơn: " + err);
+        });
+      }
     }
 
     var activeProducts = (props.products || []).filter(function(p) { return p.is_active !== false && p.is_active !== 0; });
@@ -2656,13 +2677,28 @@
         ${viewState === "welcome" ? html`
           <div className="kiosk-welcome">
             <div className="kiosk-welcome-bg"></div>
-            <div className="kiosk-welcome-content">
+            <div className="kiosk-welcome-content" style=${{ width: "100%", maxWidth: 600, padding: 20 }}>
               <div className="kw-logo">🍋</div>
               <div className="kw-title">Fruity Corner</div>
-              <div className="kw-sub">Kiosk tự gọi món / Self-Order Kiosk</div>
-              <button className="k-btn kw-start-btn" onClick=${function() { setViewState("main"); }}>
-                Bắt đầu gọi món<br/><span style=${{ fontSize: "1.2rem", fontWeight: 500 }}>Touch to start</span>
-              </button>
+              <div className="kw-sub" style=${{ marginBottom: 40 }}>Xin chào quý khách! / Welcome!</div>
+              <div style=${{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <button className="k-btn kw-start-btn" style=${{ width: "100%", padding: "20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }} onClick=${function() { setOrderType("takeaway"); setViewState("main"); }}>
+                  <span style=${{ fontSize: "2.5rem" }}>🏪</span>
+                  <div style=${{ textAlign: "left" }}>
+                    <div style=${{ fontSize: "1.6rem", fontWeight: 800 }}>Lấy tại cửa hàng</div>
+                    <div style=${{ fontSize: "1rem", fontWeight: 500, opacity: 0.9 }}>Dine-in / Takeaway</div>
+                  </div>
+                </button>
+                ${props.isPublic ? html`
+                  <button className="k-btn kw-start-btn" style=${{ width: "100%", padding: "20px", background: "#fff", color: "#eb5e10", border: "2px solid #eb5e10", display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }} onClick=${function() { setOrderType("delivery"); setViewState("main"); }}>
+                    <span style=${{ fontSize: "2.5rem" }}>🛵</span>
+                    <div style=${{ textAlign: "left" }}>
+                      <div style=${{ fontSize: "1.6rem", fontWeight: 800 }}>Giao hàng tận nơi</div>
+                      <div style=${{ fontSize: "1rem", fontWeight: 500, opacity: 0.9 }}>Delivery</div>
+                    </div>
+                  </button>
+                ` : null}
+              </div>
             </div>
           </div>
         ` : null}
@@ -2793,6 +2829,29 @@
                     <input className="k-input" type="text" placeholder="09xxxx..." value=${customerPhone} onInput=${function(e) { setCustomerPhone(e.target.value); }} />
                   </div>
                 </div>
+                ${orderType === "delivery" ? html`
+                  <div style=${{ display: "flex", flexDirection: "column", marginBottom: 12 }}>
+                    <label style=${{ fontSize: "0.95rem", fontWeight: 700, marginBottom: 6, color: "#1a1a1a" }}>Địa chỉ giao hàng (*Bắt buộc)</label>
+                    <div style=${{ display: "flex", gap: 8 }}>
+                      <input className="k-input" style=${{ flex: 1 }} type="text" placeholder="Số nhà, tên đường..." value=${deliveryAddress} onInput=${function(e) { setDeliveryAddress(e.target.value); }} />
+                      <button className="k-btn" style=${{ background: "#f0ebe1", color: "#eb5e10", border: "1px solid #eb5e10", borderRadius: 12, padding: "0 16px", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }} onClick=${function() {
+                        if (navigator.geolocation) {
+                          navigator.geolocation.getCurrentPosition(function(position) {
+                            var lat = position.coords.latitude;
+                            var lon = position.coords.longitude;
+                            setDeliveryAddress("https://maps.google.com/?q=" + lat + "," + lon);
+                          }, function() {
+                            props.pushToast("error", "Không thể lấy vị trí. Vui lòng bật định vị.");
+                          });
+                        } else {
+                          props.pushToast("error", "Trình duyệt không hỗ trợ định vị.");
+                        }
+                      }}>
+                        📍 Lấy vị trí
+                      </button>
+                    </div>
+                  </div>
+                ` : null}
                 <div style=${{ display: "flex", flexDirection: "column" }}>
                   <label style=${{ fontSize: "0.95rem", fontWeight: 700, marginBottom: 6, color: "#1a1a1a" }}>Phương thức thanh toán / Payment</label>
                   <div style=${{ display: "flex", gap: 12 }}>
@@ -13542,7 +13601,68 @@
     `;
   }
 
-  var appElement = html`<${App} />`;
+  function PublicKioskWrapper() {
+    var [catalog, setCatalog] = useState({ categories: [], products: [], addOns: [] });
+    var [loading, setLoading] = useState(true);
+    var [toasts, setToasts] = useState([]);
+    
+    function pushToast(kind, text) {
+      var id = "t-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6);
+      setToasts(function (cur) { return cur.concat([{ id: id, kind: kind, text: text, ts: Date.now() }]); });
+      window.setTimeout(function () {
+        setToasts(function (cur) { return cur.filter(function (t) { return t.id !== id; }); });
+      }, 3500);
+    }
+
+    useEffect(function() {
+      fetch("/api/public/catalog")
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data.ok) {
+            setCatalog(data);
+          } else {
+            pushToast("error", "Lỗi tải dữ liệu: " + data.error);
+          }
+          setLoading(false);
+        })
+        .catch(function(err) {
+          pushToast("error", "Lỗi mạng: " + err);
+          setLoading(false);
+        });
+    }, []);
+
+    if (loading) {
+      return html`<div style=${{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f7f3ec", fontSize: "1.5rem", fontWeight: 700 }}>Đang tải thực đơn...</div>`;
+    }
+
+    return html`
+      <div style=${{ height: "100vh", width: "100vw", overflow: "hidden" }}>
+        <${KioskView} 
+          isPublic=${true} 
+          categories=${catalog.categories} 
+          products=${catalog.products} 
+          addOns=${catalog.addOns} 
+          pushToast=${pushToast} 
+        />
+        <div style=${{ position: "fixed", bottom: 18, right: 18, zIndex: 9999, display: "flex", flexDirection: "column", gap: 8, pointerEvents: "none" }}>
+          ${toasts.map(function (t) {
+            var bg = t.kind === "error" ? "#fde2e0" : t.kind === "success" ? "#e6f7ea" : "#fff8e0";
+            var bd = t.kind === "error" ? "#c0392b" : t.kind === "success" ? "#1f8a3a" : "#a47218";
+            var icon = t.kind === "error" ? "⚠" : t.kind === "success" ? "✓" : "ℹ";
+            return html`
+              <div key=${t.id} style=${{ background: bg, color: bd, border: "1px solid " + bd, borderLeft: "4px solid " + bd, borderRadius: 10, padding: "10px 14px", fontWeight: 600, fontSize: 13, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 220, maxWidth: 360, display: "flex", gap: 8, alignItems: "center" }}>
+                <span style=${{ fontSize: 16 }}>${icon}</span>
+                <span>${t.text}</span>
+              </div>
+            `;
+          })}
+        </div>
+      </div>
+    `;
+  }
+
+  var isPublicMode = window.location.hostname.startsWith("order") || new URLSearchParams(window.location.search).get("mode") === "order" || window.location.pathname.startsWith("/order");
+  var appElement = isPublicMode ? html`<${PublicKioskWrapper} />` : html`<${App} />`;
 
   if (window.ReactDOM.createRoot) {
     window.ReactDOM.createRoot(root).render(appElement);

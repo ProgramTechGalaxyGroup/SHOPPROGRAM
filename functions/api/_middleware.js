@@ -132,8 +132,8 @@ export const onRequest = async (context) => {
   const url = new URL(request.url);
   const path = url.pathname;
 
-  // 3. Exclude public authentication and health routes from validation
-  const isPublicRoute = path.startsWith("/api/auth/") || path === "/api/health";
+  // 3. Exclude public authentication, health, and public catalog/order routes from validation
+  const isPublicRoute = path.startsWith("/api/auth/") || path === "/api/health" || path.startsWith("/api/public/");
   if (!isPublicRoute) {
     if (!context.data.user) {
       return new Response(
