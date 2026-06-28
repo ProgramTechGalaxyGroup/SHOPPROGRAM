@@ -35,7 +35,7 @@ export const onRequestGet = async ({ env }) => {
           category_id: c.id,
           price: 25000 + (i * 5000),
           stock: (i % 3 === 0) ? 0 : 50, // Some are sold out
-          inventory_mode: "tracked"
+          inventory_mode: "stock"
         });
         pCount++;
       }
