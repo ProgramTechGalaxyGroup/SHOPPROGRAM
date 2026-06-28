@@ -13661,7 +13661,8 @@
     `;
   }
 
-  var appElement = html`<${PublicKioskWrapper} />`;
+  var isPublicMode = window.location.hostname.startsWith("order") || new URLSearchParams(window.location.search).get("mode") === "order" || window.location.pathname.startsWith("/order");
+  var appElement = isPublicMode ? html`<${PublicKioskWrapper} />` : html`<${App} />`;
 
   if (window.ReactDOM.createRoot) {
     window.ReactDOM.createRoot(root).render(appElement);
