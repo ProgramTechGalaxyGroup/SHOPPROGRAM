@@ -1,7 +1,7 @@
 import {
   json, readJson, badRequest, now, uid, dateKey,
   isDuplicateOp, recordOpStmt, runIdempotentBatch, nextDocId,
-  inventoryDeltaStmt, movementStmt, getProductCost,
+  inventoryDeltaStmt, movementStmt,
   ensureProductsInventoryModeColumn, ensureComponentsInventoryColumns,
   ensureSalesStorageCompatibility,
   normalizePaymentMethod, normalizeStockQty,
@@ -125,9 +125,16 @@ export const onRequestGet = async ({ env, request }) => {
 //   }
 // Atomic: sales + sale_items + stock_movements (SALE) + inventory delta.
 export const onRequestPost = async ({ env, request, data }) => {
-  await ensureProductsInventoryModeColumn(env.DB);
-  await ensureComponentsInventoryColumns(env.DB);
-  await ensureSalesStorageCompatibility(env.DB);
+  // D1 can cheaply self-heal schema during local/dev use. In production
+  // Supabase each .run/.first is a network subrequest; running ALTER/PRAGMA
+  // checks inside checkout can exceed Cloudflare's per-invocation limit for
+  // real bills. Supabase schema is managed by migrations, so keep the hot
+  // checkout path focused on the sale itself.
+  if (!env.DB || env.DB.__provider !== "supabase") {
+    await ensureProductsInventoryModeColumn(env.DB);
+    await ensureComponentsInventoryColumns(env.DB);
+    await ensureSalesStorageCompatibility(env.DB);
+  }
   const body = await readJson(request);
 
   if (body && body.repairStatusOnly) {
@@ -268,7 +275,7 @@ export const onRequestPost = async ({ env, request, data }) => {
   if (productIds.length > 0) {
     const placeholders = productIds.map(() => "?").join(",");
     const sql = `
-      SELECT p.id, p.price, p.component_ids, p.inventory_mode, p.unit
+      SELECT p.id, p.name, p.price, p.cost_price, p.component_ids, p.inventory_mode, p.unit
       FROM products p
       WHERE p.id IN (${placeholders})
     `;
@@ -342,27 +349,31 @@ export const onRequestPost = async ({ env, request, data }) => {
   }
 
   if (isCompleted && !body.allowNegativeStock) {
-    const productChecks = await Promise.all(
-      [...requiredByProduct.keys()].map((pid) =>
-        env.DB.prepare(
-          `SELECT p.name, COALESCE(i.qty_on_hand, 0) AS stock
-           FROM products p LEFT JOIN inventory i ON i.product_id = p.id
-           WHERE p.id = ?`
-        ).bind(pid).first()
-      )
-    );
-    const componentChecks = await Promise.all(
-      [...requiredByComponent.keys()].map((componentId) =>
-        env.DB.prepare(
-          `SELECT label AS name, COALESCE(stock_qty, 0) AS stock,
-                  COALESCE(is_unlimited_stock, 0) AS is_unlimited_stock
-           FROM components WHERE id = ?`
-        ).bind(componentId).first()
-      )
-    );
+    const productStockMap = new Map();
+    const requiredProductIds = [...requiredByProduct.keys()];
+    if (requiredProductIds.length) {
+      const placeholders = requiredProductIds.map(() => "?").join(",");
+      const { results } = await env.DB.prepare(
+        `SELECT p.id, p.name, COALESCE(i.qty_on_hand, 0) AS stock
+         FROM products p LEFT JOIN inventory i ON i.product_id = p.id
+         WHERE p.id IN (${placeholders})`
+      ).bind(...requiredProductIds).all();
+      (results || []).forEach((row) => productStockMap.set(row.id, row));
+    }
+    const componentStockMap = new Map();
+    const requiredComponentIds = [...requiredByComponent.keys()];
+    if (requiredComponentIds.length) {
+      const placeholders = requiredComponentIds.map(() => "?").join(",");
+      const { results } = await env.DB.prepare(
+        `SELECT id, label AS name, COALESCE(stock_qty, 0) AS stock,
+                COALESCE(is_unlimited_stock, 0) AS is_unlimited_stock
+         FROM components WHERE id IN (${placeholders})`
+      ).bind(...requiredComponentIds).all();
+      (results || []).forEach((row) => componentStockMap.set(row.id, row));
+    }
     const insufficient = [];
-    [...requiredByProduct.entries()].forEach(([pid, need], idx) => {
-      const row = productChecks[idx];
+    [...requiredByProduct.entries()].forEach(([pid, need]) => {
+      const row = productStockMap.get(pid);
       const have = row ? Number(row.stock) || 0 : 0;
       if (have < need) {
         insufficient.push({
@@ -373,8 +384,8 @@ export const onRequestPost = async ({ env, request, data }) => {
         });
       }
     });
-    [...requiredByComponent.entries()].forEach(([componentId, need], idx) => {
-      const row = componentChecks[idx];
+    [...requiredByComponent.entries()].forEach(([componentId, need]) => {
+      const row = componentStockMap.get(componentId);
       if (row && Number(row.is_unlimited_stock) === 1) return;
       const have = row ? Number(row.stock) || 0 : 0;
       if (have < need) {
@@ -546,12 +557,15 @@ export const onRequestPost = async ({ env, request, data }) => {
   }
 
   // Snapshot costs for gross-profit reporting.
-  const enriched = await Promise.all(body.items.map(async (it) => ({
-    ...it,
-    unitCost: it.unitCost != null
-      ? Number(it.unitCost)
-      : await getProductCost(env.DB, it.productId),
-  })));
+  const enriched = body.items.map((it) => {
+    const info = productInfoMap.get(it.productId);
+    return {
+      ...it,
+      unitCost: it.unitCost != null
+        ? Number(it.unitCost)
+        : (info ? Number(info.cost_price) || 0 : 0),
+    };
+  });
 
   const stmts = [];
   // Use SERVER-computed amounts so a tampered client can't change billing.
@@ -634,7 +648,8 @@ export const onRequestPost = async ({ env, request, data }) => {
   if (isCompleted) {
     for (const [productId, qty] of qtyByProduct.entries()) {
       if (!productId || !qty) continue;
-      const cost = await getProductCost(env.DB, productId);
+      const info = productInfoMap.get(productId);
+      const cost = info ? Number(info.cost_price) || 0 : 0;
       stmts.push(
         movementStmt(env.DB, {
           productId,
