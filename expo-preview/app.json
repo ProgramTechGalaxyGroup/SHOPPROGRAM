@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "OriaFarm POS Preview",
+    "slug": "oriafarm-pos-preview",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "../logo.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Dung camera de test quet ma vach trong POS."
+      }
+    },
+    "android": {
+      "permissions": ["CAMERA"],
+      "adaptiveIcon": {
+        "foregroundImage": "../logo.png",
+        "backgroundColor": "#fff7ec"
+      }
+    },
+    "web": {
+      "favicon": "../logo.png"
+    }
+  }
+}

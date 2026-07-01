@@ -3879,6 +3879,12 @@
           });
 
           var pulledOpenOrders = openSales.map(mapOpenSaleToOrder);
+          var pulledOpenOrderIds = new Set();
+          var pulledOpenSaleIds = new Set();
+          pulledOpenOrders.forEach(function (pulled) {
+            if (pulled.id) pulledOpenOrderIds.add(pulled.id);
+            if (pulled.reservedSaleId) pulledOpenSaleIds.add(pulled.reservedSaleId);
+          });
 
           var completedOrCancelledSaleIds = new Set();
           var completedOrCancelledOrderIds = new Set();
@@ -3891,6 +3897,24 @@
             var updatedOrders = currentOrders.filter(function (order) {
               if (order.reservedSaleId && completedOrCancelledSaleIds.has(order.reservedSaleId)) return false;
               if (completedOrCancelledOrderIds.has(order.id)) return false;
+              if (isFullSalesSnapshot) {
+                var lastSyncedStr = lastSyncedOrderStatesRef.current[order.id] || "";
+                var localStateStr = JSON.stringify(order);
+                var isDirtyLocalOrder = lastSyncedStr && localStateStr !== lastSyncedStr;
+                var isKnownServerOrder = Boolean(lastSyncedStr);
+                var isMissingFromServerOpenOrders =
+                  (!order.reservedSaleId || !pulledOpenSaleIds.has(order.reservedSaleId)) &&
+                  (!order.id || !pulledOpenOrderIds.has(order.id));
+
+                // Full pulls are authoritative for server-backed open orders.
+                // If a synced/old local order no longer exists as open on the
+                // server, remove it so completed/deleted bills cannot linger in
+                // POS or be written back from localStorage.
+                if (isKnownServerOrder && isMissingFromServerOpenOrders && !isDirtyLocalOrder) {
+                  delete lastSyncedOrderStatesRef.current[order.id];
+                  return false;
+                }
+              }
               return true;
             });
 
@@ -13845,8 +13869,8 @@
           ${activeView === "settings" ? renderSettingsView() : null}
         </main>
 
-        ${renderCompletedSaleDetailModal()}
         ${renderOrderHistoryModal()}
+        ${renderCompletedSaleDetailModal()}
 
         <!-- Toast stack — fixed bottom-right, stacks vertically, auto-dismiss -->
         <div

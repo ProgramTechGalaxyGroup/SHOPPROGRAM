@@ -26,8 +26,9 @@
   var OUTBOX_KEY    = "shopflow-outbox";
   var LAST_SYNC_KEY = "shopflow-last-sync-at";
   var SCHEMA_VERSION_KEY = "shopflow-sync-schema-version";
-  var SCHEMA_VERSION = "2026-06-19-sale-items-v2";
+  var SCHEMA_VERSION = "2026-06-28-open-order-reconcile-v1";
   var API_BASE      = "/api";
+  var FULL_PULL_INTERVAL_MS = 5 * 60 * 1000;
 
   // ---------- storage helpers ----------
   function readOutbox() {
@@ -107,6 +108,7 @@
     lastSyncAt: getLastSyncAt(),
     lastError: null,
   };
+  var lastFullPullAt = 0;
   function setStatus(patch) {
     Object.assign(state, patch || {});
     emit("status", getStatus());
@@ -222,6 +224,9 @@
   function pull(since) {
     var ts = since != null ? since : 0; // full snapshot first time
     return api("/sync/pull?since=" + ts).then(function (data) {
+      if (Number(ts) === 0) {
+        lastFullPullAt = Date.now();
+      }
       state.lastSyncAt = data.serverTime || Date.now();
       setLastSyncAt(state.lastSyncAt);
       setStatus({ lastError: null });
@@ -284,7 +289,8 @@
     // Background pull every 30s when online + flush.
     pullTimer = setInterval(function () {
       if (!state.online) return;
-      pull(state.lastSyncAt).catch(function () {});
+      var needsFullReconcile = !lastFullPullAt || (Date.now() - lastFullPullAt > FULL_PULL_INTERVAL_MS);
+      pull(needsFullReconcile ? 0 : state.lastSyncAt).catch(function () {});
       flush().catch(function () {});
     }, 30000);
 

@@ -3586,3 +3586,399 @@ button[disabled] {
     grid-template-columns: 1fr;
   }
 }
+
+/* Responsive polish: keep POS usable on tablet/mobile without touching data logic. */
+@media (max-width: 1180px) {
+  .app-shell {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .topbar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    top: 12px;
+  }
+
+  .topbar-main {
+    width: 100%;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .pos-layout {
+    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    gap: 14px;
+  }
+
+  .pos-bill-board {
+    grid-column: 1 / -1;
+  }
+
+  .pos-category-toolbar {
+    grid-column: 1;
+    grid-row: 2;
+    top: 118px;
+  }
+
+  .pos-catalog-panel {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .order-panel {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    position: static;
+    max-height: none;
+  }
+
+  .order-switcher-board {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 280px));
+  }
+
+  .order-chip-board {
+    min-height: 112px;
+  }
+
+  .pos-product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    max-height: min(62vh, 620px);
+  }
+
+  .detail-modal {
+    width: min(960px, calc(100vw - 28px));
+    max-height: calc(100dvh - 28px);
+    overflow: auto;
+  }
+}
+
+@media (max-width: 820px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .app-shell {
+    padding: 10px;
+  }
+
+  .topbar {
+    border-radius: 24px;
+    padding: 12px;
+  }
+
+  .brand-name {
+    font-size: clamp(1.6rem, 8vw, 2.15rem);
+  }
+
+  .menu-btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 16px;
+  }
+
+  .topbar-actions {
+    align-items: center;
+  }
+
+  .sync-signal,
+  .lang-switch,
+  .user-session-pill,
+  .low-stock-alert {
+    min-height: 44px;
+  }
+
+  .pos-layout,
+  .pos-layout.is-order-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .pos-bill-board,
+  .pos-category-toolbar,
+  .pos-catalog-panel,
+  .order-panel {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+
+  .pos-layout.is-order-overview .pos-bill-board {
+    min-height: auto;
+  }
+
+  .pos-category-toolbar {
+    position: static;
+    padding: 14px;
+  }
+
+  .pos-category-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .category-pill {
+    min-height: 58px;
+    padding: 12px 14px;
+  }
+
+  .pos-catalog-panel,
+  .order-panel,
+  .section-card,
+  .catalog-panel {
+    padding: 14px;
+    border-radius: 24px;
+  }
+
+  .pos-catalog-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .pos-tool-btn {
+    min-height: 50px;
+  }
+
+  .pos-product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .pos-product-card {
+    padding: 10px;
+    border-radius: 18px;
+    gap: 8px;
+    grid-template-rows: auto minmax(62px, auto) auto;
+  }
+
+  .pos-product-media {
+    border-radius: 14px;
+    aspect-ratio: 1 / 0.72;
+  }
+
+  .pos-product-copy h3 {
+    font-size: 0.82rem;
+  }
+
+  .pos-product-copy p {
+    font-size: 0.75rem;
+    -webkit-line-clamp: 2;
+  }
+
+  .pos-product-meta {
+    padding-right: 44px;
+  }
+
+  .pos-product-meta strong {
+    font-size: 0.92rem;
+  }
+
+  .pos-add-btn {
+    width: 38px;
+    height: 38px;
+    right: 10px;
+    bottom: 10px;
+    border-radius: 12px;
+    font-size: 1.55rem;
+  }
+
+  .pos-bottom-actions {
+    grid-template-columns: 1fr;
+    padding: 10px;
+  }
+
+  .order-switcher-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    overflow: visible;
+  }
+
+  .order-chip-board {
+    min-height: 112px;
+    padding: 12px;
+  }
+
+  .order-chip-board span {
+    font-size: 1rem;
+  }
+
+  .order-card-action {
+    min-height: 42px;
+    padding: 9px 10px;
+  }
+
+  .pos-status-filter {
+    gap: 7px;
+  }
+
+  .status-filter-btn {
+    min-height: 42px;
+    padding: 8px 11px;
+    font-size: 0.78rem;
+  }
+
+  .order-hero {
+    align-items: stretch;
+  }
+
+  .item-badge {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 1.05rem;
+  }
+
+  .payment-select-trigger {
+    min-height: 62px;
+    padding: 12px 62px 12px 14px;
+    border-radius: 20px;
+  }
+
+  .payment-select-icon {
+    width: 42px;
+    height: 42px;
+    right: 10px;
+  }
+
+  .payment-select-dropdown {
+    max-height: min(320px, 56dvh);
+  }
+
+  .detail-modal-backdrop {
+    padding: 10px;
+    align-items: stretch;
+  }
+
+  .detail-modal,
+  .shift-close-modal {
+    width: 100%;
+    max-height: calc(100dvh - 20px);
+    border-radius: 24px;
+    padding: 16px;
+    overflow: auto;
+  }
+
+  .detail-modal-head {
+    gap: 12px;
+  }
+
+  .detail-summary-grid,
+  .completed-sale-summary,
+  .order-history-summary,
+  .order-history-row {
+    grid-template-columns: 1fr;
+  }
+
+  .completed-sale-item,
+  .order-history-row {
+    gap: 10px;
+  }
+
+  .order-history-list {
+    max-height: 60dvh;
+  }
+
+  .dashboard-kpi-grid,
+  .dashboard-grid-main,
+  .dashboard-grid-secondary {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  input,
+  select,
+  textarea {
+    min-height: 54px;
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+
+  .topbar-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch !important;
+  }
+
+  .sync-signal {
+    width: 48px;
+    min-width: 48px;
+    justify-self: start;
+  }
+
+  .user-session-pill,
+  .low-stock-alert,
+  .lang-switch {
+    grid-column: span 2;
+    width: 100%;
+  }
+
+  .pos-category-list,
+  .pos-product-grid,
+  .order-switcher-board,
+  .quick-cash-row {
+    grid-template-columns: 1fr;
+  }
+
+  .pos-product-card {
+    grid-template-columns: 96px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: stretch;
+  }
+
+  .pos-product-media {
+    grid-row: 1 / span 2;
+    aspect-ratio: 1;
+  }
+
+  .pos-product-copy,
+  .pos-product-meta {
+    min-width: 0;
+  }
+
+  .pos-product-meta {
+    padding-right: 48px;
+  }
+
+  .order-chip-board {
+    min-height: 104px;
+  }
+
+  .button-row-main > *,
+  .cash-chip,
+  .checkout-btn {
+    min-height: 58px;
+    font-size: 0.96rem;
+  }
+
+  .pos-payment-panel {
+    inset: 8px !important;
+    width: auto !important;
+    padding: 14px;
+    border-radius: 24px;
+  }
+
+  .pos-payment-title {
+    font-size: 1rem;
+  }
+
+  .item-discount-row,
+  .payment-grid,
+  .payment-grid-single {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-range-tabs {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+}
